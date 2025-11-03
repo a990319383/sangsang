@@ -76,7 +76,9 @@ public class FieldFillUtil {
                 }
                 CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()])).join();
                 //3.4 将这些表的字段信息维护到tableFieldMap中，其中表名和字段名均转换为小写
-                datasourceTableMetas.stream().forEach(f -> tableFieldMap.put(f.getTableName().toLowerCase(), f.getColumns().stream().map(Column::getName).map(String::toLowerCase).collect(Collectors.toSet())));
+                datasourceTableMetas.stream()
+                        .filter(f -> CollectionUtils.isNotEmpty(f.getColumns()))
+                        .forEach(f -> tableFieldMap.put(f.getTableName().toLowerCase(), f.getColumns().stream().map(Column::getName).map(String::toLowerCase).collect(Collectors.toSet())));
             }
 
             //4.将本项目核心缓存TableCache中缓存表结构的信息给替换成处理之后的

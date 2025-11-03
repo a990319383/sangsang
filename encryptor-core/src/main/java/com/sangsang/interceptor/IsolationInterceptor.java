@@ -1,7 +1,6 @@
 package com.sangsang.interceptor;
 
 import com.sangsang.cache.fieldparse.TableCache;
-import com.sangsang.cache.isolation.IsolationInstanceCache;
 import com.sangsang.domain.annos.FieldInterceptorOrder;
 import com.sangsang.domain.annos.isolation.ForbidIsolation;
 import com.sangsang.domain.constants.InterceptorOrderConstant;

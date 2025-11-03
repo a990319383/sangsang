@@ -125,6 +125,13 @@ public class TransformationSelectVisitor extends BaseFieldParseTable implements 
                 orderByElement.accept(tfOrderByVisitor);
             }
         }
+
+        //6. group by
+        GroupByElement groupBy = plainSelect.getGroupBy();
+        if (groupBy != null) {
+            TransformationGroupByVisitor tfGroupByVisitor = TransformationGroupByVisitor.newInstanceCurLayer(this);
+            groupBy.accept(tfGroupByVisitor);
+        }
     }
 
     /**

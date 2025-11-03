@@ -2,6 +2,7 @@ package com.sangsang.test;
 
 import cn.hutool.cache.CacheUtil;
 import cn.hutool.cache.impl.LRUCache;
+import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.cache.transformation.TransformationInstanceCache;
 import com.sangsang.config.properties.FieldProperties;
 import com.sangsang.config.properties.TransformationProperties;
@@ -15,6 +16,7 @@ import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.statement.Statement;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -180,6 +182,51 @@ public class TransformationTest {
     //DATEDIFF
     String s24 = "SELECT DATEDIFF('2025-06-23','2025-07-25')";
 
+    //BETWEEN
+    String s25 = "select * from tb_user where role_id BETWEEN 1 and 100";
+
+    //group by
+    String s26 = "select * from tb_user where role_id BETWEEN 1 and 100 group by id,user_name";
+    //test
+    String s_test = "        SELECT\n" +
+            "\t*\n" +
+            "FROM\n" +
+            "\t(\n" +
+            "\tSELECT\n" +
+            "\t\tTMP.*,\n" +
+            "\t\tROWNUM ROW_ID\n" +
+            "\tFROM\n" +
+            "\t\t(\n" +
+            "\t\tSELECT\n" +
+            "\t\t\tso.id,\n" +
+            "\t\t\tso.name,\n" +
+            "\t\t\tso.short_name,\n" +
+            "\t\t\tso.company_type,\n" +
+            "\t\t\tso.type,\n" +
+            "\t\t\tso.sign,\n" +
+            "\t\t\tso.ext_no,\n" +
+            "\t\t\tso.province,\n" +
+            "\t\t\tso.city,\n" +
+            "\t\t\tso.status,\n" +
+            "\t\t\tso.available_date,\n" +
+            "\t\t\tso.create_time,\n" +
+            "\t\t\tsu.name creator,\n" +
+            "\t\t\tso.parent_name belongOrg\n" +
+            "\t\tFROM\n" +
+            "\t\t\tsys_org so\n" +
+            "\t\tLEFT JOIN sys_user su ON\n" +
+            "\t\t\tso.create_by = su.id\n" +
+            "\t\tWHERE\n" +
+            "\t\t\tso.del_flag = 0\n" +
+            "\t\t\tAND so.org_seq LIKE concat('%',' ?', '%')\n" +
+            "\t\t\tAND so.type = 1\n" +
+            "\t\tORDER BY\n" +
+            "\t\t\tso.create_time DESC) TMP\n" +
+            "\tWHERE\n" +
+            "\t\tROWNUM <= 20)\n" +
+            "WHERE\n" +
+            "\trow_id > 1";
+
     //带有case when
     String u1 = "update tb_user \n" +
             "set `phone` = (CASE `phone` WHEN \"1\" THEN \"18111111111\" ELSE `phone` end )\n" +
@@ -239,7 +286,7 @@ public class TransformationTest {
     @Test
     public void mysql2dmTransformation() throws JSQLParserException, NoSuchFieldException {
         //需要的sql
-        String sql = s20;
+        String sql = s26;
         System.out.println("----------------------原始sql-----------------------");
         System.out.println(sql);
         //mock数据
@@ -249,8 +296,11 @@ public class TransformationTest {
         FieldProperties fieldProperties = new FieldProperties();
         TransformationProperties transformationProperties = new TransformationProperties();
         transformationProperties.setPatternType(TransformationPatternTypeConstant.MYSQL_2_DM);
+        //测试开启强制小写转换
+        transformationProperties.setForcedLowercase(true);
         fieldProperties.setTransformation(transformationProperties);
         new TransformationInstanceCache().init(fieldProperties);
+        TableCache.init(new ArrayList<>(), fieldProperties);
 
         //开始进行语法转换
         Statement statement = JsqlparserUtil.parse(sql);

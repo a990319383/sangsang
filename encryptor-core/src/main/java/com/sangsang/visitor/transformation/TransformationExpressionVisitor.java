@@ -2,6 +2,7 @@ package com.sangsang.visitor.transformation;
 
 import com.sangsang.cache.transformation.TransformationInstanceCache;
 import com.sangsang.domain.dto.BaseFieldParseTable;
+import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.domain.dto.ColumnTransformationDto;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.util.CollectionUtils;
@@ -233,6 +234,10 @@ public class TransformationExpressionVisitor extends BaseFieldParseTable impleme
 
     @Override
     public void visit(Between between) {
+        Expression leftExpression = between.getLeftExpression();
+        //使用包装类进行转转，额外对整个Expression进行语法转换一次
+        Expression tfExpL = ExpressionWrapper.wrap(leftExpression).accept(this);
+        Optional.ofNullable(tfExpL).ifPresent(p -> between.setLeftExpression(p));
 
     }
 
@@ -390,11 +395,14 @@ public class TransformationExpressionVisitor extends BaseFieldParseTable impleme
 
     @Override
     public void visit(Column tableColumn) {
-        //1.解析当前列属于哪张表，用于区分这个是表字段还是常量
+        //1.解析当前列属于哪张表，虚拟表的也算，用于区分这个是表字段还是常量
         boolean tableFiled = JsqlparserUtil.isTableFiled(tableColumn, this.getLayer(), this.getLayerFieldTableMap());
 
-        //2.开始语法转换
-        ColumnTransformationDto columnTransformationDto = TransformationInstanceCache.transformation(new ColumnTransformationDto(tableColumn, tableFiled));
+        //2.解析这个字段是否属于真实表
+        ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn(tableColumn, this.getLayer(), this.getLayerFieldTableMap());
+
+        //3.开始语法转换
+        ColumnTransformationDto columnTransformationDto = TransformationInstanceCache.transformation(new ColumnTransformationDto(tableColumn, tableFiled, columnTableDto.isFromSourceTable()));
         if (columnTransformationDto != null) {
             //记录处理完成后的表达式
             this.expression = columnTransformationDto.getColumn();
@@ -679,7 +687,10 @@ public class TransformationExpressionVisitor extends BaseFieldParseTable impleme
 
     @Override
     public void visit(NotExpression aThis) {
-
+        Expression leftExpression = aThis.getExpression();
+        //使用包装类进行转转，额外对整个Expression进行语法转换一次
+        Expression tfExpL = ExpressionWrapper.wrap(leftExpression).accept(this);
+        Optional.ofNullable(tfExpL).ifPresent(p -> aThis.setExpression(p));
     }
 
     @Override

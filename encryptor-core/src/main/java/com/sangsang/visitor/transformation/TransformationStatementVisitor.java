@@ -87,12 +87,7 @@ public class TransformationStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Delete delete) {
-        //1.不存在where条件，不需要进行下面的解析
-        if (delete.getWhere() == null) {
-            return;
-        }
-
-        //2.解析表字段
+        //1.解析表字段
         FieldParseParseTableFromItemVisitor fpFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
         // from 后的表
         Table table = delete.getTable();
@@ -102,6 +97,13 @@ public class TransformationStatementVisitor implements StatementVisitor {
         for (Join join : joins) {
             FromItem rightItem = join.getRightItem();
             rightItem.accept(fpFromItemVisitor);
+        }
+
+        //2.将表进行转换
+        TransformationFromItemVisitor tfFromItemVisitor = TransformationFromItemVisitor.newInstanceCurLayer(fpFromItemVisitor);
+        table.accept(tfFromItemVisitor);
+        for (Join join : joins) {
+            join.getRightItem().accept(tfFromItemVisitor);
         }
 
         //3.处理where条件
@@ -127,7 +129,15 @@ public class TransformationStatementVisitor implements StatementVisitor {
             join.getRightItem().accept(fpFromItemVisitor);
         }
 
-        //2.处理where条件
+        //2.将update和join的表进行转换
+        TransformationFromItemVisitor tfFromItemVisitor = TransformationFromItemVisitor.newInstanceCurLayer(fpFromItemVisitor);
+        table.accept(tfFromItemVisitor);
+        //join的表
+        for (Join join : joins) {
+            join.getRightItem().accept(tfFromItemVisitor);
+        }
+
+        //3.处理where条件
         Expression where = update.getWhere();
         if (where != null) {
             TransformationExpressionVisitor tfExpressionVisitor = TransformationExpressionVisitor.newInstanceCurLayer(fpFromItemVisitor);
@@ -136,21 +146,21 @@ public class TransformationStatementVisitor implements StatementVisitor {
             Optional.ofNullable(tfExp).ifPresent(p -> update.setWhere(p));
         }
 
-        //3.处理set的值
+        //4.处理set的值
         List<UpdateSet> updateSets = update.getUpdateSets();
         for (UpdateSet updateSet : updateSets) {
             ExpressionList<Column> columns = updateSet.getColumns();
             ExpressionList<Expression> values = (ExpressionList<Expression>) updateSet.getValues();
             //依次处理每一对值（这里columns 和对应set的values 个数肯定是相等的）
             for (int i = 0; i < columns.size(); i++) {
-                //3.1 先对左边的Column进行语法转换
+                //4.1 先对左边的Column进行语法转换
                 //这里的column肯定是数据库的字段，所以直接传true
-                ColumnTransformationDto columnTransformationDto = new ColumnTransformationDto(columns.get(i), true);
+                ColumnTransformationDto columnTransformationDto = new ColumnTransformationDto(columns.get(i), true, true);
                 ColumnTransformationDto transformation = TransformationInstanceCache.transformation(columnTransformationDto);
                 if (transformation != null) {
                     columns.set(i, transformation.getColumn());
                 }
-                //3.2对右边的值进行语法转化
+                //4.2对右边的值进行语法转化
                 TransformationExpressionVisitor tfExpressionVisitor = TransformationExpressionVisitor.newInstanceCurLayer(fpFromItemVisitor);
                 Expression valueExp = values.get(i);
                 //使用包装类进行转转，额外对整个Expression进行语法转换一次
@@ -161,7 +171,7 @@ public class TransformationStatementVisitor implements StatementVisitor {
             }
         }
 
-        //4.处理结果赋值
+        //5.处理结果赋值
         this.resultSql = update.toString();
     }
 
@@ -181,7 +191,7 @@ public class TransformationStatementVisitor implements StatementVisitor {
         if (CollectionUtils.isNotEmpty(columns)) {
             for (int i = 0; i < columns.size(); i++) {
                 //这里的column肯定是数据库的字段，所以直接传true
-                ColumnTransformationDto columnTransformationDto = new ColumnTransformationDto(columns.get(i), true);
+                ColumnTransformationDto columnTransformationDto = new ColumnTransformationDto(columns.get(i), true, true);
                 ColumnTransformationDto transformation = TransformationInstanceCache.transformation(columnTransformationDto);
                 if (transformation != null) {
                     columns.set(i, transformation.getColumn());
@@ -189,7 +199,11 @@ public class TransformationStatementVisitor implements StatementVisitor {
             }
         }
 
-        //4.结果赋值
+        //4.处理table
+        Table table = insert.getTable();
+        table.accept(TransformationFromItemVisitor.newInstanceCurLayer(tfSelectVisitor));
+
+        //5.结果赋值
         this.resultSql = insert.toString();
 
     }
