@@ -1,1 +1,1 @@
-[FieldEncryptorInfoDto(columnName=login_name, sourceColumn=login_name, sourceTableName=tb_user, fieldEncryptor=null)]
+[{"columnName":"login_name","sourceColumn":"login_name","sourceTableName":"tb_user"}]

@@ -1,6 +1,7 @@
 package com.sangsang.domain.dto;
 
 
+import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

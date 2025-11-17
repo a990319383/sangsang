@@ -172,7 +172,7 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
     public void visit(Insert insert) {
         //1. insert 的表
         Table table = insert.getTable();
-        Map<String, FieldEncryptor> fieldEncryptMap = CollectionUtils.getValueIgnoreFloat(TableCache.getTableFieldEncryptInfo(), table.getName().toLowerCase());
+        Map<String, FieldEncryptor> fieldEncryptMap = TableCache.getTableFieldEncryptInfo().get(table.getName());
 
         //2.获取当前第几个字段是需要加密的
         // 需要加密的字段的索引
@@ -186,7 +186,7 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
 
         for (int i = 0; i < columns.size(); i++) {
             Column column = columns.get(i);
-            FieldEncryptor leftFieldEncryptor = CollectionUtils.getValueIgnoreFloat(fieldEncryptMap, column.getColumnName().toLowerCase());
+            FieldEncryptor leftFieldEncryptor = fieldEncryptMap.get(column.getColumnName());
             needEncryptFieldEncryptor.add(i, leftFieldEncryptor);
         }
 

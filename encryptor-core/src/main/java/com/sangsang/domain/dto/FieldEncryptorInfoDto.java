@@ -19,17 +19,15 @@ import lombok.NoArgsConstructor;
 public class FieldEncryptorInfoDto {
     /**
      * 字段的别名或者是原字段名
-     * 注意：这个不转换为小写，转换为小写后会影响别名的驼峰
+     * 注意：这个能不转换为小写，转换为小写后会影响别名的驼峰
      **/
     private String columnName;
     /**
      * 该字段来源自哪个字段
-     * 注意：小写
      */
     private String sourceColumn;
     /**
      * 字段取自数据库的那张表的表名
-     * 注意：小写
      */
     private String sourceTableName;
 

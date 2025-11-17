@@ -1,6 +1,9 @@
 package com.sangsang.util;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONObject;
+import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.constants.SymbolConstant;
 
 import java.util.*;
@@ -82,40 +85,6 @@ public class CollectionUtils {
         return res;
     }
 
-
-    /**
-     * 忽略 ` 和 " ，从map中获取值
-     *
-     * @author liutangqi
-     * @date 2025/5/30 11:24
-     * @Param [map, key]
-     **/
-    public static <T> T getValueIgnoreFloat(Map<String, T> map, String key) {
-        T value = map.get(key);
-        //1.找到了直接返回
-        if (value != null) {
-            return value;
-        }
-
-        //2.去除 ` 和 " 进行查询
-        if (key.startsWith(SymbolConstant.FLOAT)) {
-            return map.get(StringUtils.trim(key, SymbolConstant.FLOAT));
-        }
-        if (key.startsWith(SymbolConstant.DOUBLE_QUOTES)) {
-            return map.get(StringUtils.trim(key, SymbolConstant.DOUBLE_QUOTES));
-        }
-
-        //3.按照添加` " 的方式去查询
-        if (value == null) {
-            value = map.get(SymbolConstant.FLOAT + key.trim() + SymbolConstant.FLOAT);
-        }
-        if (value == null) {
-            value = map.get(SymbolConstant.DOUBLE_QUOTES + key.trim() + SymbolConstant.DOUBLE_QUOTES);
-        }
-        return value;
-    }
-
-
     /**
      * 从Map中获取值，获取成功后，再将该值给移除掉
      *
@@ -136,15 +105,98 @@ public class CollectionUtils {
 
 
     /**
-     * 忽略大小写，忽略` 和 " ，判断集合中中是否存在指定值
+     * pojo模式校验处理后的json数据是否相等
+     * 备注：处理JsonObject
      *
      * @author liutangqi
-     * @date 2025/8/25 14:28
-     * @Param [set, key]
+     * @date 2025/11/12 17:13
+     * @Param [sql1, sql2]
      **/
-    public static boolean containsIgnoreFieldSymbol(Collection<String> coll, String key) {
-        return coll.stream().filter(f -> StringUtils.equalIgnoreFieldSymbol(f, key))
-                .findFirst()
-                .orElse(null) != null;
+    public static boolean jsonObjectEquals(JSONObject jsonObject1, JSONObject jsonObject2) {
+        Set<Map.Entry<String, Object>> entries1 = jsonObject1.entrySet();
+        Set<Map.Entry<String, Object>> entries2 = jsonObject2.entrySet();
+        //个数不等肯定不同
+        if (entries1.size() != entries2.size()) {
+            return false;
+        }
+        for (Map.Entry<String, Object> entry : entries1) {
+            Object obj1 = entry.getValue();
+            Object obj2 = jsonObject2.get(entry.getKey());
+            //类型不同，肯定不同
+            if (!obj1.getClass().equals(obj2.getClass())) {
+                return false;
+            }
+            //都是字符串类型，用当前配置是否大小写敏感那套规则比较
+            else if (obj1 instanceof String) {
+                //一处不同则不同
+                if (!StringUtils.fieldEquals((String) obj1, (String) obj2)) {
+                    return false;
+                }
+            }
+            //都是JSONObject，则递归比较
+            else if (obj1 instanceof JSONObject) {
+                //一处不同则不同
+                if (!jsonObjectEquals((JSONObject) obj1, (JSONObject) obj2)) {
+                    return false;
+                }
+            }
+            //都是JSONArray，则递归比较
+            else if (obj1 instanceof JSONArray) {
+                if (!jsonArrayEquals((JSONArray) obj1, (JSONArray) obj2)) {
+                    return false;
+                }
+            }
+            //其它类型根据equals比较
+            else if (!Objects.equals(obj1, obj2)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    /**
+     * pojo模式校验处理后的json数据是否相等
+     * 备注：处理JsonArray
+     *
+     * @author liutangqi
+     * @date 2025/11/12 17:13
+     * @Param [sql1, sql2]
+     **/
+    public static boolean jsonArrayEquals(JSONArray jsonArray1, JSONArray jsonArray2) {
+        //长度不同，肯定不同
+        if (jsonArray1.size() != jsonArray2.size()) {
+            return false;
+        }
+
+        //按同一规则排个序(根据项目配置转换大小写，和去除关键字标识符)
+        jsonArray1.sort(Comparator.comparing(CollectionUtils::fieldComparingRule));
+        jsonArray2.sort(Comparator.comparing(CollectionUtils::fieldComparingRule));
+
+        //依次判断每一个
+        for (int i = 0; i < jsonArray1.size(); i++) {
+            if (!jsonObjectEquals(jsonArray1.getJSONObject(i), jsonArray2.getJSONObject(i))) {
+                return false;
+            }
+        }
+        //都相同，就相同
+        return true;
+    }
+
+    /**
+     * 判断结果是否正确时的排序规则
+     * 根据当前项目开启的大小写敏感和关键字标识符转换成对应的字符串
+     *
+     * @author liutangqi
+     * @date 2025/11/13 13:59
+     * @Param [obj]
+     **/
+    private static String fieldComparingRule(Object obj) {
+        String comparingStr = obj.toString();
+        if (!TableCache.getCurConfig().isCaseSensitive()) {
+            comparingStr = comparingStr.toLowerCase();
+        }
+        comparingStr = comparingStr.replaceAll(TableCache.getCurConfig().getIdentifierQuote(), SymbolConstant.BLANK);
+        return comparingStr;
     }
 }

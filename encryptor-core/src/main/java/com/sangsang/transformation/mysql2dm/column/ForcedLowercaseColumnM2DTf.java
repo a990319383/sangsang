@@ -26,7 +26,7 @@ public class ForcedLowercaseColumnM2DTf extends ColumnTransformation {
     @Override
     public ColumnTransformationDto doTransformation(ColumnTransformationDto dto) {
         Column column = dto.getColumn();
-        column.setColumnName(SymbolConstant.DOUBLE_QUOTES + column.getColumnName().toLowerCase() + SymbolConstant.DOUBLE_QUOTES);
+        column.setColumnName(SymbolConstant.DOUBLE_QUOTES + column.getColumnName() + SymbolConstant.DOUBLE_QUOTES);
         return dto;
     }
 }

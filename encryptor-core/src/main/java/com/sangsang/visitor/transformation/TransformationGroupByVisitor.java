@@ -3,6 +3,7 @@ package com.sangsang.visitor.transformation;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.util.ExpressionsUtil;
+import com.sangsang.visitor.transformation.wrap.ExpressionWrapper;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.statement.select.GroupByElement;
@@ -44,8 +45,9 @@ public class TransformationGroupByVisitor extends BaseFieldParseTable implements
         TransformationExpressionVisitor tfExpressionVisitor = TransformationExpressionVisitor.newInstanceCurLayer(this);
         List<Expression> resExpreessions = new ArrayList<>();
         for (Expression expression : groupByExpressionList) {
-            expression.accept(tfExpressionVisitor);
-            resExpreessions.add(Optional.ofNullable(tfExpressionVisitor.getExpression()).orElse(expression));
+            //使用包装类进行转转，额外对整个Expression进行语法转换一次
+            Expression tfExp = ExpressionWrapper.wrap(expression).accept(tfExpressionVisitor);
+            resExpreessions.add(Optional.ofNullable(tfExp).orElse(expression));
         }
 
         //3.处理后的表达式重新赋值

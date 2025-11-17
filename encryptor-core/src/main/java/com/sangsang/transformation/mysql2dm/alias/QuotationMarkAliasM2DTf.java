@@ -21,8 +21,8 @@ public class QuotationMarkAliasM2DTf extends AliasTransformation {
     @Override
     public Alias doTransformation(Alias alias) {
         String name = alias.getName();
-        name = StringUtils.trim(name, SymbolConstant.FLOAT);
-        name = StringUtils.trim(name, SymbolConstant.SINGLE_QUOTES);
+        name = StringUtils.trimSymbol(name, SymbolConstant.FLOAT);
+        name = StringUtils.trimSymbol(name, SymbolConstant.SINGLE_QUOTES);
         alias.setName(SymbolConstant.DOUBLE_QUOTES + name + SymbolConstant.DOUBLE_QUOTES);
         return alias;
     }

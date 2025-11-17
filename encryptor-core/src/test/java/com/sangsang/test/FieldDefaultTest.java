@@ -1,15 +1,17 @@
 package com.sangsang.test;
 
-import com.sangsang.cache.fielddefault.FieldDefaultInstanceCache;
-import com.sangsang.config.properties.FieldDefaultProperties;
+import com.sangsang.config.properties.FieldProperties;
+import com.sangsang.util.AnswerUtil;
 import com.sangsang.util.JsqlparserUtil;
+import com.sangsang.util.ReflectUtils;
+import com.sangsang.util.StringUtils;
 import com.sangsang.visitor.fielddefault.FieldDefaultStatementVisitor;
-import com.sangsang.visitor.isolation.IsolationStatementVisitor;
-import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.statement.Statement;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -86,13 +88,14 @@ public class FieldDefaultTest {
 
 
     @Test
-    public void fieldDefaultTest() throws JSQLParserException {
+    public void fieldDefaultTest() throws Exception {
+        //设置测试配置
+        FieldProperties fieldProperties = CacheTestHelper.buildTestProperties();
+        //初始化缓存
+        CacheTestHelper.testInit(fieldProperties);
+
         //需要的sql
-        String sql = u3;
-        //mock数据
-        InitTableInfo.initTable();
-        FieldDefaultInstanceCache instanceCache = new FieldDefaultInstanceCache();
-        instanceCache.init(null);
+        String sql = i1;
 
         //开始进行数据隔离
         Statement statement = JsqlparserUtil.parse(sql);
@@ -117,8 +120,80 @@ public class FieldDefaultTest {
         System.out.println(map);
         map.remove("ccc");
         System.out.println(map);
+    }
 
 
+    //----------------------------------------校验当前程序是否正确分割线---------------------------------------------------------
+    //需要测试的sql
+    List<String> sqls = Arrays.asList(
+            i1, i2, i3, i5, i6, i7,//i4,
+            u1, u2, u3
+    );
+
+
+    /**
+     * 校验设置默认值处理是否正确
+     * 哥们儿，来对答案了
+     *
+     * @author liutangqi
+     * @date 2025/6/6 15:40
+     * @Param []
+     **/
+    @Test
+    public void defaultCheck() throws Exception {
+        //设置测试配置
+        FieldProperties fieldProperties = CacheTestHelper.buildTestProperties();
+        //初始化缓存
+        CacheTestHelper.testInit(fieldProperties);
+
+        for (int i = 0; i < sqls.size(); i++) {
+            String sql = sqls.get(i);
+            //开始字段默认值设置
+            Statement statement = JsqlparserUtil.parse(sql);
+            FieldDefaultStatementVisitor fDeStatementVisitor = new FieldDefaultStatementVisitor();
+            statement.accept(fDeStatementVisitor);
+            String resultSql = fDeStatementVisitor.getResultSql();
+
+            //找答案
+            String answer = AnswerUtil.readFieldDefaultAnswerToFile(this, sql);
+            String sqlFieldName = ReflectUtils.getFieldNameByValue(this, sql);
+            if (StringUtils.isBlank(answer)) {
+                System.out.println("这个sql没答案，自己检查，然后把正确答案给录到com.sangsang.answer.standard下面 :" + sqlFieldName);
+                System.out.println("原始sql: " + sql);
+                return;
+            }
+            if (StringUtils.sqlEquals(answer, resultSql)) {
+                System.out.println("成功: " + sqlFieldName);
+            } else {
+                System.out.println("错误: " + sqlFieldName);
+                System.out.println("原始sql: " + sql);
+                System.out.println("-------------------------------------------------------");
+                System.out.println("正确答案： " + answer);
+                System.out.println("-------------------------------------------------------");
+                System.out.println("当前答案： " + resultSql);
+                return;
+            }
+        }
+    }
+
+
+//----------------------------------------写入处理好的答案分割线---------------------------------------------------------
+//-----------------标准答案存储路径：com.sangsang.answer.standard
+//-----------------此处答案输出路径：com.sangsang.answer.current
+
+    @Test
+    public void defaultAnswerWrite() throws Exception {
+        //设置测试配置
+        FieldProperties fieldProperties = CacheTestHelper.buildTestProperties();
+        //初始化缓存
+        CacheTestHelper.testInit(fieldProperties);
+
+        for (String sql : sqls) {
+            Statement statement = JsqlparserUtil.parse(sql);
+            FieldDefaultStatementVisitor fDeStatementVisitor = new FieldDefaultStatementVisitor();
+            statement.accept(fDeStatementVisitor);
+            AnswerUtil.writeFieldDefaultAnswerToFile(this, sql, fDeStatementVisitor.getResultSql());
+        }
     }
 
 }

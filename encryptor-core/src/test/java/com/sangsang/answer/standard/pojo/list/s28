@@ -1,1 +1,1 @@
-[FieldEncryptorInfoDto(columnName=`phone`, sourceColumn=phone, sourceTableName=tb_user, fieldEncryptor=@com.sangsang.domain.annos.encryptor.FieldEncryptor(value=class com.sangsang.domain.strategy.DefaultStrategyBase$EncryptorBeanStrategy)), FieldEncryptorInfoDto(columnName=user_name, sourceColumn=user_name, sourceTableName=tb_user, fieldEncryptor=null)]
+[{"columnName":"`phone`","sourceColumn":"phone","sourceTableName":"tb_user","fieldEncryptor":{}},{"columnName":"user_name","sourceColumn":"user_name","sourceTableName":"tb_user"}]

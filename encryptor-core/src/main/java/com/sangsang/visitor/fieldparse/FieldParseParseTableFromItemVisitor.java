@@ -5,7 +5,7 @@ import com.sangsang.domain.constants.FieldConstant;
 import com.sangsang.domain.constants.NumberConstant;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
-import com.sangsang.util.CollectionUtils;
+import com.sangsang.domain.wrapper.FieldHashSetWrapper;
 import com.sangsang.util.JsqlparserUtil;
 import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.schema.Table;
@@ -57,14 +57,14 @@ public class FieldParseParseTableFromItemVisitor extends BaseFieldParseTable imp
     @Override
     public void visit(Table table) {
         //1.当前表表名信息
-        String tableName = table.getName().toLowerCase();
-        String aliasTable = Optional.ofNullable(table.getAlias()).map(Alias::getName).map(String::toLowerCase).orElse(tableName);
+        String tableName = table.getName();
+        String aliasTable = Optional.ofNullable(table.getAlias()).map(Alias::getName).orElse(tableName);
 
         //2.获取当前表的全部字段信息
-        Set<FieldInfoDto> fieldInfoSet = Optional.ofNullable(CollectionUtils.getValueIgnoreFloat(TableCache.getTableFieldMap(), tableName))
-                .orElse(new HashSet<>())
+        Set<FieldInfoDto> fieldInfoSet = Optional.ofNullable(TableCache.getTableFieldMap().get(tableName))
+                .orElse(new FieldHashSetWrapper())
                 .stream()
-                .map(m -> FieldInfoDto.builder().columnName(m.toLowerCase()).sourceTableName(tableName).fromSourceTable(true).sourceColumn(m.toLowerCase()).build())
+                .map(m -> FieldInfoDto.builder().columnName(m).sourceTableName(tableName).fromSourceTable(true).sourceColumn(m).build())
                 .collect(Collectors.toSet());
 
         //3.将这些字段信息维护到 layerFieldTableMap 中
@@ -83,7 +83,7 @@ public class FieldParseParseTableFromItemVisitor extends BaseFieldParseTable imp
     public void visit(ParenthesedSelect subSelect) {
 //        int layer = this.getLayer(); 注意：这里不能使用这样写，必须用this.getLayer() 存在类似递归的操作，这里的变量layer可能是上一层的，而另外两个Map是所有层级共享的
         //0.子查询的别名，作为当前层字段的表名 某些数据库子查询不一定需要别名，这里就用FieldConstant.VIRTUAL_TABLE_ALIAS + 层数 作为别名
-        String aliasTable = Optional.ofNullable(subSelect.getAlias()).map(Alias::getName).map(String::toLowerCase).orElse(FieldConstant.VIRTUAL_TABLE_ALIAS + this.getLayer());
+        String aliasTable = Optional.ofNullable(subSelect.getAlias()).map(Alias::getName).orElse(FieldConstant.VIRTUAL_TABLE_ALIAS + this.getLayer());
 
         //1.解析子查询下一层，层数 + 1
         FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceNextLayer(this);

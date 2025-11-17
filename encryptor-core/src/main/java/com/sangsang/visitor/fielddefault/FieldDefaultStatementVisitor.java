@@ -9,6 +9,8 @@ import com.sangsang.domain.constants.NumberConstant;
 import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.dto.ColumnUniqueDto;
 import com.sangsang.domain.enums.SqlCommandEnum;
+import com.sangsang.domain.wrapper.FieldHashMapWrapper;
+import com.sangsang.domain.wrapper.FieldHashSetWrapper;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.ExpressionsUtil;
 import com.sangsang.util.JsqlparserUtil;
@@ -116,15 +118,18 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
         //2.1过滤出当前层涉及到的所有表字段上面需要设置默认值的字段信息
         Map<ColumnUniqueDto, FieldDefault> columnFieldDefaultMap = JsqlparserUtil.filterFieldDefault(fieldParseTableFromItemVisitor.getLayerFieldTableMap().get(String.valueOf(NumberConstant.ONE)),
                 SqlCommandEnum.UPDATE);
-        //2.2过滤出其中发生了字段变更的小写表名，当字段没有所属的表别名，说明只有一张表，就用update的表的小写表名
+        //2.2过滤出其中发生了字段变更的表名，当字段没有所属的表别名，说明只有一张表，就用update的表名
         List<UpdateSet> updateSets = update.getUpdateSets();
-        List<String> updateTableNames = updateSets.stream()
+        Set<String> updateTableNames = new FieldHashSetWrapper();
+        updateSets.stream()
                 .map(UpdateSet::getColumns)
                 .flatMap(Collection::stream)
-                .map(m -> Optional.ofNullable(m.getTable()).map(Table::getName).map(String::toLowerCase).orElse(table.getName().toLowerCase()))
+                .map(m -> Optional.ofNullable(m.getTable()).map(Table::getName).orElse(table.getName()))
                 .distinct()
-                .collect(Collectors.toList());
-        columnFieldDefaultMap = columnFieldDefaultMap.entrySet().stream().filter(f -> updateTableNames.contains(f.getKey().getTableAliasName())).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                .forEach(f -> updateTableNames.add(f));
+        columnFieldDefaultMap = columnFieldDefaultMap.entrySet().stream()
+                .filter(f -> updateTableNames.contains(f.getKey().getTableAliasName()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         //2.3 没有变更设置的默认值，不处理
         if (CollectionUtil.isEmpty(columnFieldDefaultMap)) {
             return;
@@ -135,8 +140,8 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
             UpdateSet updateSet = updateSets.get(i);
             //正常语法这里获取的columns只会有一个的，所以下面get(0)
             Column column = updateSet.getColumn(0);
-            //正常情况下，多表的时候column会有所属的表名，没有的话肯定只有一张表，所以肯定是set的那张表，这种情况就把set的表名小写作为字段的所属表
-            String tableName = Optional.ofNullable(column.getTable()).map(Table::getName).orElse(table.getName().toLowerCase());
+            //正常情况下，多表的时候column会有所属的表名，没有的话肯定只有一张表，所以肯定是set的那张表，这种情况就把set的表名作为字段的所属表
+            String tableName = Optional.ofNullable(column.getTable()).map(Table::getName).orElse(table.getName());
             String columnName = column.getColumnName();
             FieldDefault fieldDefault = CollectionUtils.getAndRemove(columnFieldDefaultMap, ColumnUniqueDto.builder().sourceColumn(columnName).tableAliasName(tableName).build());
 
@@ -146,11 +151,9 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
             }
 
             //3.2 标注了@FieldDefault 并且开启了强制覆盖，此时用策略的默认值替换掉原值
-            /**
-             *注意：这里不能单纯的直接覆盖，如果原sql是通过#{}传参的方式预编译设置的值的话，直接替换会导致参数个数对不上，执行报错。
-             * 如果修改参数个数的话会涉及到在拦截器层再做一次复杂的参数对应，而且容易影响到其它拦截器
-             * 所以这里采用if语句给包一层， 将原先的  set xxx= ? 改为  set xxx= if(? is null,策略默认值,策略默认值) 达到不修改参数个数替换值的目的
-             */
+            //注意：这里不能单纯的直接覆盖，如果原sql是通过#{}传参的方式预编译设置的值的话，直接替换会导致参数个数对不上，执行报错。
+            //如果修改参数个数的话会涉及到在拦截器层再做一次复杂的参数对应，而且容易影响到其它拦截器
+            //所以这里采用if语句给包一层， 将原先的  set xxx= ? 改为  set xxx= if(? is null,策略默认值,策略默认值) 达到不修改参数个数替换值的目的
             Expression strategyExp = ExpressionsUtil.buildFieldDefaultExp(fieldDefault.value());
             Function ifFunction = ExpressionsUtil.buildAffirmativeIf(updateSet.getValue(0), strategyExp);
             updateSet.setValues(new ExpressionList(ifFunction));
@@ -176,7 +179,7 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
         Table table = insert.getTable();
 
         //2.获取当前表字段需要设置默认值的字段信息
-        Map<String, FieldDefault> stringFieldDefaultMap = TableCache.getTableFieldDefaultInfo().get(table.getName().toLowerCase());
+        Map<String, FieldDefault> stringFieldDefaultMap = TableCache.getTableFieldDefaultInfo().get(table.getName());
 
         //3.不处理的场景校验
         //3.1当前insert的表不涉及维护默认值，则不做处理
@@ -202,7 +205,7 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
         Map<String, FieldDefault> cloneFieldDefaultMap = ObjectUtil.cloneByStream(stringFieldDefaultMap);
         //4.1 将现有的字段需要维护insert的标注信息维护到上面的list中
         for (Column column : columns) {
-            FieldDefault fieldDefault = CollectionUtils.getAndRemove(cloneFieldDefaultMap, column.getColumnName().toLowerCase());
+            FieldDefault fieldDefault = CollectionUtils.getAndRemove(cloneFieldDefaultMap, column.getColumnName());
             FieldDefault currentFieldDefault = Optional.ofNullable(fieldDefault).filter(f -> FieldDefaultInstanceCache.getInstance(f.value()).whetherToHandle(SqlCommandEnum.INSERT)).orElse(null);
             insertFieldDefaultColumns.add(currentFieldDefault);
         }
@@ -232,10 +235,10 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
             //6.1 过滤出需要维护update的默认值的字段
             Map<String, FieldDefault> updateFieldDefaultMap = stringFieldDefaultMap.entrySet().stream()
                     .filter(f -> f.getValue() != null && FieldDefaultInstanceCache.getInstance(f.getValue().value()).whetherToHandle(SqlCommandEnum.UPDATE))
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                    .collect(FieldHashMapWrapper::new, (map, entry) -> map.put(entry.getKey(), entry.getValue()), (map1, map2) -> map1.putAll(map2));
             //6.2 字段之前就存在，且开启了强制覆盖，则采用if的方式，覆盖掉原值
             for (int i = 0; i < duplicateUpdateSets.size(); i++) {
-                FieldDefault fieldDefault = CollectionUtils.getAndRemove(updateFieldDefaultMap, duplicateUpdateSets.get(i).getColumn(0).getColumnName().toLowerCase());
+                FieldDefault fieldDefault = CollectionUtils.getAndRemove(updateFieldDefaultMap, duplicateUpdateSets.get(i).getColumn(0).getColumnName());
                 if (fieldDefault != null && fieldDefault.mandatoryOverride()) {
                     Expression fieldDefaultExp = ExpressionsUtil.buildFieldDefaultExp(fieldDefault.value());
                     UpdateSet updateSet = duplicateUpdateSets.get(i);

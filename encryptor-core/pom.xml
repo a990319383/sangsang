@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.gitee.tired-of-the-water</groupId>
         <artifactId>field-encryptor</artifactId>
-        <version>3.5.3-alpha</version>
+        <version>3.6.0</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -20,7 +20,7 @@
         <dependency>
             <groupId>io.gitee.tired-of-the-water</groupId>
             <artifactId>encryptor-annos</artifactId>
-            <version>3.5.3-alpha</version>
+            <version>3.6.0</version>
         </dependency>
         <!--spring-boot-->
         <dependency>

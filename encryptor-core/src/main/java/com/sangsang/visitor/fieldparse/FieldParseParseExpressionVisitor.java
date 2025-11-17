@@ -5,6 +5,7 @@ import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.domain.dto.FieldInfoDto;
+import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.StringUtils;
 import net.sf.jsqlparser.expression.*;
@@ -518,7 +519,7 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
 
     /**
      * select *
-     * 当没有别名直接* 的时候，此时同层肯定只有一张表，找同层的表的全部字段，作为查询的全部字段
+     * 当没有别名直接* 的时候，找同层的表的全部字段，作为查询的全部字段
      *
      * @author liutangqi
      * @date 2024/3/5 11:01
@@ -527,7 +528,7 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
     @Override
     public void visit(AllColumns allColumns) {
         //本层的全部字段
-        Map<String, Set<FieldInfoDto>> fieldMap = Optional.ofNullable(this.getLayerFieldTableMap().get(String.valueOf(this.getLayer()))).orElse(new HashMap<>());
+        Map<String, Set<FieldInfoDto>> fieldMap = Optional.ofNullable(this.getLayerFieldTableMap().get(String.valueOf(this.getLayer()))).orElse(new FieldHashMapWrapper<>());
 
         //将本层全部字段放到 select的map中
         for (Map.Entry<String, Set<FieldInfoDto>> fieldInfoEntry : fieldMap.entrySet()) {
@@ -548,11 +549,15 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
     public void visit(AllTableColumns allTableColumns) {
         //获取本层涉及到的表的全部字段
         Map<String, Map<String, Set<FieldInfoDto>>> layerFieldTableMap = this.getLayerFieldTableMap();
-        Map<String, Set<FieldInfoDto>> fieldTableMap = Optional.ofNullable(layerFieldTableMap.get(String.valueOf(this.getLayer()))).orElse(new HashMap<>());
+        Map<String, Set<FieldInfoDto>> fieldTableMap = Optional.ofNullable(layerFieldTableMap.get(String.valueOf(this.getLayer()))).orElse(new FieldHashMapWrapper<>());
 
         //获取其中叫这个别名的全部字段
-        String tableName = allTableColumns.getTable().getName().toLowerCase();
-        Map<String, Set<FieldInfoDto>> fieldMap = fieldTableMap.entrySet().stream().filter(f -> Objects.equals(f.getKey(), tableName)).collect(Collectors.toMap(m -> m.getKey(), m -> m.getValue()));
+        String tableName = allTableColumns.getTable().getName();
+        Map<String, Set<FieldInfoDto>> fieldMap = fieldTableMap
+                .entrySet()
+                .stream()
+                .filter(f -> StringUtils.fieldEquals(f.getKey(), tableName))
+                .collect(FieldHashMapWrapper::new, (map, entry) -> map.put(entry.getKey(), entry.getValue()), (map1, map2) -> map1.putAll(map2));
 
         //将本层全部字段放到 select的map中
         for (Map.Entry<String, Set<FieldInfoDto>> fieldInfoEntry : fieldMap.entrySet()) {

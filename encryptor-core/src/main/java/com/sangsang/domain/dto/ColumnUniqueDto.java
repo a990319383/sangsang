@@ -20,11 +20,11 @@ import lombok.NoArgsConstructor;
 public class ColumnUniqueDto {
     /**
      * 字段所属的表的别名(from 后面接的表的别名)
-     * 有别名是别名，没别名就是小写的真实表名
+     * 有别名是别名，没别名就是真实表名
      */
     private String tableAliasName;
     /**
-     * 字段名(小写)
+     * 字段名
      */
     private String sourceColumn;
 }

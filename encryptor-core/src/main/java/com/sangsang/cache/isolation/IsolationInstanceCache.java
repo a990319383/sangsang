@@ -106,7 +106,7 @@ public class IsolationInstanceCache extends DefaultBeanPostProcessor {
      * @Param [tableName]
      **/
     public static List<DataIsolationStrategy> getInstance(String tableName) {
-        DataIsolation dataIsolation = CollectionUtils.getValueIgnoreFloat(TableCache.getTableIsolationInfo(), tableName.toLowerCase());
+        DataIsolation dataIsolation = TableCache.getTableIsolationInfo().get(tableName);
         if (dataIsolation == null) {
             return null;
         }
@@ -122,7 +122,7 @@ public class IsolationInstanceCache extends DefaultBeanPostProcessor {
      * @Param [tableName]
      **/
     public static DataIsolation getDataIsolationByTableName(String tableName) {
-        return CollectionUtils.getValueIgnoreFloat(TableCache.getTableIsolationInfo(), tableName.toLowerCase());
+        return TableCache.getTableIsolationInfo().get(tableName);
     }
 
 

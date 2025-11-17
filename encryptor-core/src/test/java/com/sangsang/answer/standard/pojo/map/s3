@@ -1,1 +1,1 @@
-{encryptor_placeholder_0=ColumnTableDto(tableAliasName=a, sourceTableName=tb_user, sourceColumn=phone, fromSourceTable=false)}
+{"encryptor_placeholder_0":{"tableAliasName":"a","sourceTableName":"tb_user","sourceColumn":"phone","fromSourceTable":false}}

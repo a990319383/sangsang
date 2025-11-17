@@ -18,12 +18,12 @@ import java.util.Set;
 @NoArgsConstructor
 public class TableInfoDto {
     /**
-     * 表名（小写）
+     * 表名
      */
     private String tableName;
 
     /**
-     * 该表拥有的全部字段（小写）
+     * 该表拥有的全部字段
      */
     private Set<TableFieldDto> tableFields;
 

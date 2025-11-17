@@ -2,21 +2,15 @@ package com.sangsang.test;
 
 import cn.hutool.cache.CacheUtil;
 import cn.hutool.cache.impl.LRUCache;
-import com.sangsang.cache.fieldparse.TableCache;
-import com.sangsang.cache.transformation.TransformationInstanceCache;
 import com.sangsang.config.properties.FieldProperties;
-import com.sangsang.config.properties.TransformationProperties;
-import com.sangsang.domain.constants.TransformationPatternTypeConstant;
 import com.sangsang.util.AnswerUtil;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.ReflectUtils;
 import com.sangsang.util.StringUtils;
 import com.sangsang.visitor.transformation.TransformationStatementVisitor;
-import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.statement.Statement;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -188,44 +182,7 @@ public class TransformationTest {
     //group by
     String s26 = "select * from tb_user where role_id BETWEEN 1 and 100 group by id,user_name";
     //test
-    String s_test = "        SELECT\n" +
-            "\t*\n" +
-            "FROM\n" +
-            "\t(\n" +
-            "\tSELECT\n" +
-            "\t\tTMP.*,\n" +
-            "\t\tROWNUM ROW_ID\n" +
-            "\tFROM\n" +
-            "\t\t(\n" +
-            "\t\tSELECT\n" +
-            "\t\t\tso.id,\n" +
-            "\t\t\tso.name,\n" +
-            "\t\t\tso.short_name,\n" +
-            "\t\t\tso.company_type,\n" +
-            "\t\t\tso.type,\n" +
-            "\t\t\tso.sign,\n" +
-            "\t\t\tso.ext_no,\n" +
-            "\t\t\tso.province,\n" +
-            "\t\t\tso.city,\n" +
-            "\t\t\tso.status,\n" +
-            "\t\t\tso.available_date,\n" +
-            "\t\t\tso.create_time,\n" +
-            "\t\t\tsu.name creator,\n" +
-            "\t\t\tso.parent_name belongOrg\n" +
-            "\t\tFROM\n" +
-            "\t\t\tsys_org so\n" +
-            "\t\tLEFT JOIN sys_user su ON\n" +
-            "\t\t\tso.create_by = su.id\n" +
-            "\t\tWHERE\n" +
-            "\t\t\tso.del_flag = 0\n" +
-            "\t\t\tAND so.org_seq LIKE concat('%',' ?', '%')\n" +
-            "\t\t\tAND so.type = 1\n" +
-            "\t\tORDER BY\n" +
-            "\t\t\tso.create_time DESC) TMP\n" +
-            "\tWHERE\n" +
-            "\t\tROWNUM <= 20)\n" +
-            "WHERE\n" +
-            "\trow_id > 1";
+    String s_test = "select \"phone\" ,`user_name` from tb_user";
 
     //带有case when
     String u1 = "update tb_user \n" +
@@ -284,29 +241,21 @@ public class TransformationTest {
      * @Param []
      **/
     @Test
-    public void mysql2dmTransformation() throws JSQLParserException, NoSuchFieldException {
+    public void mysql2dmTransformation() throws Exception {
+        //设置测试配置
+        FieldProperties fieldProperties = CacheTestHelper.buildTestProperties();
+        //初始化缓存
+        CacheTestHelper.testInit(fieldProperties);
+
         //需要的sql
-        String sql = s26;
+        String sql = s_test;
         System.out.println("----------------------原始sql-----------------------");
         System.out.println(sql);
-        //mock数据
-        InitTableInfo.initTable();
-
-        //初始化转换器实例缓存
-        FieldProperties fieldProperties = new FieldProperties();
-        TransformationProperties transformationProperties = new TransformationProperties();
-        transformationProperties.setPatternType(TransformationPatternTypeConstant.MYSQL_2_DM);
-        //测试开启强制小写转换
-        transformationProperties.setForcedLowercase(true);
-        fieldProperties.setTransformation(transformationProperties);
-        new TransformationInstanceCache().init(fieldProperties);
-        TableCache.init(new ArrayList<>(), fieldProperties);
 
         //开始进行语法转换
         Statement statement = JsqlparserUtil.parse(sql);
         TransformationStatementVisitor transformationStatementVisitor = new TransformationStatementVisitor();
         statement.accept(transformationStatementVisitor);
-
 
         System.out.println("----------------------语法转换后sql-----------------------");
         System.out.println(transformationStatementVisitor.getResultSql());
@@ -328,7 +277,7 @@ public class TransformationTest {
 
     //需要测试的sql
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14,//s15,
-            s16, s17, s18, s19, s20, s21, s22, s23,
+            s16, s17, s18, s19, s20, s21, s22, s23, s24, s25, s26,
             i1, i2, i3, i4,
             d1,
             u1
@@ -344,16 +293,11 @@ public class TransformationTest {
      * @Param []
      **/
     @Test
-    public void tfCheck() throws NoSuchFieldException, JSQLParserException, IllegalAccessException {
-        //mock数据
-        InitTableInfo.initTable();
-
-        //初始化转换器实例缓存
-        FieldProperties fieldProperties = new FieldProperties();
-        TransformationProperties transformationProperties = new TransformationProperties();
-        transformationProperties.setPatternType(TransformationPatternTypeConstant.MYSQL_2_DM);
-        fieldProperties.setTransformation(transformationProperties);
-        new TransformationInstanceCache().init(fieldProperties);
+    public void tfCheck() throws Exception {
+        //设置测试配置
+        FieldProperties fieldProperties = CacheTestHelper.buildTestProperties();
+        //初始化缓存
+        CacheTestHelper.testInit(fieldProperties);
 
         for (int i = 0; i < sqls.size(); i++) {
             String sql = sqls.get(i);
@@ -371,6 +315,7 @@ public class TransformationTest {
                 System.out.println("原始sql: " + sql);
                 return;
             }
+//            if (StringUtils.sqlEquals(answer, resultSql)) {
             if (answer.equalsIgnoreCase(resultSql)) {
                 System.out.println("成功: " + sqlFieldName);
             } else {
@@ -399,15 +344,10 @@ public class TransformationTest {
      **/
     @Test
     public void transformationAnswerWrite() throws Exception {
-        //mock数据
-        InitTableInfo.initTable();
-
-        //初始化转换器实例缓存
-        FieldProperties fieldProperties = new FieldProperties();
-        TransformationProperties transformationProperties = new TransformationProperties();
-        transformationProperties.setPatternType(TransformationPatternTypeConstant.MYSQL_2_DM);
-        fieldProperties.setTransformation(transformationProperties);
-        new TransformationInstanceCache().init(fieldProperties);
+        //设置测试配置
+        FieldProperties fieldProperties = CacheTestHelper.buildTestProperties();
+        //初始化缓存
+        CacheTestHelper.testInit(fieldProperties);
 
         for (String sql : sqls) {
             //开始解析sql

@@ -1,1 +1,1 @@
-{concat(encryptor_placeholder_0, tu.phone)=ColumnTableDto(tableAliasName=null, sourceTableName=null, sourceColumn=null, fromSourceTable=false)}
+{"concat(encryptor_placeholder_0, tu.phone)":{"fromSourceTable":false}}

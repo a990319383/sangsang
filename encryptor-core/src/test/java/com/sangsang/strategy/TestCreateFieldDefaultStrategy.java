@@ -20,6 +20,6 @@ public class TestCreateFieldDefaultStrategy implements FieldDefaultStrategy<Stri
 
     @Override
     public String getDefaultValue() {
-        return DateUtil.format(LocalDateTime.now(), "yyyy-MM-dd HH:mm:ss");
+        return "2025-11-14 10:07:12";
     }
 }

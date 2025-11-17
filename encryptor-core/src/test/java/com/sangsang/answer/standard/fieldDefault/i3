@@ -1,0 +1,1 @@
+INSERT INTO tb_user (user_name, phone, update_time, create_time) (SELECT user_name, phone, '2025-11-14 10:07:13', '2025-11-14 10:07:12' FROM tb_user tu WHERE tu.phone = ?)

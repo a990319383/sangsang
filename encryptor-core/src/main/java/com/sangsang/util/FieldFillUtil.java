@@ -6,6 +6,8 @@ import cn.hutool.db.meta.Table;
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.config.properties.FieldProperties;
 import com.sangsang.domain.dto.GenerateDto;
+import com.sangsang.domain.wrapper.FieldHashMapWrapper;
+import com.sangsang.domain.wrapper.FieldHashSetWrapper;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.sql.DataSource;
@@ -39,31 +41,17 @@ public class FieldFillUtil {
                 return;
             }
 
-            //2.获取本项目中需要使用到的所有实体类（表名小写）
-            Set<String> needTableNames = new HashSet<>();
-            //如果开启了语法转换的话，需要整个库的所有表的字段信息，如果没有开启语法转换的话，只需要我们需要的功能中涉及到的表结构信息即可
-            if (fieldProperties.getTransformation() == null || StringUtils.isBlank(fieldProperties.getTransformation().getPatternType())) {
-                //2.1 加解密涉及的表
-                Set<String> fieldEncryptTable = TableCache.getFieldEncryptTable();
-                //2.2 变更默认值涉及的表
-                Set<String> fieldDefaultTable = TableCache.getFieldDefaultTable();
-                //2.3 数据隔离涉及的表
-                Set<String> isolationTable = TableCache.getIsolationTable();
-
-                needTableNames.addAll(fieldEncryptTable);
-                needTableNames.addAll(fieldDefaultTable);
-                needTableNames.addAll(isolationTable);
-            }
-
+            //2.获取本项目中需要使用到的所有实体类
+            Set<String> needTableNames = TableCache.getCurConfigTable();
 
             //3.解析出所有库我们需要解析的表的字段信息
-            Map<String, Set<String>> tableFieldMap = new HashMap<>();
+            Map<String, Set<String>> tableFieldMap = new FieldHashMapWrapper();
             for (DataSource dataSource : dataSources) {
                 //3.1 获取所有的表名
                 List<String> tableNames = EntityGenerateUtil.getTableNames(dataSource, GenerateDto.builder().build());
-                //3.2 只处理我们需要的表名
-                if (CollectionUtils.isNotEmpty(needTableNames)) {
-                    tableNames = tableNames.stream().filter(f -> CollectionUtils.containsIgnoreFieldSymbol(needTableNames, f)).collect(Collectors.toList());
+                //3.2 如果没有开启语法转换功能的话，只处理我们需要的表名。（因为语法转换这个功能需要整个库的所有表结构信息）
+                if (fieldProperties.getTransformation() == null || StringUtils.isBlank(fieldProperties.getTransformation().getPatternType())) {
+                    tableNames = tableNames.stream().filter(f -> needTableNames.contains(f)).collect(Collectors.toList());
                 }
                 //3.3 使用多线程，读取这些表的字段信息
                 List<Table> datasourceTableMetas = Collections.synchronizedList(new ArrayList<>());
@@ -75,15 +63,18 @@ public class FieldFillUtil {
                     futures.add(future);
                 }
                 CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()])).join();
-                //3.4 将这些表的字段信息维护到tableFieldMap中，其中表名和字段名均转换为小写
+                //3.4 将这些表的字段信息维护到tableFieldMap中
                 datasourceTableMetas.stream()
                         .filter(f -> CollectionUtils.isNotEmpty(f.getColumns()))
-                        .forEach(f -> tableFieldMap.put(f.getTableName().toLowerCase(), f.getColumns().stream().map(Column::getName).map(String::toLowerCase).collect(Collectors.toSet())));
+                        .forEach(f -> tableFieldMap.put(f.getTableName(), f.getColumns()
+                                .stream()
+                                .map(Column::getName)
+                                .collect(FieldHashSetWrapper::new, Set::add, Set::addAll)));
             }
 
             //4.将本项目核心缓存TableCache中缓存表结构的信息给替换成处理之后的
             TableCache.refreshTableField(tableFieldMap);
-            log.info("【field-encryptor】自动填充数据库表字段结束 合计维护表：{}张 耗时：{}ms", tableFieldMap.keySet().size(), (System.currentTimeMillis() - t1));
+            log.info("【field-encryptor】自动填充数据库表字段结束 合计维护表：{}张 耗时：{}ms", tableFieldMap.size(), (System.currentTimeMillis() - t1));
         } catch (Exception e) {
             log.error("【field-encryptor】自动填充数据库表字段异常，请检查当前账号是否有权限", e);
         }

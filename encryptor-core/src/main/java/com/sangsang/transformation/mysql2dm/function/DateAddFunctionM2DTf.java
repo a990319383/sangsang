@@ -19,7 +19,7 @@ import net.sf.jsqlparser.schema.Column;
 public class DateAddFunctionM2DTf extends FunctionTransformation {
     @Override
     public boolean needTransformation(Function function) {
-        return StringUtils.equalCaseInsensitive(function.getName(), "date_add");
+        return "date_add".equalsIgnoreCase(function.getName());
     }
 
     @Override

@@ -187,10 +187,8 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
     private FieldEncryptor getFieldEncryptorByFieldName(String fieldName, List<FieldEncryptorInfoDto> fieldInfos) {
         //从所有字段中查到这个字段的信息（理论上只会存在一个）
         return fieldInfos.stream()
-                .filter(f -> Objects.equals(fieldName, f.getColumnName())
-                        || Objects.equals(fieldName, StrUtil.toCamelCase(f.getColumnName()))
-                        || Objects.equals(fieldName, f.getColumnName().replaceAll(SymbolConstant.DOUBLE_QUOTES, SymbolConstant.BLANK))
-                        || Objects.equals(fieldName, f.getColumnName().replaceAll(SymbolConstant.FLOAT, SymbolConstant.BLANK)))
+                .filter(f -> StringUtils.fieldEquals(fieldName, f.getColumnName())
+                        || StringUtils.fieldEquals(fieldName, StrUtil.toCamelCase(f.getColumnName())))
                 .findAny()
                 .map(FieldEncryptorInfoDto::getFieldEncryptor)
                 .orElse(null);

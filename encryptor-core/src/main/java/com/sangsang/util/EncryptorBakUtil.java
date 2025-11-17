@@ -9,6 +9,7 @@ import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.dto.GenerateDto;
 import com.sangsang.domain.dto.TableFieldMsgDto;
+import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jsqlparser.schema.Column;
 
@@ -62,13 +63,13 @@ public class EncryptorBakUtil {
 
         //3.过滤出需要加解密的表的主键和需要加解密的字段
         List<TableFieldMsgDto> tableFieldMsgList = tableColumnList.stream()
-                .filter(f -> TableCache.getFieldEncryptTable().contains(f.getTableName().toLowerCase()))
+                .filter(f -> TableCache.getFieldEncryptTable().contains(f.getTableName()))
                 .filter(f -> f.isPk() //主键
                         ||
                         TableCache.getTableFieldEncryptInfo()
-                                .getOrDefault(f.getTableName().toLowerCase(), new HashMap<>())
-                                .getOrDefault(f.getColumnName().toLowerCase(), null) != null //需要加解密的字段
-                ).peek(p -> p.setFieldEncryptor(TableCache.getTableFieldEncryptInfo().get(p.getTableName().toLowerCase()).get(p.getColumnName().toLowerCase())))
+                                .getOrDefault(f.getTableName(), new FieldHashMapWrapper<>())
+                                .getOrDefault(f.getColumnName(), null) != null //需要加解密的字段
+                ).peek(p -> p.setFieldEncryptor(TableCache.getTableFieldEncryptInfo().get(p.getTableName()).get(p.getColumnName())))
                 .collect(Collectors.toList());
 
         //4.根据表名进行分组
@@ -133,7 +134,7 @@ public class EncryptorBakUtil {
 
             //3.过滤需要加解密的表
             tableNames = tableNames.stream()
-                    .filter(t -> TableCache.getFieldEncryptTable().contains(t.toLowerCase()))
+                    .filter(t -> TableCache.getFieldEncryptTable().contains(t))
                     .collect(Collectors.toList());
 
             //4.获取所有的表结构
@@ -244,7 +245,7 @@ public class EncryptorBakUtil {
                 .get();
         //1.1 主键类型
         String primaryKeyType = primaryKeyField.getDataType();
-        if (StringUtils.equalCaseInsensitive(SymbolConstant.VARCHAR, primaryKeyType)) {
+        if (SymbolConstant.VARCHAR.equalsIgnoreCase(primaryKeyType)) {
             primaryKeyType = "varchar(" + primaryKeyField.getFieldLength() + ")";
         }
 

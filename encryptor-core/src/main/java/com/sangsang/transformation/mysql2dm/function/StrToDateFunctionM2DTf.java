@@ -20,7 +20,7 @@ import java.util.Arrays;
 public class StrToDateFunctionM2DTf extends FunctionTransformation {
     @Override
     public boolean needTransformation(Function function) {
-        return StringUtils.equalCaseInsensitive(function.getName(), "STR_TO_DATE");
+        return "STR_TO_DATE".equalsIgnoreCase(function.getName());
     }
 
     @Override

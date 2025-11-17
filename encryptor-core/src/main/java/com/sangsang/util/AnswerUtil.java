@@ -3,6 +3,7 @@ package com.sangsang.util;
 import cn.hutool.core.io.file.FileReader;
 import cn.hutool.core.io.file.FileWriter;
 import cn.hutool.core.lang.Pair;
+import cn.hutool.json.JSONUtil;
 import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.domain.dto.FieldEncryptorInfoDto;
 
@@ -60,8 +61,8 @@ public class AnswerUtil {
         String mapPath = projectRoot + answerBasePath + "/pojo/map/" + fileName;
         FileWriter listWriter = new FileWriter(listPath);
         FileWriter mapWriter = new FileWriter(mapPath);
-        listWriter.write(fieldEncryptorInfos.toString(), false);
-        mapWriter.write(placeholderColumnTableMap.toString(), false);
+        listWriter.write(JSONUtil.toJsonStr(fieldEncryptorInfos), false);
+        mapWriter.write(JSONUtil.toJsonStr(placeholderColumnTableMap), false);
     }
 
     /**
@@ -98,6 +99,25 @@ public class AnswerUtil {
         //获取变量名作为文件名
         String fileName = ReflectUtils.getFieldNameByValue(obj, oldSql);
         String path = projectRoot + answerBasePath + "/isolation/" + fileName;
+        FileWriter writer = new FileWriter(path);
+        writer.write(resSql, false);
+    }
+
+    /**
+     * 写入字段默认值的答案
+     *
+     * @author liutangqi
+     * @date 2025/11/14 9:31
+     * @Param [obj, sql, resultSql]
+     **/
+    public static void writeFieldDefaultAnswerToFile(Object obj,
+                                                     String oldSql,
+                                                     String resSql) throws IllegalAccessException {
+        //项目路径
+        String projectRoot = System.getProperty("user.dir");
+        //获取变量名作为文件名
+        String fileName = ReflectUtils.getFieldNameByValue(obj, oldSql);
+        String path = projectRoot + answerBasePath + "/fieldDefault/" + fileName;
         FileWriter writer = new FileWriter(path);
         writer.write(resSql, false);
     }
@@ -191,6 +211,29 @@ public class AnswerUtil {
         //获取变量名作为文件名
         String fileName = ReflectUtils.getFieldNameByValue(obj, oldSql);
         String path = projectRoot + standardBasePath + "/isolation/" + fileName;
+        FileReader fileReader = null;
+        try {
+            fileReader = new FileReader(path);
+        } catch (Exception e) {
+            return null;
+        }
+        return fileReader.readString();
+    }
+
+    /**
+     * 读取字段默认值的答案
+     *
+     * @author liutangqi
+     * @date 2025/11/14 9:57
+     * @Param [obj, oldSql]
+     **/
+    public static String readFieldDefaultAnswerToFile(Object obj,
+                                                      String oldSql) throws IllegalAccessException {
+        //项目路径
+        String projectRoot = System.getProperty("user.dir");
+        //获取变量名作为文件名
+        String fileName = ReflectUtils.getFieldNameByValue(obj, oldSql);
+        String path = projectRoot + standardBasePath + "/fieldDefault/" + fileName;
         FileReader fileReader = null;
         try {
             fileReader = new FileReader(path);

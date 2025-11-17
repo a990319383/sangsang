@@ -1,0 +1,1 @@
+UPDATE tb_user tu JOIN tb_menu tm ON tu.id = tm.id SET tm.menu_name = tm.`path`, tu.phone = tm.path, tu.phone = tm.menu_name, tu.phone = ?, tu.create_time = NULL, tm.update_time = if(? IS NULL, '2025-11-14 10:07:13', '2025-11-14 10:07:13'), tu.update_time = '2025-11-14 10:07:13' WHERE tu.phone LIKE ?

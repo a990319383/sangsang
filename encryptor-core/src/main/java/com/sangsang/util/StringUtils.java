@@ -2,12 +2,15 @@ package com.sangsang.util;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.crypto.digest.DigestUtil;
+import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.constants.FieldConstant;
 import com.sangsang.domain.constants.SymbolConstant;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -130,37 +133,6 @@ public class StringUtils {
     }
 
     /**
-     * 忽略大小写，判断两个字符串是否相等
-     *
-     * @author liutangqi
-     * @date 2024/8/27 11:24
-     * @Param [a, b]
-     **/
-    public static boolean equalCaseInsensitive(String a, String b) {
-        if (StringUtils.isBlank(a) || StringUtils.isBlank(b)) {
-            return false;
-        }
-        return a.toLowerCase().equals(b.toLowerCase());
-    }
-
-    /**
-     * 忽略大小写，忽略开头结尾的 `  " 判断两个字段是否相等
-     *
-     * @author liutangqi
-     * @date 2025/5/27 13:11
-     * @Param [a, b]
-     **/
-    public static boolean equalIgnoreFieldSymbol(String a, String b) {
-        if (StringUtils.isBlank(a) || StringUtils.isBlank(b)) {
-            return false;
-        }
-        //去掉首尾的 ` 、 "
-        String clearA = trim(trim(a, SymbolConstant.FLOAT), SymbolConstant.DOUBLE_QUOTES);
-        String clearB = trim(trim(b, SymbolConstant.FLOAT), SymbolConstant.DOUBLE_QUOTES);
-        return equalCaseInsensitive(clearA, clearB);
-    }
-
-    /**
      * 判断sql中是否一定不存在 lowerTableNames 中涉及的表
      *
      * @return true:一定不存在  false: 可能存在
@@ -174,14 +146,26 @@ public class StringUtils {
             return true;
         }
 
-        //2.sql转小写
-        String lowerCaseSql = sql.toLowerCase();
+        //2.当前大小写不敏感的话将此sql转换为小写
+        String disposeSql = sql;
+        if (!TableCache.getCurConfig().isCaseSensitive()) {
+            disposeSql = sql.toLowerCase();
+        }
 
-        //3.依次判断sql中是否包含执行表名
-        for (String table : lowerTableNames) {
-            if (lowerCaseSql.contains(table)) {
+        //3.获取当前需要处理的表名，并根据当前项目配置进行大小写和关键符号的判断
+        for (String tableName : lowerTableNames) {
+            //3.1 判断当前大小写不敏感的话，将表名转换为小写
+            String disposeTableName = tableName;
+            if (!TableCache.getCurConfig().isCaseSensitive()) {
+                disposeTableName = tableName.toLowerCase();
+            }
+            //3.2 去掉当前项目的标识符引用符
+            disposeTableName = StringUtils.trimSymbol(disposeTableName, TableCache.getCurConfig().getIdentifierQuote());
+            //3.3只要包含其中一个，就算
+            if (disposeSql.contains(disposeTableName)) {
                 return false;
             }
+
         }
 
         //4.都不包含
@@ -190,7 +174,6 @@ public class StringUtils {
 
     /**
      * 判断sql中是否一定不存在 keyword 中涉及的关键字
-     * 备注：sql会转成小写 ，keyword需要自己转
      *
      * @author liutangqi
      * @date 2025/8/18 10:35
@@ -288,43 +271,6 @@ public class StringUtils {
 
 
     /**
-     * 去除字符串str的首尾的 c
-     *
-     * @author liutangqi
-     * @date 2025/5/27 18:00
-     * @Param [str, c]
-     **/
-    public static String trim(String str, String c) {
-        if (str == null || c == null || c.isEmpty() || str.isEmpty()) {
-            return str;
-        }
-
-        int str1Len = str.length();
-        int str2Len = c.length();
-
-        // 如果 str2 比 str1 长，不可能匹配
-        if (str2Len > str1Len) {
-            return str;
-        }
-
-        int start = 0;
-        int end = str1Len;
-
-        // 处理开头的 str2 重复匹配
-        while (start <= end - str2Len && str.startsWith(c, start)) {
-            start += str2Len;
-        }
-
-        // 处理结尾的 str2 重复匹配
-        while (end >= start + str2Len && str.startsWith(c, end - str2Len)) {
-            end -= str2Len;
-        }
-
-        return (start > 0 || end < str1Len) ? str.substring(start, end) : str;
-    }
-
-
-    /**
      * 获取sql可以标识唯一的串
      * 原sql长度_sha256
      *
@@ -335,4 +281,154 @@ public class StringUtils {
     public static String getSqlUniqueKey(String sql) {
         return sql.length() + SymbolConstant.UNDERLINE + getSha256(sql);
     }
+
+
+    /**
+     * 根据当前配置是否大小写敏感，判断两个字段或者表名是否相等
+     *
+     * @author liutangqi
+     * @date 2025/11/3 15:37
+     * @Param [a, b]
+     **/
+    public static boolean fieldEquals(String a, String b) {
+        //1.非空校验
+        // 在此项目的场景中，只要有一个字符串是空的都可以判断两个是不等的，哪怕两个都是空字符串（正常流程中，是不存在两个都是空的情况的）
+        if (StringUtils.isBlank(a) || StringUtils.isBlank(b)) {
+            return false;
+        }
+
+        //2.当前配置大小写不敏感的话，则将字符串都转换为小写
+        String compareA = a;
+        String compareB = b;
+        if (!TableCache.getCurConfig().isCaseSensitive()) {
+            compareA = a.toLowerCase();
+            compareB = b.toLowerCase();
+        }
+
+        //3.忽略当前项目的关键字符号，判断两个是否相等
+        return equalsIgnoreKeywordSymbol(compareA, compareB);
+    }
+
+    /**
+     * 忽略关键字的符号，判断两个字段是否相等
+     * 注意：此方法没有非空校验
+     *
+     * @author liutangqi
+     * @date 2025/11/3 16:03
+     * @Param [a, b]
+     **/
+    private static boolean equalsIgnoreKeywordSymbol(String a, String b) {
+        //从缓存中获取当前关键字的符号
+        String identifierQuote = TableCache.getCurConfig().getIdentifierQuote();
+
+        //去掉首尾的关键字
+        String clearA = trimSymbol(a, identifierQuote);
+        String clearB = trimSymbol(b, identifierQuote);
+
+        //判断两个字符串是否相等
+        return clearA.equals(clearB);
+    }
+
+
+    /**
+     * 去除字符串的首尾符号
+     * 注意：此方法非空判断仅判断null，不判断空字符串，高频调用，减少不必要判断逻辑
+     *
+     * @author liutangqi
+     * @date 2025/11/3 17:04
+     * @Param [str, symbol]
+     **/
+    public static String trimSymbol(String str, String symbol) {
+        if (str == null || symbol == null) {
+            return str;
+        }
+
+        int strLen = str.length();
+        int symbolLen = symbol.length();
+
+        // 如果字符串长度不足以包含首尾两个symbol，直接返回
+        if (strLen < symbolLen * 2) {
+            return str;
+        }
+
+        // 手动检查开头是否匹配
+        boolean startsWithSymbol = true;
+        for (int i = 0; i < symbolLen; i++) {
+            if (str.charAt(i) != symbol.charAt(i)) {
+                startsWithSymbol = false;
+                break;
+            }
+        }
+        // 如果开头不匹配，则直接返回
+        if (!startsWithSymbol) {
+            return str;
+        }
+
+        // 手动检查结尾是否匹配
+        boolean endsWithSymbol = true;
+        for (int i = 0; i < symbolLen; i++) {
+            if (str.charAt(strLen - symbolLen + i) != symbol.charAt(i)) {
+                endsWithSymbol = false;
+                break;
+            }
+        }
+        //如果结尾不匹配，直接返回
+        if (!endsWithSymbol) {
+            return str;
+        }
+
+        // 只有当首尾都包含symbol时才进行去除
+        return str.substring(symbolLen, strLen - symbolLen);
+    }
+
+
+    /**
+     * 判断两个sql是否相等
+     * 仅用于自测
+     *
+     * @author liutangqi
+     * @date 2025/11/12 14:18
+     * @Param [sql1, sql2]
+     **/
+    public static boolean sqlEquals(String sql1, String sql2) {
+        String compare1 = sql1;
+        String compare2 = sql2;
+        //1.当前配置了大小写不敏感，则统一转换为小写
+        if (!TableCache.getCurConfig().isCaseSensitive()) {
+            compare1 = sql1.toLowerCase();
+            compare2 = sql2.toLowerCase();
+        }
+
+        //2.获取当前项目的关键字，去除sql中全部的关键字标识符
+        String identifierQuote = TableCache.getCurConfig().getIdentifierQuote();
+        compare1 = compare1.replaceAll(identifierQuote, SymbolConstant.BLANK);
+        compare2 = compare2.replaceAll(identifierQuote, SymbolConstant.BLANK);
+
+        //3.去掉sql中的逗号，查询的字段顺序不同时，最后一个字段会不带逗号，放前面这个逗号会不见
+        compare1 = compare1.replaceAll(SymbolConstant.COMMA, SymbolConstant.BLANK);
+        compare2 = compare2.replaceAll(SymbolConstant.COMMA, SymbolConstant.BLANK);
+
+        //4.将sql按照空格切分后再比较，避免字段顺序不同导致判定两个sql不同
+        Map<String, Integer> map = new HashMap<>();
+        String[] split1 = compare1.split(SymbolConstant.SPACING);
+        for (String s : split1) {
+            Integer curCount = map.getOrDefault(s, 0);
+            map.put(s, ++curCount);
+        }
+        String[] split2 = compare2.split(SymbolConstant.SPACING);
+        for (String s : split2) {
+            Integer curCount = map.get(s);
+            if (curCount == null) {
+                return false;
+            }
+            if (curCount < 1) {
+                return false;
+            }
+            map.put(s, --curCount);
+        }
+
+        return map.values().stream().filter(f -> f > 0).count() == 0;
+    }
+
+
 }

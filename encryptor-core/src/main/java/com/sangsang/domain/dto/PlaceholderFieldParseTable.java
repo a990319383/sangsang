@@ -1,5 +1,6 @@
 package com.sangsang.domain.dto;
 
+import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import lombok.Getter;
 
 import java.util.HashMap;
@@ -24,12 +25,12 @@ public class PlaceholderFieldParseTable extends BaseFieldParseTable {
 
     public PlaceholderFieldParseTable(int layer, Map<String, Map<String, Set<FieldInfoDto>>> layerSelectTableFieldMap, Map<String, Map<String, Set<FieldInfoDto>>> layerFieldTableMap, Map<String, ColumnTableDto> placeholderColumnTableMap) {
         super(layer, layerSelectTableFieldMap, layerFieldTableMap);
-        this.placeholderColumnTableMap = Optional.ofNullable(placeholderColumnTableMap).orElse(new HashMap<>());
+        this.placeholderColumnTableMap = Optional.ofNullable(placeholderColumnTableMap).orElse(new FieldHashMapWrapper<>());
     }
 
     public PlaceholderFieldParseTable(BaseFieldParseTable baseFieldParseTable, Map<String, ColumnTableDto> placeholderColumnTableMap) {
         super(baseFieldParseTable.getLayer(), baseFieldParseTable.getLayerSelectTableFieldMap(), baseFieldParseTable.getLayerFieldTableMap());
-        this.placeholderColumnTableMap = Optional.ofNullable(placeholderColumnTableMap).orElse(new HashMap<>());
+        this.placeholderColumnTableMap = Optional.ofNullable(placeholderColumnTableMap).orElse(new FieldHashMapWrapper<>());
     }
 
 }

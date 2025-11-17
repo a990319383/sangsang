@@ -17,7 +17,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class TableFieldDto {
     /**
-     * 字段名(小写)
+     * 字段名
      */
     private String fieldName;
 

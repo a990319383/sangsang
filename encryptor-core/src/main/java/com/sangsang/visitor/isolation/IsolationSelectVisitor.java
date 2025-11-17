@@ -7,6 +7,7 @@ import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.enums.IsolationConditionalRelationEnum;
 import com.sangsang.domain.strategy.isolation.DataIsolationStrategy;
+import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.ExpressionsUtil;
 import com.sangsang.util.StringUtils;
@@ -118,10 +119,15 @@ public class IsolationSelectVisitor extends BaseFieldParseTable implements Selec
                 continue;
             }
 
-            //4.3.3 当前表可能存在多个隔离策略，将其格式转换为key是表字段小写，value是隔离字段
-            Map<String, List<DataIsolationStrategy>> isolationFieldMap = dataIsolationStrategies.stream()
+            //4.3.3 当前表可能存在多个隔离策略，将其格式转换为key是表字段，value是隔离字段
+            Map<String, List<DataIsolationStrategy>> isolationFieldMap = new FieldHashMapWrapper<>();
+            dataIsolationStrategies.stream()
                     .filter(f -> StringUtils.isNotBlank(f.getIsolationField(anyFieldInfo.getSourceTableName())))
-                    .collect(Collectors.groupingBy(g -> g.getIsolationField(anyFieldInfo.getSourceTableName()).toLowerCase()));
+                    .forEach(f -> {
+                        List<DataIsolationStrategy> strategies = isolationFieldMap.getOrDefault(f.getIsolationField(anyFieldInfo.getSourceTableName()), new ArrayList<>());
+                        strategies.add(f);
+                        isolationFieldMap.put(f.getIsolationField(anyFieldInfo.getSourceTableName()), strategies);
+                    });
             if (org.springframework.util.CollectionUtils.isEmpty(isolationFieldMap)) {
                 continue;
             }
@@ -136,7 +142,7 @@ public class IsolationSelectVisitor extends BaseFieldParseTable implements Selec
                     continue;
                 }
                 //4.3.5.2查看当前字段是否需要参与数据隔离
-                List<DataIsolationStrategy> dataIsolationStrategy = CollectionUtils.getValueIgnoreFloat(isolationFieldMap, fieldInfo.getSourceColumn());
+                List<DataIsolationStrategy> dataIsolationStrategy = isolationFieldMap.get(fieldInfo.getSourceColumn());
                 if (CollectionUtils.isEmpty(dataIsolationStrategy)) {
                     continue;
                 }

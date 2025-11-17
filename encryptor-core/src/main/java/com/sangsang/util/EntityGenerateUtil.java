@@ -301,17 +301,17 @@ public class EntityGenerateUtil {
          */
         private static String handleSpecialCases(String javaType, String dbType, Long columnSize) {
             // 处理TINYINT(1) -> Boolean
-            if ("Integer" .equals(javaType) && "TINYINT" .equals(dbType) && columnSize == 1) {
+            if ("Integer" .equalsIgnoreCase(javaType) && "TINYINT" .equalsIgnoreCase(dbType) && columnSize == 1) {
                 return "Boolean";
             }
 
             // 处理达梦的BIT(1) -> Boolean
-            if ("byte[]" .equals(javaType) && "BIT" .equals(dbType) && columnSize == 1) {
+            if ("byte[]" .equalsIgnoreCase(javaType) && "BIT" .equalsIgnoreCase(dbType) && columnSize == 1) {
                 return "Boolean";
             }
 
             // Oracle的DATE类型包含时间部分
-            if ("LocalDate" .equals(javaType) && "DATE" .equals(dbType)) {
+            if ("LocalDate" .equalsIgnoreCase(javaType) && "DATE" .equalsIgnoreCase(dbType)) {
                 return "LocalDateTime";
             }
 

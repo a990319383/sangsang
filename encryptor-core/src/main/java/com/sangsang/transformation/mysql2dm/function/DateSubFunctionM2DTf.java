@@ -19,7 +19,7 @@ import net.sf.jsqlparser.schema.Column;
 public class DateSubFunctionM2DTf extends FunctionTransformation {
     @Override
     public boolean needTransformation(Function function) {
-        return StringUtils.equalCaseInsensitive(function.getName(), "DATE_SUB");
+        return "DATE_SUB".equalsIgnoreCase(function.getName());
     }
 
     @Override

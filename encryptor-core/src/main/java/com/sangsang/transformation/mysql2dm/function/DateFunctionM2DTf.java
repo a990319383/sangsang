@@ -18,7 +18,7 @@ import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 public class DateFunctionM2DTf extends FunctionTransformation {
     @Override
     public boolean needTransformation(Function function) {
-        return StringUtils.equalCaseInsensitive(function.getName(), "DATE");
+        return "DATE".equalsIgnoreCase(function.getName());
     }
 
     @Override

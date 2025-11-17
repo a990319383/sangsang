@@ -1,17 +1,16 @@
 package com.sangsang.test;
 
-import com.sangsang.util.AnswerUtil;
-import com.sangsang.util.JsqlparserUtil;
-import com.sangsang.util.ReflectUtils;
-import com.sangsang.util.StringUtils;
+import cn.hutool.json.JSONUtil;
+import com.sangsang.cache.fieldparse.TableCache;
+import com.sangsang.config.properties.FieldProperties;
+import com.sangsang.domain.wrapper.FieldHashMapWrapper;
+import com.sangsang.util.*;
 import com.sangsang.visitor.isolation.IsolationStatementVisitor;
 import net.sf.jsqlparser.JSQLParserException;
-import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 
 /**
@@ -71,10 +70,13 @@ public class IsolationTest {
      **/
     @Test
     public void isolationTest() throws Exception {
+        //设置测试配置
+        FieldProperties fieldProperties = CacheTestHelper.buildTestProperties();
+        //初始化缓存
+        CacheTestHelper.testInit(fieldProperties);
+
         //需要的sql
         String sql = s8;
-        //mock数据
-        InitTableInfo.initIsolation();
 
         //开始进行数据隔离
         Statement statement = JsqlparserUtil.parse(sql);
@@ -89,10 +91,31 @@ public class IsolationTest {
     }
 
     @Test
-    public void otherTest() throws JSQLParserException {
-        String sql = "select * from test2 where id2 = id1";
-        Statement parse = CCJSqlParserUtil.parse(sql);
-        System.out.println(parse);
+    public void otherTest() throws Exception {
+        //设置测试配置
+        FieldProperties fieldProperties = CacheTestHelper.buildTestProperties();
+        //初始化缓存
+        CacheTestHelper.testInit(fieldProperties);
+
+        Map<String, Object> map = new FieldHashMapWrapper<>();
+        map.put("1", 111);
+        map.put("2", 222);
+        map.put("3", 333);
+        map.put("4", 444);
+        map.put("5", 555);
+
+        Iterator<Map.Entry<String,Object>> iterator = map.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, Object> entry = iterator.next();
+            if ("2".equals(entry.getKey())) {
+                iterator.remove();
+            }
+        }
+
+        System.out.println( map);
+
+
+
     }
 
 
@@ -113,8 +136,10 @@ public class IsolationTest {
      **/
     @Test
     public void isolationCheck() throws Exception {
-        //mock数据
-        InitTableInfo.initIsolation();
+        //设置测试配置
+        FieldProperties fieldProperties = CacheTestHelper.buildTestProperties();
+        //初始化缓存
+        CacheTestHelper.testInit(fieldProperties);
 
         for (int i = 0; i < sqls.size(); i++) {
             String sql = sqls.get(i);
@@ -132,7 +157,7 @@ public class IsolationTest {
                 System.out.println("原始sql: " + sql);
                 return;
             }
-            if (answer.equalsIgnoreCase(resultSql)) {
+            if (StringUtils.sqlEquals(answer, resultSql)) {
                 System.out.println("成功: " + sqlFieldName);
             } else {
                 System.out.println("错误: " + sqlFieldName);
@@ -160,9 +185,12 @@ public class IsolationTest {
      **/
     @Test
     public void isolationAnswerWrite() throws Exception {
-        //mock数据
-        InitTableInfo.initTable();
-        InitTableInfo.initIsolation();
+        //设置测试配置
+        FieldProperties fieldProperties = CacheTestHelper.buildTestProperties();
+        //初始化缓存
+        CacheTestHelper.testInit(fieldProperties);
+
+
         for (String sql : sqls) {
             //开始进行数据隔离
             Statement statement = JsqlparserUtil.parse(sql);

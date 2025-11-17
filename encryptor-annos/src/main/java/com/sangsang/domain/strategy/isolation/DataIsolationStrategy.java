@@ -21,7 +21,7 @@ public interface DataIsolationStrategy<T> {
      *
      * @author liutangqi
      * @date 2025/6/21 19:23
-     * @Param [tableName 小写表名]
+     * @Param [tableName 表名]
      **/
     String getIsolationField(String tableName);
 
@@ -30,7 +30,7 @@ public interface DataIsolationStrategy<T> {
      *
      * @author liutangqi
      * @date 2025/6/21 19:24
-     * @Param [tableName 小写表名]
+     * @Param [tableName 表名]
      **/
     IsolationRelationEnum getIsolationRelation(String tableName);
 
@@ -41,7 +41,7 @@ public interface DataIsolationStrategy<T> {
      *
      * @author liutangqi
      * @date 2025/6/21 19:49
-     * @Param [tableName 小写表名]
+     * @Param [tableName 表名]
      **/
     T getIsolationData(String tableName);
 

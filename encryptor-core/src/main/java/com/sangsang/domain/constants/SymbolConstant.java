@@ -66,6 +66,11 @@ public interface SymbolConstant {
     String BLANK = "";
 
     /**
+     * 空格
+     */
+    String SPACING = " ";
+
+    /**
      * 星号
      */
     String START = "*";

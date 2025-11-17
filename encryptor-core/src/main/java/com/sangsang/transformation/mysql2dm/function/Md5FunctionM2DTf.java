@@ -14,7 +14,7 @@ import net.sf.jsqlparser.expression.Function;
 public class Md5FunctionM2DTf extends FunctionTransformation {
     @Override
     public boolean needTransformation(Function function) {
-        return StringUtils.equalCaseInsensitive(function.getName(), "md5");
+        return "md5".equalsIgnoreCase(function.getName());
     }
 
     @Override

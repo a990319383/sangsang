@@ -23,7 +23,7 @@ public class ForcedLowercaseTableM2DTf extends TableTransformation {
     @Override
     public Table doTransformation(Table table) {
         String tableName = table.getName();
-        table.setName(SymbolConstant.DOUBLE_QUOTES + tableName.toLowerCase() + SymbolConstant.DOUBLE_QUOTES);
+        table.setName(SymbolConstant.DOUBLE_QUOTES + tableName + SymbolConstant.DOUBLE_QUOTES);
         return table;
     }
 }

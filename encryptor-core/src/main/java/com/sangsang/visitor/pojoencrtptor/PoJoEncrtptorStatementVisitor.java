@@ -1,11 +1,11 @@
 package com.sangsang.visitor.pojoencrtptor;
 
-import cn.hutool.core.map.MapUtil;
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.constants.NumberConstant;
 import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.domain.dto.FieldEncryptorInfoDto;
 import com.sangsang.domain.dto.FieldInfoDto;
+import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
@@ -193,14 +193,13 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
         }
         //2.2将insert的所有字段格式进行转换
         Set<FieldInfoDto> fieldInfoDtos = columns.stream()
-                .map(m -> new FieldInfoDto(m.getColumnName().toLowerCase(), m.getColumnName().toLowerCase(), table.getName().toLowerCase(), true))
+                .map(m -> new FieldInfoDto(m.getColumnName(), m.getColumnName(), table.getName(), true))
                 .collect(Collectors.toSet());
         //2.3 将转换后的字段信息维护成 layerFieldTableMap 的数据格式
-        Map<String, Map<String, Set<FieldInfoDto>>> layerFieldTableMap = MapUtil.<String, Map<String, Set<FieldInfoDto>>>builder()
-                .put(String.valueOf(NumberConstant.ONE), MapUtil.<String, Set<FieldInfoDto>>builder()
-                        .put(table.getName().toLowerCase(), fieldInfoDtos)
-                        .build())
-                .build();
+        Map<String, Map<String, Set<FieldInfoDto>>> layerFieldTableMap = new HashMap<>();
+        Map<String, Set<FieldInfoDto>> fieldTableMap = new FieldHashMapWrapper<>();
+        fieldTableMap.put(table.getName(), fieldInfoDtos);
+        layerFieldTableMap.put(String.valueOf(NumberConstant.ONE), fieldTableMap);
 
 
         //3.存放占位符信息的Map初始化
@@ -329,7 +328,7 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
                         .columnName(m.getColumnName())
                         .sourceColumn(m.getSourceColumn())
                         .sourceTableName(m.getSourceTableName())
-                        .fieldEncryptor(TableCache.getTableFieldEncryptInfo().getOrDefault(m.getSourceTableName(), new HashMap<>()).get(m.getSourceColumn()))
+                        .fieldEncryptor(TableCache.getTableFieldEncryptInfo().getOrDefault(m.getSourceTableName(), new FieldHashMapWrapper<>()).get(m.getSourceColumn()))
                         .build()
                 ).collect(Collectors.toList());
 

@@ -38,7 +38,8 @@ import java.util.List;
 public class SubstringIndexExpressionM2DTf extends ExpressionTransformation {
     @Override
     public boolean needTransformation(Expression expression) {
-        return expression instanceof Function && StringUtils.equalCaseInsensitive(((Function) expression).getName(), "SUBSTRING_INDEX");
+        return expression instanceof Function
+                && "SUBSTRING_INDEX".equalsIgnoreCase(((Function) expression).getName());
     }
 
     @Override

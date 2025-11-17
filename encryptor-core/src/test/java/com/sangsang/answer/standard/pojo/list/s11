@@ -1,1 +1,1 @@
-[FieldEncryptorInfoDto(columnName=`concat(encryptor_placeholder_0, tu.phone)`, sourceColumn=null, sourceTableName=null, fieldEncryptor=null)]
+[{"columnName":"`concat(encryptor_placeholder_0, tu.phone)`"}]

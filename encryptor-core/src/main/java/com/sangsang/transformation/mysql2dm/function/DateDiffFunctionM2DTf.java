@@ -18,7 +18,7 @@ public class DateDiffFunctionM2DTf extends FunctionTransformation {
 
     @Override
     public boolean needTransformation(Function function) {
-        return StringUtils.equalCaseInsensitive(function.getName(), "DATEDIFF");
+        return "DATEDIFF".equalsIgnoreCase(function.getName());
     }
 
     @Override
