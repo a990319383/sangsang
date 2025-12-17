@@ -122,11 +122,13 @@ public class IsolationSelectVisitor extends BaseFieldParseTable implements Selec
             //4.3.3 当前表可能存在多个隔离策略，将其格式转换为key是表字段，value是隔离字段
             Map<String, List<DataIsolationStrategy>> isolationFieldMap = new FieldHashMapWrapper<>();
             dataIsolationStrategies.stream()
-                    .filter(f -> StringUtils.isNotBlank(f.getIsolationField(anyFieldInfo.getSourceTableName())))
                     .forEach(f -> {
-                        List<DataIsolationStrategy> strategies = isolationFieldMap.getOrDefault(f.getIsolationField(anyFieldInfo.getSourceTableName()), new ArrayList<>());
-                        strategies.add(f);
-                        isolationFieldMap.put(f.getIsolationField(anyFieldInfo.getSourceTableName()), strategies);
+                        String isolationField = f.getIsolationField(anyFieldInfo.getSourceTableName());
+                        if (StringUtils.isNotBlank(isolationField)) {
+                            List<DataIsolationStrategy> strategies = isolationFieldMap.getOrDefault(isolationField, new ArrayList<>());
+                            strategies.add(f);
+                            isolationFieldMap.put(isolationField, strategies);
+                        }
                     });
             if (org.springframework.util.CollectionUtils.isEmpty(isolationFieldMap)) {
                 continue;

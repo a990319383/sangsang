@@ -6,7 +6,6 @@ import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.domain.dto.FieldEncryptorInfoDto;
 import com.sangsang.util.*;
 import com.sangsang.visitor.dbencrtptor.DBDencryptStatementVisitor;
-import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import com.sangsang.visitor.pojoencrtptor.PoJoEncrtptorStatementVisitor;
 import cn.hutool.core.lang.Pair;
 import net.sf.jsqlparser.statement.Statement;
