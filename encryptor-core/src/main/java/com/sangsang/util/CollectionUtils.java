@@ -217,7 +217,7 @@ public class CollectionUtils {
      * @date 2025/11/12 17:13
      * @Param [sql1, sql2]
      **/
-    public static boolean jsonArrayEquals(JSONArray jsonArray1, JSONArray jsonArray2) {
+    public static boolean jsonArrayEquals(JSONArray jsonArray1, JSONArray jsonArray2, String... ignoreKey) {
         //长度不同，肯定不同
         if (jsonArray1.size() != jsonArray2.size()) {
             return false;
@@ -252,5 +252,34 @@ public class CollectionUtils {
         }
         comparingStr = comparingStr.replaceAll(TableCache.getCurConfig().getIdentifierQuote(), SymbolConstant.BLANK);
         return comparingStr;
+    }
+
+
+    /**
+     * 获取两个值之间的最小值
+     *
+     * @author liutangqi
+     * @date 2026/1/9 17:51
+     * @Param [a, b]
+     **/
+    public static Long getMin(Long a, Long b) {
+        return Optional.ofNullable(a)
+                .flatMap(aVal -> Optional.ofNullable(b)
+                        .map(bVal -> Math.min(aVal, bVal)))
+                .orElse(Optional.ofNullable(a).orElse(b));
+    }
+
+    /**
+     * 获取两个值之间的最大值
+     *
+     * @author liutangqi
+     * @date 2026/1/9 17:52
+     * @Param [a, b]
+     **/
+    public static Long getMax(Long a, Long b) {
+        return Optional.ofNullable(a)
+                .flatMap(aVal -> Optional.ofNullable(b)
+                        .map(bVal -> Math.max(aVal, bVal)))
+                .orElse(Optional.ofNullable(a).orElse(b));
     }
 }

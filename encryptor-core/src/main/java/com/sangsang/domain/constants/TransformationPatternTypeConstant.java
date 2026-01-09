@@ -9,4 +9,9 @@ public interface TransformationPatternTypeConstant {
      * mysql转换为达梦
      */
     String MYSQL_2_DM = "mysql2dm";
+
+    /**
+     * oracle转换为mysql
+     */
+    String ORACLE_2_MYSQL = "oracle2mysql";
 }

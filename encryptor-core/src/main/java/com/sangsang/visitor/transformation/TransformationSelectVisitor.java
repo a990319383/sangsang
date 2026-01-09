@@ -1,10 +1,13 @@
 package com.sangsang.visitor.transformation;
 
+import com.sangsang.cache.transformation.TransformationInstanceCache;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
+import com.sangsang.domain.dto.PlainSelectTransformationDto;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import com.sangsang.visitor.transformation.wrap.ExpressionWrapper;
+import lombok.Getter;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.statement.select.*;
@@ -16,6 +19,26 @@ import java.util.*;
  * @date 2025/5/21 15:07
  */
 public class TransformationSelectVisitor extends BaseFieldParseTable implements SelectVisitor {
+
+    /**
+     * 语法转换好后的查询语句
+     * 某些语法转换，比如分页，需要对整个查询语句进行改造，这种情况下，就存转换好后的查询语句
+     */
+    private PlainSelect processedPlainSelect;
+
+    /**
+     * 获取当前处理好的select语句
+     * 注意：因为存在复用当前visitor的情况，所以每次取值后都将这个进行清空
+     *
+     * @author liutangqi
+     * @date 2026/1/6 15:22
+     * @Param []
+     **/
+    public PlainSelect getProcessedPlainSelect() {
+        PlainSelect res = this.processedPlainSelect;
+        this.processedPlainSelect = null;
+        return res;
+    }
 
     private TransformationSelectVisitor(int layer, Map<Integer, Map<String, List<FieldInfoDto>>> layerSelectTableFieldMap, Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap) {
         super(layer, layerSelectTableFieldMap, layerFieldTableMap);
@@ -66,8 +89,11 @@ public class TransformationSelectVisitor extends BaseFieldParseTable implements 
     @Override
     public void visit(ParenthesedSelect parenthesedSelect) {
         //注意：这里层数是当前层，这个的解析结果需要和外层在同一层级
-        Optional.ofNullable(parenthesedSelect.getSelect())
-                .ifPresent(p -> p.accept(TransformationSelectVisitor.newInstanceCurLayer(this)));
+        if (parenthesedSelect.getSelect() != null) {
+            TransformationSelectVisitor tfSelectVisitor = TransformationSelectVisitor.newInstanceCurLayer(this);
+            parenthesedSelect.getSelect().accept(tfSelectVisitor);
+            Optional.ofNullable(tfSelectVisitor.getProcessedPlainSelect()).ifPresent(p -> parenthesedSelect.setSelect(p));
+        }
     }
 
     @Override
@@ -93,7 +119,9 @@ public class TransformationSelectVisitor extends BaseFieldParseTable implements 
             TransformationExpressionVisitor tfExpressionVisitor = TransformationExpressionVisitor.newInstanceCurLayer(this);
             //使用包装类进行转转，额外对整个Expression进行语法转换一次
             Expression tfExp = ExpressionWrapper.wrap(where).accept(tfExpressionVisitor);
-            Optional.ofNullable(tfExp).ifPresent(p -> plainSelect.setWhere(p));
+            if (tfExp != null) {
+                plainSelect.setWhere(tfExp);
+            }
         }
 
         //4.join的表
@@ -132,6 +160,9 @@ public class TransformationSelectVisitor extends BaseFieldParseTable implements 
             TransformationGroupByVisitor tfGroupByVisitor = TransformationGroupByVisitor.newInstanceCurLayer(this);
             groupBy.accept(tfGroupByVisitor);
         }
+
+        //7.对select整体语句进行转换（注意：因为有些分页的场景处理会去掉一层分页子查询，导致存储每层字段信息的缓存层级结构层数对不上，这种情况下转换实现类请注意对缓存层级的维护）
+        this.processedPlainSelect = Optional.ofNullable(TransformationInstanceCache.transformation(PlainSelectTransformationDto.builder().plainSelect(plainSelect).baseFieldParseTable(this).build())).map(PlainSelectTransformationDto::getPlainSelect).orElse(plainSelect);
     }
 
     /**
@@ -156,8 +187,9 @@ public class TransformationSelectVisitor extends BaseFieldParseTable implements 
             TransformationSelectVisitor tfSelectVisitor = TransformationSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor);
             select.accept(tfSelectVisitor);
 
-            //维护加解密之后的语句
-            resSelectBody.add(select);
+            //维护加解密之后的语句 (注意：getProcessedPlainSelect()每次调用后都会清空)
+            Select processedPlainSelect = tfSelectVisitor.getProcessedPlainSelect();
+            resSelectBody.add(Optional.ofNullable(processedPlainSelect).orElse(select));
         }
         setOpList.setSelects(resSelectBody);
     }

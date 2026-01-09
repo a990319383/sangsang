@@ -1,5 +1,6 @@
 package com.sangsang.visitor.transformation;
 
+import cn.hutool.core.lang.Opt;
 import com.sangsang.cache.transformation.TransformationInstanceCache;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.ColumnTableDto;
@@ -399,7 +400,7 @@ public class TransformationExpressionVisitor extends BaseFieldParseTable impleme
         boolean tableFiled = JsqlparserUtil.isTableFiled(tableColumn, this.getLayer(), this.getLayerFieldTableMap());
 
         //2.解析这个字段是否属于真实表
-        ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn(tableColumn, this.getLayer(), this.getLayerFieldTableMap());
+        ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn(tableColumn, this);
 
         //3.开始语法转换
         ColumnTransformationDto columnTransformationDto = TransformationInstanceCache.transformation(new ColumnTransformationDto(tableColumn, tableFiled, columnTableDto.isFromSourceTable()));
@@ -803,6 +804,12 @@ public class TransformationExpressionVisitor extends BaseFieldParseTable impleme
         //2.利用合并后的解析结果进行语法转换处理
         TransformationSelectVisitor tfSelectVisitor = TransformationSelectVisitor.newInstanceCurLayer(sFieldSelectItemVisitor);
         selectBody.accept(tfSelectVisitor);
+
+        //3.如果对整个select语句进行了改写，则进行重新赋值(注意：getProcessedPlainSelect()每次调用后都会清空)
+        PlainSelect processedPlainSelect = tfSelectVisitor.getProcessedPlainSelect();
+        if (processedPlainSelect != null) {
+            selectBody = processedPlainSelect;
+        }
     }
 
     /**

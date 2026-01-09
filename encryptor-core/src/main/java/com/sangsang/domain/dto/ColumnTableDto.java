@@ -35,4 +35,17 @@ public class ColumnTableDto {
      **/
     @Builder.Default
     private boolean fromSourceTable = false;
+
+    /**
+     * 该字段是否是由数据库特性产生的行号字段
+     * 比如：oracle 的ROWNUM 或者很多数据库都支持的窗口函数 ROW_NUMBER() OVER (ORDER BY id)
+     * 默认是false
+     **/
+    @Builder.Default
+    private boolean rowNumber = false;
+
+    /**
+     * 默认值，当匹配时返回这个空对象，避免Optional频繁创建对象
+     */
+    public static ColumnTableDto DEAFAULT = ColumnTableDto.builder().build();
 }

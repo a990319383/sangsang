@@ -1,0 +1,1 @@
+SELECT tu."phone" AS ph, "menu_name" AS mName, (SELECT tm2."menu_name" FROM "tb_menu" tm2 WHERE tm2.id = tm.id AND tm2.id = ? AND tu.phone = ?) AS m2Name FROM "tb_user" tu LEFT JOIN "tb_menu" tm ON tu.id = tm."id"

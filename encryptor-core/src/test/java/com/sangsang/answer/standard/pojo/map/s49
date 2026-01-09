@@ -1,1 +1,1 @@
-{"encryptor_placeholder_0":{"tableAliasName":"tr","sourceTableName":"tb_role","sourceColumn":"role_name","fromSourceTable":true}}
+{"encryptor_placeholder_0":{"tableAliasName":"tr","sourceTableName":"tb_role","sourceColumn":"role_name","fromSourceTable":true,"rowNumber":false}}

@@ -65,7 +65,7 @@ public class FieldParseParseTableFromItemVisitor extends BaseFieldParseTable imp
         List<FieldInfoDto> fieldInfoSet = Optional.ofNullable(TableCache.getTableFieldMap().get(tableName))
                 .orElse(new FieldLinkedListWarpper())
                 .stream()
-                .map(m -> FieldInfoDto.builder().columnName(m).sourceTableName(tableName).fromSourceTable(true).sourceColumn(m).build())
+                .map(m -> FieldInfoDto.builder().columnName(m).sourceTableName(tableName).fromSourceTable(true).rowNumber(false).sourceColumn(m).build())
                 .collect(Collectors.toList());
 
         //3.将这些字段信息维护到 layerFieldTableMap 中
@@ -102,6 +102,7 @@ public class FieldParseParseTableFromItemVisitor extends BaseFieldParseTable imp
                         .columnName(m.getColumnName())
                         .sourceColumn(m.getSourceColumn())
                         .sourceTableName(m.getSourceTableName())
+                        .rowNumber(m.isRowNumber())
                         .build())
                 .collect(Collectors.toList());
 

@@ -15,6 +15,7 @@ import net.sf.jsqlparser.expression.operators.relational.IsNullExpression;
 import net.sf.jsqlparser.expression.operators.relational.ParenthesedExpressionList;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
+import net.sf.jsqlparser.statement.select.Limit;
 import net.sf.jsqlparser.statement.update.UpdateSet;
 
 import java.time.LocalDate;
@@ -31,6 +32,8 @@ import java.util.List;
  * @date 2025/6/13 14:23
  */
 public class ExpressionsUtil {
+    //limit分页时，当只有offset没有rowcount时，将rowcount的默认值就是最大值，表示没有这个值
+    public static final LongValue EMPTY_ROWCOUNT = new LongValue(Long.MAX_VALUE);
 
     /**
      * 构建and
@@ -273,5 +276,118 @@ public class ExpressionsUtil {
         inExpression.setRightExpression(valueExpression);
         return inExpression;
     }
+
+
+    /**
+     * 将 行号rowNumber >= ge and 行号rowNumber <= le 转换为 limit
+     * 注意：这两个都可能为null
+     *
+     * @author gemini
+     * @date 2026/1/7 14:50
+     * @Param [ge, le]
+     **/
+    public static Limit buildLimit(Long ge, Long le) {
+        if (ge == null && le == null) {
+            return null;
+        }
+
+        Limit limit = new Limit();
+
+        // 1. 处理 Offset (对应 ge)
+        // MySQL等 的 OFFSET 是从 0 开始的，而 Oracle 逻辑行号通常从 1 开始
+        if (ge != null && ge > 0) {
+            limit.setOffset(new LongValue(ge - 1));
+        } else {
+            // 如果没有下限，默认偏移量为 0
+            limit.setOffset(new LongValue(0));
+        }
+
+        // 2. 处理 RowCount (对应 le)
+        if (le != null) {
+            if (ge != null) {
+                // 区间查询：取中间的差值
+                limit.setRowCount(new LongValue(le - ge + 1));
+            } else {
+                // 仅有上限：直接取 le
+                limit.setRowCount(new LongValue(le));
+            }
+        } else {
+            // 只有下限没有上限，MySQL 必须给一个巨大的值来模拟
+            // 在 MySQL 中通常使用一个极大的常数，比如 18446744073709551615 (BigInt Max)
+            limit.setRowCount(EMPTY_ROWCOUNT);
+        }
+
+        return limit;
+    }
+
+
+    /**
+     * 合并两个 limit
+     *
+     * @author gemini
+     * @date 2026/1/9 16:53
+     * @Param [innerLimit, outerLimit]
+     **/
+    public static Limit mergeLimit(Limit innerLimit, Limit outerLimit) {
+        if (innerLimit == null) return outerLimit;
+        if (outerLimit == null) return innerLimit;
+
+        // 获取数值的辅助方法，处理 null 情况
+        long offset2 = getOffsetValue(innerLimit);
+        long count2 = getCountValue(innerLimit);
+
+        long offset1 = getOffsetValue(outerLimit);
+        long count1 = getCountValue(outerLimit);
+
+        // 1. 计算新的 Offset
+        long newOffset = offset2 + offset1;
+
+        // 2. 计算新的 Count
+        long newCount;
+        if (count2 == -1) { // 内层没设 limit count (虽然语法上少见，但需防备)
+            newCount = count1;
+        } else {
+            // 内层剩余可用数量 = count2 - offset1
+            long remainingInInner = Math.max(0, count2 - offset1);
+            if (count1 == -1) { // 外层没设 count
+                newCount = remainingInInner;
+            } else {
+                newCount = Math.min(count1, remainingInInner);
+            }
+        }
+
+        // 3. 构建新的 Limit 对象
+        Limit combined = new Limit();
+        combined.setOffset(new LongValue(newOffset));
+        combined.setRowCount(new LongValue(newCount));
+
+        return combined;
+    }
+
+    /**
+     * 获取到limit的offset值
+     *
+     * @author gemini
+     * @date 2026/1/9 16:54
+     * @Param [limit]
+     **/
+    private static long getOffsetValue(Limit limit) {
+        if (limit.getOffset() == null) return 0;
+        // 注意：JSqlParser 中 Offset 可能是 Expression，这里假设是简单数字
+        return ((LongValue) limit.getOffset()).getValue();
+    }
+
+    /**
+     * 获取到limit的count值
+     *
+     * @author gemini
+     * @date 2026/1/9 16:54
+     * @Param [limit]
+     **/
+    private static long getCountValue(Limit limit) {
+        if (limit.getRowCount() == null || EMPTY_ROWCOUNT.equals(limit.getRowCount())) return -1; // -1 代表无限制
+        return ((LongValue) limit.getRowCount()).getValue();
+    }
+
 
 }

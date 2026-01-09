@@ -1,1 +1,1 @@
-{"encryptor_placeholder_1":{"tableAliasName":"tr","sourceTableName":"tb_role","sourceColumn":"role_name","fromSourceTable":true},"encryptor_placeholder_0":{"tableAliasName":"tu","sourceTableName":"tb_user","sourceColumn":"phone","fromSourceTable":true}}
+{"encryptor_placeholder_1":{"tableAliasName":"tr","sourceTableName":"tb_role","sourceColumn":"role_name","fromSourceTable":true,"rowNumber":false},"encryptor_placeholder_0":{"tableAliasName":"tu","sourceTableName":"tb_user","sourceColumn":"phone","fromSourceTable":true,"rowNumber":false}}

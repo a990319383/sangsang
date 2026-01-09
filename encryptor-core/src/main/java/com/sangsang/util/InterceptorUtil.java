@@ -1,11 +1,14 @@
 package com.sangsang.util;
 
 import com.sangsang.domain.annos.FieldInterceptorOrder;
+import com.sangsang.domain.constants.FieldConstant;
 import com.sangsang.domain.constants.InterceptorOrderConstant;
 import com.sangsang.domain.constants.SymbolConstant;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.executor.statement.StatementHandler;
+import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
+import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.plugin.Interceptor;
 import org.apache.ibatis.plugin.InterceptorChain;
 import org.apache.ibatis.plugin.Plugin;
@@ -121,4 +124,36 @@ public class InterceptorUtil {
         return id;
     }
 
+
+    /**
+     * 解析获取映射对象的属性值
+     *
+     * @author liutangqi
+     * @date 2024/7/24 14:49
+     * @Param [configuration, boundSql, parameter]
+     **/
+    public static Object parseObj(BoundSql boundSql, ParameterMapping parameter) {
+        Object obj = boundSql.getParameterObject();
+        String property = parameter.getProperty();
+
+        //0.判断boundsql中AdditionalParameter是否存在，存在就取boundsql中的(当入参在实体类中存在List时会走这段逻辑)
+        if (boundSql.hasAdditionalParameter(property)) {
+            return boundSql.getAdditionalParameter(property);
+        }
+
+        //1. 基本数据类型的包装类或者字符串或时间类型，直接返回原值
+        if (FieldConstant.FUNDAMENTAL.contains(obj.getClass())) {
+            return obj;
+        }
+
+        //2.其它类型的值，通过反射获取，如果入参是  dto.xxx 这种，则分开解析每一段，直至获取最终值
+        String[] propertyArr = property.split(SymbolConstant.ESC_FULL_STOP);
+
+        //上一层对象
+        Object pre = obj;
+        for (String prop : propertyArr) {
+            pre = InterceptorUtil.forObject(pre).getValue(prop);
+        }
+        return pre;
+    }
 }

@@ -158,7 +158,7 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
                 Column column = columns.get(i);
                 Expression expression = expressions.get(i);
                 //左边是否需要加解密
-                FieldEncryptor leftFieldEncryptor = JsqlparserUtil.needEncryptFieldEncryptor(column, fieldParseTableFromItemVisitor.getLayer(), fieldParseTableFromItemVisitor.getLayerFieldTableMap());
+                FieldEncryptor leftFieldEncryptor = JsqlparserUtil.needEncryptFieldEncryptor(column, fieldParseTableFromItemVisitor);
                 //根据左边是否密文存储来对右边进行处理
                 DBDecryptExpressionVisitor sDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor, EncryptorFunctionEnum.UPSTREAM_COLUMN, leftFieldEncryptor);
                 expression.accept(sDecryptExpressionVisitor);

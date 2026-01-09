@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 import java.io.Serializable;
 
 /**
- *
  * @author liutangqi
  * @date 2024/3/6 10:30
  */
@@ -20,7 +19,9 @@ import java.io.Serializable;
 public class FieldInfoDto implements Serializable {
     /**
      * 字段的别名或者是原字段名
-     * 注意：这个不能转换为小写，转换为小写后会影响别名的驼峰
+     * 注意：这个字段在layerSelectTableFieldMap和layerFieldTableMap的逻辑不同，主要用于解决嵌套查询的问题
+     * layerSelectTableFieldMap：有别名取别名，没别名用的原始字段名
+     * layerFieldTableMap：原始字段名
      **/
     private String columnName;
     /**
@@ -39,4 +40,13 @@ public class FieldInfoDto implements Serializable {
      **/
     @Builder.Default
     private boolean fromSourceTable = false;
+
+    /**
+     * 该字段是否是由数据库特性产生的行号字段
+     * 比如：oracle 的ROWNUM 或者很多数据库都支持的窗口函数 ROW_NUMBER() OVER (ORDER BY id)
+     * 默认是false
+     **/
+    @Builder.Default
+    private boolean rowNumber = false;
+
 }

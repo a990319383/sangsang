@@ -1,1 +1,1 @@
-[{"columnName":"phone","sourceColumn":"phone","sourceTableName":"tb_user","fieldEncryptor":{}},{"columnName":"role_desc","sourceColumn":"role_desc","sourceTableName":"tb_role"},{"columnName":"role_name","sourceColumn":"role_name","sourceTableName":"tb_role","fieldEncryptor":{}}]
+[{"columnName":"phone","sourceColumn":"phone","sourceTableName":"tb_user","fieldEncryptor":{}},{"columnName":"role_name","sourceColumn":"role_name","sourceTableName":"tb_role","fieldEncryptor":{}},{"columnName":"role_desc","sourceColumn":"role_desc","sourceTableName":"tb_role"}]

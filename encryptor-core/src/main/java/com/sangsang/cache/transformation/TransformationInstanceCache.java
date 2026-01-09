@@ -79,7 +79,10 @@ public class TransformationInstanceCache extends DefaultBeanPostProcessor {
     public static <T> T transformation(T t) {
         //1.先找转换器类型基类中泛型是这个的
         Class superClass = SUPERTRANSFORMATION_MAP.get(t.getClass());
-        Optional.ofNullable(superClass).orElseThrow(() -> new TransformationException(String.format("找不到对应泛型<%s>的基类转换器", t.getClass().getSimpleName())));
+        if (superClass == null) {
+            //不同的异构数据库之间，可能有的不需要某些转换器，所以找不到这里返回原样
+            return t;
+        }
 
         //2.找到这个基类转换器的所有实现类实例
         List<TransformationInterface> transformationList = TRANSFORMATION_MAP.get(superClass);
@@ -106,7 +109,10 @@ public class TransformationInstanceCache extends DefaultBeanPostProcessor {
     public static <T> T transformation(T t, Class typeClass) {
         //1.先找转换器类型基类中泛型是这个的
         Class superClass = SUPERTRANSFORMATION_MAP.get(typeClass);
-        Optional.ofNullable(superClass).orElseThrow(() -> new TransformationException(String.format("找不到对应泛型<%s>的基类转换器", typeClass.getSimpleName())));
+        if (superClass == null) {
+            //不同的异构数据库之间，可能有的不需要某些转换器，所以找不到这里返回原样
+            return t;
+        }
 
         //2.找到这个基类转换器的所有实现类实例
         List<TransformationInterface> transformationList = TRANSFORMATION_MAP.get(superClass);

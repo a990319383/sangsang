@@ -172,8 +172,7 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
                 Expression expression = expressions.get(i);
 
                 //处理左右两边表达式的占位符信息
-                JsqlparserUtil.parseWhereColumTable(fieldParseTableFromItemVisitor.getLayer(),
-                        fieldParseTableFromItemVisitor.getLayerFieldTableMap(),
+                JsqlparserUtil.parseWhereColumTable(fieldParseTableFromItemVisitor,
                         column,
                         expression,
                         this.getPlaceholderColumnTableMap());
@@ -201,9 +200,7 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
             insert.setColumns(new ExpressionList(columns));
         }
         //2.4 将insert的所有字段格式进行转换
-        List<FieldInfoDto> fieldInfoDtos = columns.stream()
-                .map(m -> new FieldInfoDto(m.getColumnName(), m.getColumnName(), table.getName(), true))
-                .collect(Collectors.toList());
+        List<FieldInfoDto> fieldInfoDtos = columns.stream().map(m -> FieldInfoDto.builder().columnName(m.getColumnName()).sourceColumn(m.getColumnName()).sourceTableName(table.getName()).fromSourceTable(true).rowNumber(false).build()).collect(Collectors.toList());
         //2.5 将转换后的字段信息维护成 layerFieldTableMap 的数据格式
         Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap = new LayerHashMapWrapper();
         Map<String, List<FieldInfoDto>> fieldTableMap = new FieldHashMapWrapper<>();

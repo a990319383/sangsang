@@ -6,9 +6,12 @@ import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.cache.transformation.TransformationInstanceCache;
 import com.sangsang.config.properties.*;
 import com.sangsang.domain.constants.EncryptorPatternTypeConstant;
+import com.sangsang.domain.constants.FieldConstant;
 import com.sangsang.domain.constants.TransformationPatternTypeConstant;
+import com.sangsang.domain.context.TfParameterMappingHolder;
 import com.sangsang.encryptor.db.DefaultDBFieldEncryptorPattern;
 import com.sangsang.strategy.TestDataIsolationStrategy;
+import com.sangsang.util.StringUtils;
 
 import java.util.*;
 
@@ -79,5 +82,22 @@ public class CacheTestHelper {
         fieldProperties.setTransformation(transformationProperties);
 
         return fieldProperties;
+    }
+
+
+    /**
+     * 进行语法转换测试的时候，将?替换为FieldConstant.PLACEHOLDER+自增序列
+     * 并且给TfParameterMappingHolder中mock好入参的值
+     *
+     * @author liutangqi
+     * @date 2026/1/9 14:34
+     * @Param [sql]
+     **/
+    public static String tfHolderMock(String sql) {
+        String resSql = StringUtils.question2Placeholder(sql);
+        //这里假定sql的第一个?值是11 第二个?的值是20
+        TfParameterMappingHolder.setParameterMapping(FieldConstant.PLACEHOLDER + 0, 11);
+        TfParameterMappingHolder.setParameterMapping(FieldConstant.PLACEHOLDER + 1, 20);
+        return resSql;
     }
 }

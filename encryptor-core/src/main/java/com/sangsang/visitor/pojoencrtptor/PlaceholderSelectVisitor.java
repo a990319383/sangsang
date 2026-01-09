@@ -233,8 +233,7 @@ public class PlaceholderSelectVisitor extends PlaceholderFieldParseTable impleme
                 for (int i = 0; i < eList.size(); i++) {
                     Expression curExp = (Expression) eList.get(i);
                     Expression upstreamExpression = this.upstreamExpressionList.get(i);
-                    JsqlparserUtil.parseWhereColumTable(this.getLayer(),
-                            this.getLayerFieldTableMap(),
+                    JsqlparserUtil.parseWhereColumTable(this,
                             upstreamExpression,
                             curExp,
                             this.getPlaceholderColumnTableMap());
@@ -248,8 +247,7 @@ public class PlaceholderSelectVisitor extends PlaceholderFieldParseTable impleme
             for (int i = 0; i < expressions.size(); i++) {
                 Expression curExp = (Expression) expressions.get(i);
                 Expression upstreamExpression = this.upstreamExpressionList.get(i);
-                JsqlparserUtil.parseWhereColumTable(this.getLayer(),
-                        this.getLayerFieldTableMap(),
+                JsqlparserUtil.parseWhereColumTable(this,
                         upstreamExpression,
                         curExp,
                         this.getPlaceholderColumnTableMap());

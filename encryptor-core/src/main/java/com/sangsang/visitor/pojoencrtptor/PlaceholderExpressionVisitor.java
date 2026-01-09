@@ -227,8 +227,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(EqualsTo equalsTo) {
         //如果有一边表达式是 特殊的占位符，则维护占位符对应的表字段信息
-        JsqlparserUtil.parseWhereColumTable(this.getLayer(),
-                this.getLayerFieldTableMap(),
+        JsqlparserUtil.parseWhereColumTable(this,
                 equalsTo,
                 this.getPlaceholderColumnTableMap());
     }
@@ -291,8 +290,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
                     //找出对应的左边的表达式
                     Expression leftExp = leftExpressionList.get(i);
                     //解析占位符
-                    JsqlparserUtil.parseWhereColumTable(this.getLayer(),
-                            this.getLayerFieldTableMap(),
+                    JsqlparserUtil.parseWhereColumTable(this,
                             leftExp,
                             expList.get(i),
                             this.getPlaceholderColumnTableMap());
@@ -306,8 +304,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
                 //找出对应的左边的表达式（语法1中左表达式集合长度肯定为1，所以get(0)，语法6这种不兼容，所以直接返回null）
                 Expression leftExp = CollectionUtils.isNotEmpty(leftExpressionList) ? leftExpressionList.get(0) : null;
                 //解析占位符
-                JsqlparserUtil.parseWhereColumTable(this.getLayer(),
-                        this.getLayerFieldTableMap(),
+                JsqlparserUtil.parseWhereColumTable(this,
                         leftExp,
                         rightExpressionList.get(i),
                         this.getPlaceholderColumnTableMap());
@@ -345,8 +342,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(LikeExpression likeExpression) {
         //如果有一边表达式是 特殊的占位符，则维护占位符对应的表字段信息
-        JsqlparserUtil.parseWhereColumTable(this.getLayer(),
-                this.getLayerFieldTableMap(),
+        JsqlparserUtil.parseWhereColumTable(this,
                 likeExpression,
                 this.getPlaceholderColumnTableMap());
     }
@@ -364,8 +360,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(NotEqualsTo notEqualsTo) {
         //如果有一边表达式是 特殊的占位符，则维护占位符对应的表字段信息
-        JsqlparserUtil.parseWhereColumTable(this.getLayer(),
-                this.getLayerFieldTableMap(),
+        JsqlparserUtil.parseWhereColumTable(this,
                 notEqualsTo,
                 this.getPlaceholderColumnTableMap());
     }
@@ -394,8 +389,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     public void visit(Column column) {
         //当上游字段不为空时，说明这个列和上游字段是相互对应的，所以处理他们的占位符对应关系
         if (this.upstreamExpression != null) {
-            JsqlparserUtil.parseWhereColumTable(this.getLayer(),
-                    this.getLayerFieldTableMap(),
+            JsqlparserUtil.parseWhereColumTable(this,
                     this.upstreamExpression,
                     column,
                     this.getPlaceholderColumnTableMap());
@@ -446,8 +440,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
         Expression elseExpression = caseExpression.getElseExpression();
         if (elseExpression instanceof BinaryExpression) {
             //如果有一边表达式是 特殊的占位符，则维护占位符对应的表字段信息
-            JsqlparserUtil.parseWhereColumTable(this.getLayer(),
-                    this.getLayerFieldTableMap(),
+            JsqlparserUtil.parseWhereColumTable(this,
                     (BinaryExpression) elseExpression,
                     this.getPlaceholderColumnTableMap());
         }
@@ -465,15 +458,14 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     public void visit(WhenClause whenClause) {
         //对应case when的情况1： case 表字段  when ?占位符 then xxx
         if (this.upstreamExpression instanceof Column && whenClause.getWhenExpression().toString().contains(FieldConstant.PLACEHOLDER)) {
-            ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn((Column) this.upstreamExpression, this.getLayer(), this.getLayerFieldTableMap());
+            ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn((Column) this.upstreamExpression, this);
             this.getPlaceholderColumnTableMap().put(whenClause.getWhenExpression().toString(), columnTableDto);
         }
 
         //对应case when 的情况2： case  when 表字段=?占位符 then
         if (whenClause.getWhenExpression() instanceof BinaryExpression) {
             //如果有一边表达式是 特殊的占位符，则维护占位符对应的表字段信息
-            JsqlparserUtil.parseWhereColumTable(this.getLayer(),
-                    this.getLayerFieldTableMap(),
+            JsqlparserUtil.parseWhereColumTable(this,
                     (BinaryExpression) whenClause.getWhenExpression(),
                     this.getPlaceholderColumnTableMap());
         }
@@ -482,8 +474,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
         Expression thenExpression = whenClause.getThenExpression();
         if (thenExpression instanceof BinaryExpression) {
             //如果有一边表达式是 特殊的占位符，则维护占位符对应的表字段信息
-            JsqlparserUtil.parseWhereColumTable(this.getLayer(),
-                    this.getLayerFieldTableMap(),
+            JsqlparserUtil.parseWhereColumTable(this,
                     (BinaryExpression) thenExpression,
                     this.getPlaceholderColumnTableMap());
         }

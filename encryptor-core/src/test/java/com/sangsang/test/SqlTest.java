@@ -487,6 +487,9 @@ public class SqlTest {
     //需要访问上层作用域时，上层的作用域是不是第一层
     String s51 = "SELECT a.* FROM(SELECT * FROM tb_user tu WHERE tu.phone IN (SELECT role_name FROM tb_role tr))a JOIN tb_menu tm ON a.id = tm.id";
 
+    //临时测试sql
+    String s_test_tmp = "select phone ph ,id as iii from tb_user";
+
     // -----------------insert 测试语句---------------------
     String i1 = "insert into tb_user(id, user_name ,phone) \n" +
             "values(1,?,'18243512315'),(2,'南瓜',?)";
@@ -615,7 +618,7 @@ public class SqlTest {
         CacheTestHelper.testInit(fieldProperties);
 
         //需要测试的sql
-        String sql = u4;
+        String sql = s_test_tmp;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -647,7 +650,7 @@ public class SqlTest {
         CacheTestHelper.testInit(fieldProperties);
 
         //需要测试的sql
-        String sql = u4;
+        String sql = s1;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -747,6 +750,7 @@ public class SqlTest {
             statement.accept(poJoEncrtptorStatementVisitor);
             List<FieldEncryptorInfoDto> fieldEncryptorInfos = poJoEncrtptorStatementVisitor.getFieldEncryptorInfos();
             Map<String, ColumnTableDto> placeholderColumnTableMap = poJoEncrtptorStatementVisitor.getPlaceholderColumnTableMap();
+
 
             //找答案
             Pair<String, String> answer = AnswerUtil.readPOJOAnswerToFile(this, sql);

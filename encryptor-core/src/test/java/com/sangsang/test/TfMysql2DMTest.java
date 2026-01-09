@@ -16,7 +16,7 @@ import java.util.List;
  * @author liutangqi
  * @date 2025/5/27 10:46
  */
-public class TransformationTest {
+public class TfMysql2DMTest {
 
 
     //DATE_SUB 函数转换
@@ -179,8 +179,16 @@ public class TransformationTest {
 
     //group by
     String s26 = "select * from tb_user where role_id BETWEEN 1 and 100 group by id,user_name";
-    //test
-    String s_test = "select \"phone\" ,`user_name` from tb_user";
+
+    //select (select) from
+    String s27 = "select\n" +
+            "\ttu.`phone` as ph ,\n" +
+            "\t`menu_name` as mName,\n" +
+            "\t(select tm2.`menu_name` from `tb_menu` tm2 where tm2.id = tm.id and tm2.id = ? and tu.phone = ? ) as m2Name\n" +
+            "from\n" +
+            "\t`tb_user` tu\n" +
+            "left join `tb_menu` tm \n" +
+            "on tu.id = tm.`id`";
 
     //带有case when
     String u1 = "update tb_user \n" +
@@ -246,7 +254,7 @@ public class TransformationTest {
         CacheTestHelper.testInit(fieldProperties);
 
         //需要的sql
-        String sql = s_test;
+        String sql = s5;
         System.out.println("----------------------原始sql-----------------------");
         System.out.println(sql);
 
@@ -270,7 +278,7 @@ public class TransformationTest {
 
     //需要测试的sql
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14,//s15,
-            s16, s17, s18, s19, s20, s21, s22, s23, s24, s25, s26,
+            s16, s17, s18, s19, s20, s21, s22, s23, s24, s25, s26, s27,
             i1, i2, i3, i4,
             d1,
             u1

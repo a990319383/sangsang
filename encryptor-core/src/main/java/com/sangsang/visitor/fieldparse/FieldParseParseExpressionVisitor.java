@@ -82,7 +82,13 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
         //function处理后的结果，放的结果的key是这个
         String tableAliasName = FieldConstant.FUNCTION_TMP;
 
-        FieldInfoDto fieldInfoDto = FieldInfoDto.builder().columnName(aliasColumName).sourceTableName(null).sourceColumn(null).fromSourceTable(false).build();
+        FieldInfoDto fieldInfoDto = FieldInfoDto.builder()
+                .columnName(aliasColumName)
+                .sourceTableName(null)
+                .sourceColumn(null)
+                .fromSourceTable(false)
+                .rowNumber(JsqlparserUtil.rowNumber(function))
+                .build();
 
         //将当前字段存入layerSelectTableFieldMap 中
         JsqlparserUtil.putFieldInfo(this.getLayerSelectTableFieldMap(), this.getLayer(), tableAliasName, fieldInfoDto);
@@ -150,7 +156,7 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
     public void visit(StringValue stringValue) {
         //当前字段别名，别名没有取字符串名字
         String aliasColumName = Optional.ofNullable(alias).map(Alias::getName).orElse(stringValue.getValue());
-        FieldInfoDto fieldInfoDto = FieldInfoDto.builder().columnName(aliasColumName).sourceTableName(null).sourceColumn(null).fromSourceTable(false).build();
+        FieldInfoDto fieldInfoDto = FieldInfoDto.builder().columnName(aliasColumName).sourceTableName(null).sourceColumn(null).fromSourceTable(false).rowNumber(false).build();
         JsqlparserUtil.putFieldInfo(this.getLayerSelectTableFieldMap(), this.getLayer(), FieldConstant.FUNCTION_TMP, fieldInfoDto);
     }
 
@@ -282,25 +288,29 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
     @Override
     public void visit(Column tableColumn) {
         //1.解析当前字段所属的表信息
-        ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn(tableColumn, this.getLayer(), this.getLayerFieldTableMap());
+        ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn(tableColumn, this);
         //当前字段别名，别名没有取库字段名
         String aliasColumName = Optional.ofNullable(alias).map(Alias::getName).orElse(tableColumn.getColumnName());
 
         //2.匹配到了真实表名，则将此字段存入 layerSelectTableFieldMap
         if (StringUtils.isNotBlank(columnTableDto.getSourceTableName())) {
-            FieldInfoDto fieldInfoDto = FieldInfoDto.builder().columnName(aliasColumName).sourceTableName(columnTableDto.getSourceTableName()).sourceColumn(columnTableDto.getSourceColumn()).fromSourceTable(columnTableDto.isFromSourceTable()).build();
+            FieldInfoDto fieldInfoDto = FieldInfoDto.builder().columnName(aliasColumName).sourceTableName(columnTableDto.getSourceTableName()).sourceColumn(columnTableDto.getSourceColumn()).fromSourceTable(columnTableDto.isFromSourceTable()).rowNumber(false).build();
 
             //将此字段存入 layerSelectTableFieldMap 中
             JsqlparserUtil.putFieldInfo(this.getLayerSelectTableFieldMap(), this.getLayer(), columnTableDto.getTableAliasName(), fieldInfoDto);
         }
         //3.未匹配到真实表名，但是存在所属表别名，说明这个字段是属于内层嵌套的常量字段
         else if (StringUtils.isNotBlank(columnTableDto.getTableAliasName())) {
-            FieldInfoDto fieldInfoDto = FieldInfoDto.builder().columnName(aliasColumName).sourceTableName(null).sourceColumn(null).fromSourceTable(false).build();
+            FieldInfoDto fieldInfoDto = FieldInfoDto.builder().columnName(aliasColumName).sourceTableName(null).sourceColumn(null).fromSourceTable(false).rowNumber(false).build();
             JsqlparserUtil.putFieldInfo(this.getLayerSelectTableFieldMap(), this.getLayer(), columnTableDto.getTableAliasName(), fieldInfoDto);
         }
-        //4.如果当前字段没有匹配到真实表名，则此字段可能是个常量，这个时候把这个字段挂虚拟表上去，存到layerSelectTableFieldMap 中
+        //4.如果当前字段没有匹配到真实表名，则此字段可能是个常量或者是数据库自带的一些属性字段，这个时候把这个字段挂虚拟表上去，存到layerSelectTableFieldMap和 layerFieldTableMap中
         else {
-            FieldInfoDto fieldInfoDto = FieldInfoDto.builder().columnName(aliasColumName).sourceTableName(null).sourceColumn(null).fromSourceTable(false).build();
+            //判断当前列是否属于行号字段
+            boolean rowNumber = JsqlparserUtil.rowNumber(tableColumn);
+            //注意1：这里columnName是有别名取别名，没别名取字段名
+            //注意2：由于这种属于不来自表的字段（常量或者rownumber这种凭空产生的数据），所以只存在LayerSelectTableFieldMap中，不存在LayerFieldTableMap
+            FieldInfoDto fieldInfoDto = FieldInfoDto.builder().columnName(aliasColumName).sourceTableName(null).sourceColumn(null).fromSourceTable(false).rowNumber(rowNumber).build();
             JsqlparserUtil.putFieldInfo(this.getLayerSelectTableFieldMap(), this.getLayer(), FieldConstant.FUNCTION_TMP, fieldInfoDto);
         }
 
@@ -553,16 +563,8 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
 
         //获取其中叫这个别名的全部字段
         String tableName = allTableColumns.getTable().getName();
-        Map<String, List<FieldInfoDto>> fieldMap = fieldTableMap
-                .entrySet()
-                .stream()
-                .filter(f -> StringUtils.fieldEquals(f.getKey(), tableName))
-                .collect(FieldHashMapWrapper::new, (map, entry) -> map.put(entry.getKey(), entry.getValue()), (map1, map2) -> map1.putAll(map2));
-
-        //将本层全部字段放到 select的map中
-        for (Map.Entry<String, List<FieldInfoDto>> fieldInfoEntry : fieldMap.entrySet()) {
-            JsqlparserUtil.putFieldInfo(this.getLayerSelectTableFieldMap(), this.getLayer(), fieldInfoEntry.getKey(), fieldInfoEntry.getValue());
-        }
+        List<FieldInfoDto> tableFieldInfoDtos = fieldTableMap.get(tableName);
+        JsqlparserUtil.putFieldInfo(this.getLayerSelectTableFieldMap(), this.getLayer(), tableName, tableFieldInfoDtos);
     }
 
     @Override
@@ -604,7 +606,7 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
         //3.结果合并 (注意：新增加的结果的别名需要修改成外层select的别名)
         for (Map.Entry<String, List<FieldInfoDto>> fieldInfoEntry : newSelectTableFieldMap.entrySet()) {
             //4.1将这个字段的别名重新设置（这种语法下select （select ） 内层select的别名是没有意义的，是以外层的select语句为准的）
-            List<FieldInfoDto> fieldInfoDtos = fieldInfoEntry.getValue().stream().map(m -> FieldInfoDto.builder().sourceTableName(m.getSourceTableName()).sourceColumn(m.getSourceColumn()).fromSourceTable(m.isFromSourceTable()).columnName(Optional.ofNullable(this.alias).map(Alias::getName).orElse(subSelect.toString())).build()).collect(Collectors.toList());
+            List<FieldInfoDto> fieldInfoDtos = fieldInfoEntry.getValue().stream().map(m -> FieldInfoDto.builder().sourceTableName(m.getSourceTableName()).sourceColumn(m.getSourceColumn()).fromSourceTable(m.isFromSourceTable()).columnName(Optional.ofNullable(this.alias).map(Alias::getName).orElse(subSelect.toString())).fromSourceTable(false).rowNumber(m.isRowNumber()).build()).collect(Collectors.toList());
             //4.2 结果合并
             JsqlparserUtil.putFieldInfo(this.getLayerSelectTableFieldMap(), this.getLayer(), fieldInfoEntry.getKey(), fieldInfoDtos);
         }

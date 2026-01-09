@@ -325,7 +325,7 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
         //1.3 左边是单列的常量或者是字段列时（对应语法1，语法2，语法3，语法8）
         if ((leftExpression instanceof Column) || (leftExpression instanceof JdbcParameter)) {
             //获取左边表达式是否是 Column 并且需要进行密文存储
-            FieldEncryptor leftColumnFieldEncryptor = JsqlparserUtil.needEncryptFieldEncryptor(leftExpression, this.getLayer(), this.getLayerFieldTableMap());
+            FieldEncryptor leftColumnFieldEncryptor = JsqlparserUtil.needEncryptFieldEncryptor(leftExpression, this);
             //这种情况左边只有一列，下标肯定只有一个，是0
             needEncryptFieldEncryptorList.add(NumberConstant.ZERO, leftColumnFieldEncryptor);
         }
@@ -334,7 +334,7 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
             ParenthesedExpressionList<Expression> leftExpressionList = (ParenthesedExpressionList) leftExpression;
             for (int i = 0; i < leftExpressionList.size(); i++) {
                 //记录左边每个字段头上的@FieldEncryptor注解信息
-                FieldEncryptor leftColumnFieldEncryptor = JsqlparserUtil.needEncryptFieldEncryptor(leftExpressionList.get(i), this.getLayer(), this.getLayerFieldTableMap());
+                FieldEncryptor leftColumnFieldEncryptor = JsqlparserUtil.needEncryptFieldEncryptor(leftExpressionList.get(i), this);
                 needEncryptFieldEncryptorList.add(i, leftColumnFieldEncryptor);
             }
         }
@@ -470,7 +470,7 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
     @Override
     public void visit(Column column) {
         //1.判断当前列是否需要密文存储
-        FieldEncryptor currentFieldEncryptor = JsqlparserUtil.needEncryptFieldEncryptor(column, this.getLayer(), this.getLayerFieldTableMap());
+        FieldEncryptor currentFieldEncryptor = JsqlparserUtil.needEncryptFieldEncryptor(column, this);
 
         //2.获取上游列是否需要密文存储
         FieldEncryptor upstreamFieldEncryptor = this.getUpstreamFieldEncryptor();

@@ -44,6 +44,7 @@ import net.sf.jsqlparser.statement.upsert.Upsert;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -185,6 +186,7 @@ public class TransformationStatementVisitor implements StatementVisitor {
         //2.处理select
         TransformationSelectVisitor tfSelectVisitor = TransformationSelectVisitor.newInstanceCurLayer(fPSelectVisitor);
         select.accept(tfSelectVisitor);
+        Optional.ofNullable(tfSelectVisitor.getProcessedPlainSelect()).ifPresent(p -> insert.setSelect(p));
 
         //3.处理Column
         ExpressionList<Column> columns = insert.getColumns();
@@ -304,7 +306,7 @@ public class TransformationStatementVisitor implements StatementVisitor {
         select.accept(selectVisitor);
 
         //3.处理好的sql赋值
-        this.resultSql = select.toString();
+        this.resultSql = Optional.ofNullable(selectVisitor.getProcessedPlainSelect()).map(Objects::toString).orElse(select.toString());
     }
 
     @Override

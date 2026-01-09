@@ -36,6 +36,8 @@ public class BaseFieldParseTable {
      * ---key: 表别名(有表别名就是别名，没有别名就是表名)
      * --- value: (注意：这里嵌套子查询时，这里的所有字段不一定属于同一张表)
      * ------查询的表拥有的全部 “字段原名”和所属的真实表名
+     *
+     * 注意：sql中出现的某些常量字段，或者数据库本身特性凭空产生的字段，比如rownumber，只会存在 layerSelectTableFieldMap中，layerFieldTableMap里面是不存储这部分信息的
      */
     private Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap;
 
