@@ -14,10 +14,7 @@ import net.sf.jsqlparser.expression.operators.conditional.OrExpression;
 import net.sf.jsqlparser.expression.operators.conditional.XorExpression;
 import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Column;
-import net.sf.jsqlparser.statement.select.AllColumns;
-import net.sf.jsqlparser.statement.select.AllTableColumns;
-import net.sf.jsqlparser.statement.select.ParenthesedSelect;
-import net.sf.jsqlparser.statement.select.Select;
+import net.sf.jsqlparser.statement.select.*;
 
 import java.util.List;
 import java.util.Map;
@@ -35,6 +32,16 @@ public class O2MTfExpressionVisitor extends BaseFieldParseTable implements Expre
      * 当前表达式的别名
      */
     private Alias alias;
+
+    /**
+     * 如果表达式需要发生变更，这里是变更后的表达式
+     *
+     * @author liutangqi
+     * @date 2026/1/15 15:47
+     * @Param
+     **/
+    @Getter
+    private Expression processedExpression;
 
     /**
      * 处理后的最终结果
@@ -87,7 +94,7 @@ public class O2MTfExpressionVisitor extends BaseFieldParseTable implements Expre
 
     @Override
     public void visit(Function function) {
-        //todo-ltq 窗口函数
+
     }
 
     @Override
@@ -176,28 +183,55 @@ public class O2MTfExpressionVisitor extends BaseFieldParseTable implements Expre
         Expression leftExpression = andExpression.getLeftExpression();
         O2MTfExpressionVisitor leftO2MTfExpressionVisitor = O2MTfExpressionVisitor.newInstanceCurLayer(this);
         leftExpression.accept(leftO2MTfExpressionVisitor);
-
+        //左边表达式不需要保留了，就留右边的
+        if (!leftO2MTfExpressionVisitor.getProcess().isRetainExpression()) {
+            this.processedExpression = andExpression.getRightExpression();
+        }
 
         //处理右边表达式
         Expression rightExpression = andExpression.getRightExpression();
         O2MTfExpressionVisitor rightO2MTfExpressionVisitor = O2MTfExpressionVisitor.newInstanceCurLayer(this);
         rightExpression.accept(rightO2MTfExpressionVisitor);
-
-        //将左右表达式的处理结果进行合并，左右两边的表达式都不保留的情况，将两个表达式的范围进行合并
-        if (!leftO2MTfExpressionVisitor.getProcess().isRetainExpression() && !rightO2MTfExpressionVisitor.getProcess().isRetainExpression()) {
-            this.process = O2MTfExpressionDto.builder()
-                    .retainExpression(false)
-                    .ge(CollectionUtils.getMax(leftO2MTfExpressionVisitor.getProcess().getGe(), rightO2MTfExpressionVisitor.getProcess().getGe()))
-                    .le(CollectionUtils.getMin(leftO2MTfExpressionVisitor.getProcess().getLe(), rightO2MTfExpressionVisitor.getProcess().getLe()))
-                    .build();
+        //右边表达式不需要保留了，就留左边的
+        if (!rightO2MTfExpressionVisitor.getProcess().isRetainExpression()) {
+            this.processedExpression = andExpression.getLeftExpression();
         }
 
+        //将左右表达式的处理结果进行合并，左右两边的表达式都不保留的情况，则这个and都不需要保留了
+        this.process = O2MTfExpressionDto.builder()
+                .retainExpression(leftO2MTfExpressionVisitor.getProcess().isRetainExpression() || rightO2MTfExpressionVisitor.getProcess().isRetainExpression())
+                .ge(CollectionUtils.getMax(leftO2MTfExpressionVisitor.getProcess().getGe(), rightO2MTfExpressionVisitor.getProcess().getGe()))
+                .le(CollectionUtils.getMin(leftO2MTfExpressionVisitor.getProcess().getLe(), rightO2MTfExpressionVisitor.getProcess().getLe()))
+                .build();
 
     }
 
     @Override
     public void visit(OrExpression orExpression) {
+        //处理左边表达式
+        Expression leftExpression = orExpression.getLeftExpression();
+        O2MTfExpressionVisitor leftO2MTfExpressionVisitor = O2MTfExpressionVisitor.newInstanceCurLayer(this);
+        leftExpression.accept(leftO2MTfExpressionVisitor);
+        //左边表达式不需要保留了，就留右边的
+        if (!leftO2MTfExpressionVisitor.getProcess().isRetainExpression()) {
+            this.processedExpression = orExpression.getRightExpression();
+        }
 
+        //处理右边表达式
+        Expression rightExpression = orExpression.getRightExpression();
+        O2MTfExpressionVisitor rightO2MTfExpressionVisitor = O2MTfExpressionVisitor.newInstanceCurLayer(this);
+        rightExpression.accept(rightO2MTfExpressionVisitor);
+        //右边表达式不需要保留了，就留左边的
+        if (!rightO2MTfExpressionVisitor.getProcess().isRetainExpression()) {
+            this.processedExpression = orExpression.getLeftExpression();
+        }
+
+        //将左右表达式的处理结果进行合并，左右两边的表达式都不保留的情况，则这个and都不需要保留了
+        this.process = O2MTfExpressionDto.builder()
+                .retainExpression(leftO2MTfExpressionVisitor.getProcess().isRetainExpression() || rightO2MTfExpressionVisitor.getProcess().isRetainExpression())
+                .ge(CollectionUtils.getMax(leftO2MTfExpressionVisitor.getProcess().getGe(), rightO2MTfExpressionVisitor.getProcess().getGe()))
+                .le(CollectionUtils.getMin(leftO2MTfExpressionVisitor.getProcess().getLe(), rightO2MTfExpressionVisitor.getProcess().getLe()))
+                .build();
     }
 
     @Override
@@ -264,14 +298,14 @@ public class O2MTfExpressionVisitor extends BaseFieldParseTable implements Expre
                 && (JsqlparserUtil.rowNumber((Column) leftExpression) ||
                 JsqlparserUtil.parseColumn((Column) leftExpression, this).isRowNumber())) {
             Long num = JsqlparserUtil.tfParseRowNumber(rightExpression);
-            this.process = O2MTfExpressionDto.builder().retainExpression(false).ge(num + 1).build();
+            Optional.ofNullable(num).ifPresent(p -> this.process = O2MTfExpressionDto.builder().retainExpression(false).ge(p + 1).build());
         }
         //2.右边是行号字段时  num > rownumber
         if (rightExpression instanceof Column
                 && (JsqlparserUtil.rowNumber((Column) rightExpression) ||
                 JsqlparserUtil.parseColumn((Column) rightExpression, this).isRowNumber())) {
             Long num = JsqlparserUtil.tfParseRowNumber(leftExpression);
-            this.process = O2MTfExpressionDto.builder().retainExpression(false).le(num - 1).build();
+            Optional.ofNullable(num).ifPresent(p -> this.process = O2MTfExpressionDto.builder().retainExpression(false).le(p - 1).build());
         }
     }
 
@@ -345,14 +379,14 @@ public class O2MTfExpressionVisitor extends BaseFieldParseTable implements Expre
                 && (JsqlparserUtil.rowNumber((Column) leftExpression) ||
                 JsqlparserUtil.parseColumn((Column) leftExpression, this).isRowNumber())) {
             Long num = JsqlparserUtil.tfParseRowNumber(rightExpression);
-            this.process = O2MTfExpressionDto.builder().retainExpression(false).le(num - 1).build();
+            Optional.ofNullable(num).ifPresent(p -> this.process = O2MTfExpressionDto.builder().retainExpression(false).le(p - 1).build());
         }
         //2.右边是行号字段时  num < rownumber
         if (rightExpression instanceof Column
                 && (JsqlparserUtil.rowNumber((Column) rightExpression) ||
                 JsqlparserUtil.parseColumn((Column) rightExpression, this).isRowNumber())) {
             Long num = JsqlparserUtil.tfParseRowNumber(leftExpression);
-            this.process = O2MTfExpressionDto.builder().retainExpression(false).ge(num + 1).build();
+            Optional.ofNullable(num).ifPresent(p -> this.process = O2MTfExpressionDto.builder().retainExpression(false).ge(p + 1).build());
         }
     }
 
@@ -486,9 +520,25 @@ public class O2MTfExpressionVisitor extends BaseFieldParseTable implements Expre
 
     }
 
+    /**
+     * 窗口函数
+     * todo-ltq
+     *
+     * @author liutangqi
+     * @date 2026/1/14 17:34
+     * @Param [aexpr]
+     **/
     @Override
     public void visit(AnalyticExpression aexpr) {
-
+       /* WindowDefinition windowDefinition = aexpr.getWindowDefinition();
+        List<OrderByElement> orderByElements = windowDefinition.getOrderByElements();
+        PartitionByClause partitionBy = windowDefinition.getPartitionBy();
+        //记录当前窗口函数的排序和分组字段
+        this.process = O2MTfExpressionDto.builder()
+                .retainExpression(false)
+                .orderByElements(orderByElements)
+                .partitionBy(partitionBy)
+                .build();*/
     }
 
     @Override

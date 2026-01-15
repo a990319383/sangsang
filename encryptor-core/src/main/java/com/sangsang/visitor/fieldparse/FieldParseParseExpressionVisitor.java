@@ -87,7 +87,7 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
                 .sourceTableName(null)
                 .sourceColumn(null)
                 .fromSourceTable(false)
-                .rowNumber(JsqlparserUtil.rowNumber(function))
+                .rowNumber(false)
                 .build();
 
         //将当前字段存入layerSelectTableFieldMap 中
@@ -377,9 +377,34 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
 
     }
 
+    /**
+     * 窗口函数
+     *
+     * @author liutangqi
+     * @date 2026/1/14 18:00
+     * @Param [aexpr]
+     **/
     @Override
     public void visit(AnalyticExpression aexpr) {
+        //别名如果不存在的话，就用Function的ToString的结果作为别名
+        alias = Optional.ofNullable(alias).orElse(new Alias(SymbolConstant.FLOAT + aexpr.toString() + SymbolConstant.FLOAT));
 
+        //将这个别名的字段归属在 FieldConstant.FUNCTION_TMP 这张虚拟的表别名中
+        //有些嵌套查询时会有* ，* 时需要包含此处理结果，所以需要把这个维护进去（所以搜索DecryptConstant.FUNCTION_TMP 这个key值没有其它取的地方，因为是*的时候用到，不需要key）
+        String aliasColumName = alias.getName();
+        //function处理后的结果，放的结果的key是这个
+        String tableAliasName = FieldConstant.FUNCTION_TMP;
+
+        FieldInfoDto fieldInfoDto = FieldInfoDto.builder()
+                .columnName(aliasColumName)
+                .sourceTableName(null)
+                .sourceColumn(null)
+                .fromSourceTable(false)
+                .rowNumber(true)
+                .build();
+
+        //将当前字段存入layerSelectTableFieldMap 中
+        JsqlparserUtil.putFieldInfo(this.getLayerSelectTableFieldMap(), this.getLayer(), tableAliasName, fieldInfoDto);
     }
 
     @Override

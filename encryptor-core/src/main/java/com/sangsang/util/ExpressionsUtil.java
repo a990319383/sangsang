@@ -15,7 +15,9 @@ import net.sf.jsqlparser.expression.operators.relational.IsNullExpression;
 import net.sf.jsqlparser.expression.operators.relational.ParenthesedExpressionList;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
+import net.sf.jsqlparser.statement.select.Fetch;
 import net.sf.jsqlparser.statement.select.Limit;
+import net.sf.jsqlparser.statement.select.Offset;
 import net.sf.jsqlparser.statement.update.UpdateSet;
 
 import java.time.LocalDate;
@@ -362,6 +364,39 @@ public class ExpressionsUtil {
         combined.setRowCount(new LongValue(newCount));
 
         return combined;
+    }
+
+
+    /**
+     * 将Oracle新版本的分页语法转换为mysql的分页语法
+     *
+     * @author gemini
+     * @date 2026/1/14 16:38
+     * @Param [offset, fetch]
+     **/
+    public static Limit fetch2Limit(Offset offset, Fetch fetch) {
+        //1.都为空，不处理
+        if (offset == null && fetch == null) {
+            return null;
+        }
+
+        Limit mysqlLimit = new Limit();
+        if (fetch != null) {
+            // 1. 处理 FETCH NEXT -> LIMIT
+            mysqlLimit.setRowCount(new LongValue(fetch.getRowCount()));
+
+            if (offset != null) {
+                // 2. 同时存在 OFFSET 和 FETCH
+                mysqlLimit.setOffset(offset.getOffset());
+            }
+        } else if (offset != null) {
+            // 3. 只有 OFFSET，没有 FETCH (Oracle 特有)
+            // MySQL 必须补一个极大值的 LIMIT 才能配合 OFFSET
+            mysqlLimit.setRowCount(EMPTY_ROWCOUNT);
+            mysqlLimit.setOffset(offset.getOffset());
+        }
+
+        return mysqlLimit;
     }
 
     /**

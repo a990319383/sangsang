@@ -715,18 +715,6 @@ public class JsqlparserUtil {
     }
 
     /**
-     * 判断当前函数是否是行号的窗口函数，一些数据库会用这个进行分页
-     *
-     * @author liutangqi
-     * @date 2026/1/5 11:08
-     * @Param [function]
-     **/
-    public static boolean rowNumber(Function function) {
-        //用于分页的窗口函数一般是 row_number ，没有使用rank 或者 dense_rank，后者会排序字段相同会有相同的排名，分页时一页数量不恒定
-        return function.getName().equalsIgnoreCase("ROW_NUMBER");
-    }
-
-    /**
      * 判断当前列是否是行号的关键字字段，一些数据库会用这个进行分页
      *
      * @author liutangqi
@@ -743,7 +731,7 @@ public class JsqlparserUtil {
      * 1.如果当前是数字类型就直接解析返回
      * 2.如果不是数字类型，是占位符开头的，则尝试从当前存储sql入参的ThreadLocal中获取
      * 3.如果是从当前的ThreadLocal中获取的话，表示这个占位符我们不需要了，需要进行写死的替换，则将这个key进行记录
-     * todo-ltq  调用的地方空值异常处理，返回值为null就表示需要保留这个表达式
+     *
      * @author liutangqi
      * @date 2026/1/9 14:49
      * @Param [exp]

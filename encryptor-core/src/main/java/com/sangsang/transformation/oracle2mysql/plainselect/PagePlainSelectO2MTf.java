@@ -12,10 +12,10 @@ import net.sf.jsqlparser.statement.select.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * oracle的分页语法转换
- * todo-ltq 分页的具体数据可能是外部传的？ 所以这里页签的转换应该用Expression函数来进行转换
  *
  * @author liutangqi
  * @date 2026/1/5 14:51
@@ -63,7 +63,11 @@ public class PagePlainSelectO2MTf extends PlainSelectTransformation {
             if (!processRes.isRetainExpression()) {
                 plainSelect.setWhere(null);
             }
-            //3.4 如果存在分页的条件的话，则将>= <= 转换为limit
+            //3.4 如果where条件需要保留的话，看有没有处理好的表达式，有的话就用处理结果的，否则就用原本的
+            else {
+                plainSelect.setWhere(Optional.ofNullable(o2MTfExpressionVisitor.getProcessedExpression()).orElse(where));
+            }
+            //3.5 如果存在分页的条件的话，则将>= <= 转换为limit
             plainSelect.setLimit(ExpressionsUtil.buildLimit(processRes.getGe(), processRes.getLe()));
         }
 
@@ -88,6 +92,17 @@ public class PagePlainSelectO2MTf extends PlainSelectTransformation {
             //4.4 由于sql少了一层，所以将解析结果往上挪一层 todo-ltq ??? 到时候看是否需要挪
 
         }
+
+        //5.对oracle的新版本语法进行处理  OFFSET xxx ROWS FETCH NEXT yyy ROWS ONLY
+        //5.1 根据offset和fetch计算出limit
+        Limit fetchLimit = ExpressionsUtil.fetch2Limit(plainSelect.getOffset(), plainSelect.getFetch());
+        //5.2 移除offset和fetch
+        plainSelect.setOffset(null);
+        plainSelect.setFetch(null);
+        //5.3 将现有的limit和计算出的limit进行合并后赋值
+        Limit limit = ExpressionsUtil.mergeLimit(plainSelect.getLimit(), fetchLimit);
+        plainSelect.setLimit(limit);
+
 
         return PlainSelectTransformationDto.builder().plainSelect(plainSelect).build();
     }
