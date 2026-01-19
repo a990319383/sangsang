@@ -94,6 +94,9 @@ public class TfOracle2MysqlTest {
             ") t \n" +
             "WHERE row_num BETWEEN 11 AND 20";
 
+    //todo-ltq 子查询必须拥有别名 （oracle可以没别名）
+    String s111 = "";
+
     //分页在内层，去掉行号字段后会移除嵌套的子查询,测试其它功能是否正确
     String s16 = "SELECT \n" +
             "  a.* \n" +

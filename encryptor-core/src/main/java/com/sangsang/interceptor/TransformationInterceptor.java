@@ -70,30 +70,31 @@ public class TransformationInterceptor implements Interceptor, BeanPostProcessor
             TransformationStatementVisitor transformationStatementVisitor = new TransformationStatementVisitor();
             statement.accept(transformationStatementVisitor);
             if (StringUtils.isNotBlank(transformationStatementVisitor.getResultSql())) {
-                newSql = transformationStatementVisitor.getResultSql();
+                //7. 将占位符 SymbolConstant.PLACEHOLDER+自增序列 替换为 ?
+                newSql = StringUtils.placeholder2Question(transformationStatementVisitor.getResultSql());
                 log.debug("【db-transformation】新sql：{}", newSql);
             }
 
-            //7. 根据当前sql解析器是否移除了#{}参数值，获取当前最新的参数映射值
+            //8. 根据当前sql解析器是否移除了#{}参数值，获取当前最新的参数映射值
             parameterMapping = curParameterMapping(boundSql);
 
-            //8. 如果当前sql语句未发生了语法转换，则将当前sql放入缓存中，避免下次重复处理
+            //9. 如果当前sql语句未发生了语法转换，则将当前sql放入缓存中，避免下次重复处理
             if (!TransformationHolder.isTransformation()) {
                 TransformationSqlCache.addNeedlessTransformationSql(oldSql);
             }
         } catch (Exception e) {
             log.error("【db-transformation】语法转换 sql异常 原sql:{}", oldSql, e);
         } finally {
-            //9. 移除掉此逻辑中会使用到的ThreadLocal
+            //10. 移除掉此逻辑中会使用到的ThreadLocal
             clearThreadLocal(oldSql);
         }
 
-        //10.反射修改 SQL 语句和入参
+        //11.反射修改 SQL 语句和入参
         MetaObject metaObject = InterceptorUtil.forObject(boundSql);
         metaObject.setValue("parameterMappings", parameterMapping);
         metaObject.setValue("sql", newSql);
 
-        //11.执行修改后的 SQL 语句。
+        //12.执行修改后的 SQL 语句。
         return invocation.proceed();
     }
 

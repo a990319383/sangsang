@@ -15,7 +15,7 @@ import java.util.*;
 public class PlaceholderFieldParseTable extends BaseFieldParseTable {
     /**
      * 当前占位符对应的数据库表，字段信息 （存放解析的结果集）
-     * key: 占位符DecryptConstant.PLACEHOLDER + 0开始的自增序号  （这个在解析前，我们会将？的占位符统一替换成这个格式的占位符）
+     * key: 占位符FieldConstant.PLACEHOLDER + 0开始的自增序号  （这个在解析前，我们会将？的占位符统一替换成这个格式的占位符）
      * value: 这个字段所属的表字段
      */
     private Map<String, ColumnTableDto> placeholderColumnTableMap;

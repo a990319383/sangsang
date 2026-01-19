@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -19,6 +21,10 @@ import java.util.stream.Collectors;
  * @date 2024/3/29 15:25
  */
 public class StringUtils {
+    /**
+     * 替换成占位符后的sql中的正则表达式
+     */
+    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile(FieldConstant.PLACEHOLDER + "\\d+");
 
     /**
      * <p>Checks if a CharSequence is empty (""), null or whitespace only.</p>
@@ -99,7 +105,7 @@ public class StringUtils {
 
 
     /**
-     * 将sql中的 ？ 替换为 DecryptConstant.PLACEHOLDER + 自增序号，从0开始
+     * 将sql中的 ？ 替换为 FieldConstant.PLACEHOLDER + 自增序号，从0开始
      *
      * @author liutangqi
      * @date 2024/7/10 18:05
@@ -116,19 +122,30 @@ public class StringUtils {
 
 
     /**
-     * 将sql中的 DecryptConstant.PLACEHOLDER + 自增序号，从0开始 替换为 ？
+     * 将sql中的 FieldConstant.PLACEHOLDER + 自增序号，从0开始 替换为 ？
      *
-     * @author liutangqi
-     * @date 2024/7/10 18:06
-     * @Param
+     * @author gemini
+     * @date 2026/1/19 9:13
+     * @Param [sql]
      **/
     public static String placeholder2Question(String sql) {
-        //找出原sql中的 DecryptConstant.PLACEHOLDER个数
-        int wordCount = StringUtils.wordCount(sql, FieldConstant.PLACEHOLDER);
-        for (int i = 0; i < wordCount; i++) {
-            sql = sql.replaceFirst(FieldConstant.PLACEHOLDER + i, SymbolConstant.ESC_QUESTION_MARK);
+        if (isBlank(sql)) {
+            return sql;
         }
-        return sql;
+        //1. 预编译正则表达式，避免在方法调用中重复编译
+        Matcher matcher = PLACEHOLDER_PATTERN.matcher(sql);
+        // 2. 预设初始容量，减少扩容开销
+        StringBuffer sb = new StringBuffer(sql.length());
+
+        while (matcher.find()) {
+            // 3. 将匹配项之前的内容和替换符 "?" 追加到 StringBuilder 中
+            matcher.appendReplacement(sb, SymbolConstant.QUESTION_MARK);
+        }
+
+        // 4. 追加最后剩下的字符串片段
+        matcher.appendTail(sb);
+
+        return sb.toString();
     }
 
     /**
