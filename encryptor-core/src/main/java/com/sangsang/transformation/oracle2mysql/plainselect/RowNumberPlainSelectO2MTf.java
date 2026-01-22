@@ -27,6 +27,6 @@ public class RowNumberPlainSelectO2MTf extends PlainSelectTransformation {
     @Override
     public PlainSelectTransformationDto doTransformation(PlainSelectTransformationDto plainSelectTransformationDto) {
 
-        return null;
+        return plainSelectTransformationDto;
     }
 }
