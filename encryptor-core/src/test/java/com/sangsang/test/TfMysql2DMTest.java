@@ -1,6 +1,7 @@
 package com.sangsang.test;
 
 import com.sangsang.config.properties.FieldProperties;
+import com.sangsang.domain.constants.TransformationPatternTypeConstant;
 import com.sangsang.util.AnswerUtil;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.ReflectUtils;
@@ -309,7 +310,7 @@ public class TfMysql2DMTest {
             String resultSql = transformationStatementVisitor.getResultSql();
 
             //找答案
-            String answer = AnswerUtil.readTfAnswerToFile(this, sql);
+            String answer = AnswerUtil.readTfAnswerToFile(this, TransformationPatternTypeConstant.MYSQL_2_DM, sql);
             String sqlFieldName = ReflectUtils.getFieldNameByValue(this, sql);
             if (StringUtils.isBlank(answer)) {
                 System.out.println("这个sql没答案，自己检查，然后把正确答案给录到com.sangsang.answer.standard下面 :" + sqlFieldName);
@@ -358,7 +359,7 @@ public class TfMysql2DMTest {
             TransformationStatementVisitor transformationStatementVisitor = new TransformationStatementVisitor();
             statement.accept(transformationStatementVisitor);
             String resultSql = transformationStatementVisitor.getResultSql();
-            AnswerUtil.writeTfAnswerToFile(this, sql, resultSql);
+            AnswerUtil.writeTfAnswerToFile(this, TransformationPatternTypeConstant.MYSQL_2_DM, sql, resultSql);
         }
     }
 }

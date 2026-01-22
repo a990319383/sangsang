@@ -73,13 +73,14 @@ public class AnswerUtil {
      * @Param [obj, oldSql, fieldEncryptorInfos, placeholderColumnTableMap]
      **/
     public static void writeTfAnswerToFile(Object obj,
+                                           String patternType,
                                            String oldSql,
                                            String resSql) throws IllegalAccessException {
         //项目路径
         String projectRoot = System.getProperty("user.dir");
         //获取变量名作为文件名
         String fileName = ReflectUtils.getFieldNameByValue(obj, oldSql);
-        String path = projectRoot + answerBasePath + "/transformation/" + fileName;
+        String path = projectRoot + answerBasePath + "/transformation/" + patternType + "/" + fileName;
         FileWriter writer = new FileWriter(path);
         writer.write(resSql, false);
     }
@@ -182,12 +183,13 @@ public class AnswerUtil {
      * @Param [obj:存放sql的对象 ，oldSql]
      **/
     public static String readTfAnswerToFile(Object obj,
+                                            String patternType,
                                             String oldSql) throws IllegalAccessException {
         //项目路径
         String projectRoot = System.getProperty("user.dir");
         //获取变量名作为文件名
         String fileName = ReflectUtils.getFieldNameByValue(obj, oldSql);
-        String path = projectRoot + standardBasePath + "/transformation/" + fileName;
+        String path = projectRoot + standardBasePath + "/transformation/" + patternType + "/" + fileName;
         FileReader fileReader = null;
         try {
             fileReader = new FileReader(path);

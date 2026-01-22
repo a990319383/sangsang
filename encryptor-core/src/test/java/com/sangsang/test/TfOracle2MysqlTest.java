@@ -78,8 +78,6 @@ public class TfOracle2MysqlTest {
             "OFFSET 7 ROWS ";
 
 
-
-
     //窗口函数（mysql高版本才支持窗口函数）
     String s10 = "SELECT * FROM (\n" +
             "    SELECT TB.*, ROW_NUMBER() OVER (ORDER BY id) AS row_num \n" +
@@ -118,7 +116,7 @@ public class TfOracle2MysqlTest {
      * @Param []
      **/
     @Test
-    public void mysql2dmTransformation() throws Exception {
+    public void oracle2mysqlTransformation() throws Exception {
         //设置测试配置
         FieldProperties fieldProperties = CacheTestHelper.buildTestProperties();
         //设置模式是oracle转mysql
@@ -162,7 +160,6 @@ public class TfOracle2MysqlTest {
     /**
      * 校验语法转换处理是否正确
      * 哥们儿，来对答案了
-     * todo-ltq
      *
      * @author liutangqi
      * @date 2025/6/6 15:40
@@ -178,8 +175,12 @@ public class TfOracle2MysqlTest {
         //初始化缓存
         CacheTestHelper.testInit(fieldProperties);
 
+
         for (int i = 0; i < sqls.size(); i++) {
             String sql = sqls.get(i);
+            //语法转换时，对当前sql的进行占位符替换，并且mocksql入参值
+            sql = CacheTestHelper.tfHolderMock(sql);
+
             //开始解析sql
             Statement statement = JsqlparserUtil.parse(sql);
             TransformationStatementVisitor transformationStatementVisitor = new TransformationStatementVisitor();
@@ -187,7 +188,7 @@ public class TfOracle2MysqlTest {
             String resultSql = transformationStatementVisitor.getResultSql();
 
             //找答案
-            String answer = AnswerUtil.readTfAnswerToFile(this, sql);
+            String answer = AnswerUtil.readTfAnswerToFile(this, TransformationPatternTypeConstant.ORACLE_2_MYSQL, sql);
             String sqlFieldName = ReflectUtils.getFieldNameByValue(this, sql);
             if (StringUtils.isBlank(answer)) {
                 System.out.println("这个sql没答案，自己检查，然后把正确答案给录到com.sangsang.answer.standard下面 :" + sqlFieldName);
@@ -217,7 +218,6 @@ public class TfOracle2MysqlTest {
 
     /**
      * 将转换好的结果答案写入到文件中
-     * todo-ltq
      *
      * @author liutangqi
      * @date 2025/6/6 15:31
@@ -226,7 +226,7 @@ public class TfOracle2MysqlTest {
     @Test
     public void transformationAnswerWrite() throws Exception {
         //设置测试配置
-     /*   FieldProperties fieldProperties = CacheTestHelper.buildTestProperties();
+        FieldProperties fieldProperties = CacheTestHelper.buildTestProperties();
         //设置模式是oracle转mysql
         TransformationProperties transformation = fieldProperties.getTransformation();
         transformation.setPatternType(TransformationPatternTypeConstant.ORACLE_2_MYSQL);
@@ -234,13 +234,15 @@ public class TfOracle2MysqlTest {
         CacheTestHelper.testInit(fieldProperties);
 
         for (String sql : sqls) {
+            //语法转换时，对当前sql的进行占位符替换，并且mocksql入参值
+            String testSql = CacheTestHelper.tfHolderMock(sql);
             //开始解析sql
             //开始进行语法转换
-            Statement statement = JsqlparserUtil.parse(sql);
+            Statement statement = JsqlparserUtil.parse(testSql);
             TransformationStatementVisitor transformationStatementVisitor = new TransformationStatementVisitor();
             statement.accept(transformationStatementVisitor);
             String resultSql = transformationStatementVisitor.getResultSql();
-            AnswerUtil.writeTfAnswerToFile(this, sql, resultSql);
-        }*/
+            AnswerUtil.writeTfAnswerToFile(this, TransformationPatternTypeConstant.ORACLE_2_MYSQL, sql, resultSql);
+        }
     }
 }

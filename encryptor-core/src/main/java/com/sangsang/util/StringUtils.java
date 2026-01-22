@@ -176,7 +176,9 @@ public class StringUtils {
                 disposeTableName = tableName.toLowerCase();
             }
             //3.2 去掉当前项目的标识符引用符
-            disposeTableName = StringUtils.trimSymbol(disposeTableName, TableCache.getCurConfig().getIdentifierQuote());
+            for (String identifierQuote : TableCache.getCurConfig().getIdentifierQuote()) {
+                disposeTableName = StringUtils.trimSymbol(disposeTableName, identifierQuote);
+            }
             //3.3只要包含其中一个，就算
             if (disposeSql.contains(disposeTableName)) {
                 return false;
@@ -335,11 +337,13 @@ public class StringUtils {
      **/
     private static boolean equalsIgnoreKeywordSymbol(String a, String b) {
         //从缓存中获取当前关键字的符号
-        String identifierQuote = TableCache.getCurConfig().getIdentifierQuote();
-
-        //去掉首尾的关键字
-        String clearA = trimSymbol(a, identifierQuote);
-        String clearB = trimSymbol(b, identifierQuote);
+        String clearA = a;
+        String clearB = b;
+        for (String identifierQuote : TableCache.getCurConfig().getIdentifierQuote()) {
+            //去掉首尾的关键字
+            clearA = trimSymbol(clearA, identifierQuote);
+            clearB = trimSymbol(clearB, identifierQuote);
+        }
 
         //判断两个字符串是否相等
         return clearA.equals(clearB);
@@ -416,9 +420,10 @@ public class StringUtils {
         }
 
         //2.获取当前项目的关键字，去除sql中全部的关键字标识符
-        String identifierQuote = TableCache.getCurConfig().getIdentifierQuote();
-        compare1 = compare1.replaceAll(identifierQuote, SymbolConstant.BLANK);
-        compare2 = compare2.replaceAll(identifierQuote, SymbolConstant.BLANK);
+        for (String identifierQuote : TableCache.getCurConfig().getIdentifierQuote()) {
+            compare1 = compare1.replaceAll(identifierQuote, SymbolConstant.BLANK);
+            compare2 = compare2.replaceAll(identifierQuote, SymbolConstant.BLANK);
+        }
 
         //3.将sql中的逗号，括号用空格隔起来，查询的字段顺序不同时，最后一个字段会不带逗号，放前面这个逗号会不见。所以用空格隔起来，这样分隔的时候能屏蔽掉顺序差异
         compare1 = compare1.replaceAll(SymbolConstant.COMMA, SymbolConstant.SPACING + SymbolConstant.COMMA + SymbolConstant.SPACING)

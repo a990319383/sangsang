@@ -17,7 +17,7 @@ public class ForcedLowercaseColumnM2DTf extends ColumnTransformation {
     @Override
     public boolean needTransformation(ColumnTransformationDto dto) {
         //配置开启强制将字段和表名双引号引 && 当前Column属于真实表字段 && 不包含 ` && 不包含 "
-        return TableCache.getCurConfig().getTransformation().isForcedLowercase()
+        return TableCache.getCurConfig().getTransformation().getMysql2dm().isForcedLowercase()
                 && dto.isFromSourceTable()
                 && !dto.getColumn().getColumnName().contains(SymbolConstant.FLOAT)
                 && !dto.getColumn().getColumnName().contains(SymbolConstant.DOUBLE_QUOTES);

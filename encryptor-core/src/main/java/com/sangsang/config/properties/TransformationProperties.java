@@ -19,11 +19,19 @@ public class TransformationProperties {
     private String patternType;
 
     /**
-     * 语法转换时是否将字段和表名强制转换为小写
-     * 默认是否
-     * 当前是mysql2dm模式，开启时会将字段和表名强制转换为小写，并且使用双引号引起来
-     * 备注：非必要请勿开启此配置，后续版本考虑移除
+     * mysql2dm模式独有的配置
      **/
-    private boolean forcedLowercase = false;
+    private Mysql2dmProperties mysql2dm;
 
+
+    @Data
+    public static class Mysql2dmProperties {
+        /**
+         * 语法转换时是否将字段和表名强制转换为小写
+         * 默认是否
+         * 当前是mysql2dm模式，开启时会将字段和表名强制转换为小写，并且使用双引号引起来
+         * 备注：非必要请勿开启此配置，后续版本考虑移除
+         **/
+        private boolean forcedLowercase = false;
+    }
 }

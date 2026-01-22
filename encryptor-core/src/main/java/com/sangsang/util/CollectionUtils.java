@@ -250,7 +250,9 @@ public class CollectionUtils {
         if (!TableCache.getCurConfig().isCaseSensitive()) {
             comparingStr = comparingStr.toLowerCase();
         }
-        comparingStr = comparingStr.replaceAll(TableCache.getCurConfig().getIdentifierQuote(), SymbolConstant.BLANK);
+        for (String identifierQuote : TableCache.getCurConfig().getIdentifierQuote()) {
+            comparingStr = comparingStr.replaceAll(identifierQuote, SymbolConstant.BLANK);
+        }
         return comparingStr;
     }
 

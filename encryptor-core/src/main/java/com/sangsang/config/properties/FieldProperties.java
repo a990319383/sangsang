@@ -41,10 +41,11 @@ public class FieldProperties {
 
     /**
      * 数据库标识符的引用符，比如mysql是 ` 达梦数据库是 "
-     * 默认不配置的话，会从第一个dataSource中获取
-     * 目前暂不支持不同类型数据库的多数据源项目，如果是标识符引用符不同的多数据源项目的话，请保证数据库中的字段和sql的字段的标识符使用情况一致
+     * 默认不配置的话，会从当前Spring容器中的dataSource中获取
+     * 当使用语法转换功能时，项目中可能同时出现两个数据库的标识符引用符，所以这里是List
+     * 一般不用单独配置此项，只有自己扩展了新的异构数据库的语法转换时，项目中同时出现了转换前和转换后的数据库的不同标识符引用符，才用单独配置
      */
-    private String identifierQuote;
+    private List<String> identifierQuote = new ArrayList<>();
 
     /**
      * 加解密相关的配置

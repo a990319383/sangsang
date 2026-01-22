@@ -56,7 +56,9 @@ public class FieldCacheKey implements Serializable {
         }
 
         //2.去除关键字标识符
-        key = StringUtils.trimSymbol(key, TableCache.getCurConfig().getIdentifierQuote());
+        for (String identifierQuote : TableCache.getCurConfig().getIdentifierQuote()) {
+            key = StringUtils.trimSymbol(key, identifierQuote);
+        }
 
         //3.将处理好的key进行hashCode
         return Objects.hash(key);

@@ -15,7 +15,7 @@ public class ForcedLowercaseTableM2DTf extends TableTransformation {
     @Override
     public boolean needTransformation(Table table) {
         //配置开启强制将字段和表名双引号引 && 不包含 ` && 不包含 "
-        return TableCache.getCurConfig().getTransformation().isForcedLowercase()
+        return TableCache.getCurConfig().getTransformation().getMysql2dm().isForcedLowercase()
                 && !table.getName().contains(SymbolConstant.FLOAT)
                 && !table.getName().contains(SymbolConstant.DOUBLE_QUOTES);
     }

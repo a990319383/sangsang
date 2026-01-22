@@ -736,7 +736,11 @@ public class ShardingTableByDay implements ShardingTableStrategy {
 > 当达梦数据库配置的是大小写敏感，但是旧mysql项目中存在大写的关键字，在保证达梦数据库所有表名，字段名统统小写的前提下，可以开启下面配置，将项目的sql字段，表名全部转小写
 
 ```
-field.transformation.forcedLowercase=true //不建议开启此配置，可用于临时调试使用
+//不建议开启此配置，可用于临时调试使用
+#3.6.2-alpha版本之前的配置
+field.transformation.forcedLowercase=true
+#3.6.2-alpha版本之后的配置
+field.transformation.mysql2dm.forcedLowercase=true
 ```
 
 ##### 自己扩展语法转换器

@@ -9,21 +9,25 @@ import com.sangsang.domain.annos.encryptor.FieldEncryptor;
 import com.sangsang.domain.annos.encryptor.ShardingTableEncryptor;
 import com.sangsang.domain.annos.fielddefault.FieldDefault;
 import com.sangsang.domain.annos.isolation.DataIsolation;
+import com.sangsang.domain.constants.NumberConstant;
 import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.constants.TransformationPatternTypeConstant;
+import com.sangsang.domain.dto.DataSourceConfig;
 import com.sangsang.domain.dto.TableFieldDto;
 import com.sangsang.domain.dto.TableInfoDto;
+import com.sangsang.domain.exception.FieldException;
 import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.domain.wrapper.FieldHashSetWrapper;
 import com.sangsang.domain.wrapper.FieldLinkedListWarpper;
 import com.sangsang.util.*;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.sql.DataSource;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.sql.Connection;
-import java.sql.SQLException;
+import java.sql.DatabaseMetaData;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -38,8 +42,15 @@ import java.util.stream.Stream;
  */
 @Slf4j
 public class TableCache extends DefaultBeanPostProcessor {
-
+    /**
+     * 缓存当前的配置信息
+     */
     private static FieldProperties fieldProperties;
+    /**
+     * 缓存当前可以从DataSource中读取到，并且不需要由配置文件去调整的一些信息
+     */
+    @Getter
+    private static DataSourceConfig dataSourceConfig = DataSourceConfig.DEFAULT;
 
     /**
      * key: 表名  value: (key:字段名  value: 实体类上标注的@FieldEncryptor注解)
@@ -93,12 +104,12 @@ public class TableCache extends DefaultBeanPostProcessor {
      **/
     public static void init(List<DataSource> dataSources, FieldProperties fieldProperties) {
         long startTime = System.currentTimeMillis();
-        //1.处理当前项目的数据库标识符的引用符，并缓存当前项目配置
-        TableCache.fieldProperties = fillIdentifierQuote(fieldProperties, dataSources);
+        //1.处理当前项目的数据库标识符的引用符
+        TableCache.fieldProperties = fillIdentifierQuote(fieldProperties);
 
         //2.扫描配置的路径校验
-        if (com.sangsang.util.CollectionUtils.isEmpty(fieldProperties.getScanEntityPackage())) {
-            log.warn("【field-encryptor】当前未配置实体类扫描路径，如需使用字段脱敏以外的功能，请完善此配置");
+        if (!fieldProperties.isAutoFill() && com.sangsang.util.CollectionUtils.isEmpty(fieldProperties.getScanEntityPackage())) {
+            log.warn("【field-encryptor】当前未配置实体类扫描路径也未开启自动填充，如需使用字段脱敏以外的功能，请完善此配置");
             return;
         }
 
@@ -119,7 +130,51 @@ public class TableCache extends DefaultBeanPostProcessor {
             simplificationCache(fieldProperties);
         }
 
+        //7.从当前DataSource中读取一些配置，缓存下来
+        cacheDataSourceConfig(dataSources);
         log.info("【field-encryptor】初始化表结构信息，处理完毕 耗时：{}ms", (System.currentTimeMillis() - startTime));
+    }
+
+
+    /**
+     * 从当前DataSource中读取一些配置，缓存下来
+     *
+     * @author liutangqi
+     * @date 2026/1/20 11:03
+     * @Param [dataSources]
+     **/
+    private static void cacheDataSourceConfig(List<DataSource> dataSources) {
+        //1.当前spring容器中没有 DataSource 对象，则不处理，并输出警告日志
+        if (CollectionUtils.isEmpty(dataSources)) {
+            log.warn("【field-encryptor】当前Spring环境无可用的DataSource对象，某些信息无法自动加载，程序是否正常请二次验证");
+            return;
+        }
+
+        //2.从当前spring环境的DataSource对象中读取一些配置信息
+        Set<String> identifierQuotes = new HashSet<>();
+        for (int i = 0; i < dataSources.size(); i++) {
+            DataSource dataSource = dataSources.get(i);
+            try (Connection conn = dataSource.getConnection()) {
+                DatabaseMetaData metaData = conn.getMetaData();
+                //2.1 当前没有配置或者无法自动识别 identifierQuote的话，从DataSource中获取
+                if (CollectionUtils.isEmpty(fieldProperties.getIdentifierQuote())) {
+                    identifierQuotes.add(metaData.getIdentifierQuoteString());
+                }
+                //2.2 获取数据源的版本号信息，当前暂未适配多异构数据源的场景，默认每个DataSource的版本号信息是一致的，所以这里只取第一个
+                if (Objects.equals(NumberConstant.ZERO, i)) {
+                    dataSourceConfig = DataSourceConfig.builder().databaseMajorVersion(metaData.getDatabaseMajorVersion()).databaseMinorVersion(metaData.getDatabaseMinorVersion()).build();
+                }
+            } catch (Exception e) {
+                log.error("【field-encryptor】通过DataSource读取信息异常", e);
+                throw new FieldException(e);
+            }
+        }
+
+        //3.组装好的数据重新赋值
+        if (CollectionUtils.isNotEmpty(identifierQuotes)) {
+            fieldProperties.setIdentifierQuote(new ArrayList<>(identifierQuotes));
+        }
+
     }
 
     /**
@@ -138,8 +193,7 @@ public class TableCache extends DefaultBeanPostProcessor {
         }
 
         //2.过滤只要我们功能中需要的表
-        ((FieldHashMapWrapper) TABLE_FIELD_MAP)
-                .filter(f -> TableCache.getCurConfigTable().contains(f.getKey()));
+        ((FieldHashMapWrapper) TABLE_FIELD_MAP).filter(f -> TableCache.getCurConfigTable().contains(f.getKey()));
         log.info("【field-encryptor】精简表结构信息，处理完毕 当前缓存表数量:{}张", TABLE_FIELD_MAP.keySet().size());
     }
 
@@ -150,32 +204,22 @@ public class TableCache extends DefaultBeanPostProcessor {
      * @date 2025/11/5 17:31
      * @Param [fieldProperties, dataSources]
      **/
-    private static FieldProperties fillIdentifierQuote(FieldProperties fieldProperties, List<DataSource> dataSources) {
-        //1.如果手动指定了标识符的引用符，或者当前无法获取 DataSource，则返回
-        if (StringUtils.isNotBlank(fieldProperties.getIdentifierQuote())) {
+    private static FieldProperties fillIdentifierQuote(FieldProperties fieldProperties) {
+        //1.如果手动指定了标识符的引用符，则返回
+        if (CollectionUtils.isNotEmpty(fieldProperties.getIdentifierQuote())) {
             return fieldProperties;
         }
 
-        //2.如果当前开启了语法转换功能的话，默认引用符为mysql的 ` ，从DataSource里面获取的话，肯定是达梦的 " ，老项目里面用的肯定是mysql的 `
-        if (fieldProperties.getTransformation() != null && TransformationPatternTypeConstant.MYSQL_2_DM.equals(fieldProperties.getTransformation().getPatternType())) {
-            fieldProperties.setIdentifierQuote(SymbolConstant.FLOAT);
+        //2.如果当前开启了语法转换功能的话，就不能从DataSource中单纯的获取了，DataSource中获取的肯定是转换后的语法的标识符引用符
+        //整个项目中可能同时存在两种库的语法，所以这种情况下写死，同时兼容两种数据库的标识符引用符
+        if (fieldProperties.getTransformation() != null
+                && (TransformationPatternTypeConstant.MYSQL_2_DM.equals(fieldProperties.getTransformation().getPatternType())
+                || TransformationPatternTypeConstant.ORACLE_2_MYSQL.equals(fieldProperties.getTransformation().getPatternType()))) {
+            fieldProperties.setIdentifierQuote(Arrays.asList(SymbolConstant.FLOAT, SymbolConstant.SINGLE_QUOTES));
             log.info("【field-encryptor】当前启用了mysql自动转换达梦数据库，且未指定identifierQuote数据库标识引用符，默认使用mysql的 `，项目中表名字段名需要标识引用符引起来时请使用 ` !!!");
             return fieldProperties;
         }
 
-        //3.如果当前没有手动指定标识符引用符，且无法获取DataSource对象，则进行日志警告提醒
-        if (CollectionUtils.isEmpty(dataSources)) {
-            log.warn("【field-encryptor】当前无法自动获取数据源的标识符的引用符，请手动配置 field.identifierQuote  备注：mysql是 ` 达梦，oracle等是\"");
-            return fieldProperties;
-        }
-
-        //4.从第一个DataSource中获取
-        try (Connection conn = dataSources.get(0).getConnection()) {
-            String identifierQuoteString = conn.getMetaData().getIdentifierQuoteString();
-            fieldProperties.setIdentifierQuote(identifierQuoteString);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
         return fieldProperties;
     }
 
@@ -274,12 +318,7 @@ public class TableCache extends DefaultBeanPostProcessor {
         tableInfoDtos.stream().filter(f -> f.getDataIsolation() != null).forEach(f -> ISOLATION_TABLE.add(f.getTableName()));
 
         //TABLE_FIELD_MAP
-        tableInfoDtos.stream()
-                .forEach(f -> TABLE_FIELD_MAP.put(f.getTableName(), f.getTableFields()
-                        .stream()
-                        .map(TableFieldDto::getFieldName)
-                        .collect(Collectors.toCollection(FieldLinkedListWarpper::new))
-                ));
+        tableInfoDtos.stream().forEach(f -> TABLE_FIELD_MAP.put(f.getTableName(), f.getTableFields().stream().map(TableFieldDto::getFieldName).collect(Collectors.toCollection(FieldLinkedListWarpper::new))));
     }
 
 
@@ -399,11 +438,7 @@ public class TableCache extends DefaultBeanPostProcessor {
      * @Param []
      **/
     public static FieldHashSetWrapper getCurConfigTable() {
-        return Stream.of(TableCache.getFieldEncryptTable(),
-                        TableCache.getFieldDefaultTable(),
-                        TableCache.getIsolationTable())
-                .flatMap(Collection::stream)
-                .collect(FieldHashSetWrapper::new, Set::add, Set::addAll);
+        return Stream.of(TableCache.getFieldEncryptTable(), TableCache.getFieldDefaultTable(), TableCache.getIsolationTable()).flatMap(Collection::stream).collect(FieldHashSetWrapper::new, Set::add, Set::addAll);
     }
 
 }

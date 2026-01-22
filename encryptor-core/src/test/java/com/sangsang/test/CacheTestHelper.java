@@ -7,6 +7,7 @@ import com.sangsang.cache.transformation.TransformationInstanceCache;
 import com.sangsang.config.properties.*;
 import com.sangsang.domain.constants.EncryptorPatternTypeConstant;
 import com.sangsang.domain.constants.FieldConstant;
+import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.constants.TransformationPatternTypeConstant;
 import com.sangsang.domain.context.TfParameterMappingHolder;
 import com.sangsang.encryptor.db.DefaultDBFieldEncryptorPattern;
@@ -57,7 +58,7 @@ public class CacheTestHelper {
     public static FieldProperties buildTestProperties() {
         FieldProperties fieldProperties = new FieldProperties();
         fieldProperties.setScanEntityPackage(Arrays.asList("com.sangsang.mockentity"));
-        fieldProperties.setIdentifierQuote("`");
+        fieldProperties.setIdentifierQuote(Arrays.asList(SymbolConstant.FLOAT));
         fieldProperties.setCaseSensitive(false);
         //1.加解密配置
         //测试时，只有db模式需要缓存策略的bean，pojo模式不需要缓存，因为那个bean是在拦截器中使用的，我们测试没有测拦截器层面，所以这里将模式设置为db模式验证即可
@@ -77,7 +78,9 @@ public class CacheTestHelper {
 
         //4.语法转换配置
         TransformationProperties transformationProperties = new TransformationProperties();
-        transformationProperties.setForcedLowercase(false);
+        TransformationProperties.Mysql2dmProperties mysql2dmProperties = new TransformationProperties.Mysql2dmProperties();
+        mysql2dmProperties.setForcedLowercase(false);
+        transformationProperties.setMysql2dm(mysql2dmProperties);
         transformationProperties.setPatternType(TransformationPatternTypeConstant.MYSQL_2_DM);
         fieldProperties.setTransformation(transformationProperties);
 
