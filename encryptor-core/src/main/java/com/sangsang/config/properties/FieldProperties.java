@@ -17,7 +17,7 @@ import java.util.List;
 public class FieldProperties {
     /**
      * 扫描的实体类的包路径
-     * 如需使用数据库加解密功能，sql语法转换功能，需要配置
+     * 如需使用涉及到往实体类上标注注解的功能，就需要配置扫描路径
      */
     private List<String> scanEntityPackage = new ArrayList<>();
     /**

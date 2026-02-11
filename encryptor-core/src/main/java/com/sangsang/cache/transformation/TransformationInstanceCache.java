@@ -4,7 +4,6 @@ import com.sangsang.config.other.DefaultBeanPostProcessor;
 import com.sangsang.config.properties.FieldProperties;
 import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.context.TransformationHolder;
-import com.sangsang.domain.exception.TransformationException;
 import com.sangsang.domain.wrapper.ClassHashMapWrapper;
 import com.sangsang.transformation.TransformationInterface;
 import com.sangsang.util.ClassScanerUtil;
@@ -88,15 +87,16 @@ public class TransformationInstanceCache extends DefaultBeanPostProcessor {
         List<TransformationInterface> transformationList = TRANSFORMATION_MAP.get(superClass);
 
         //3.从所有实例中找符合处理条件的
+        T res = t;
         for (TransformationInterface transformationInterface : transformationList) {
-            if (transformationInterface.needTransformation(t)) {
+            if (transformationInterface.needTransformation(res)) {
                 //3.1 记录当前进行过语法转换
                 TransformationHolder.transformationRecord();
                 //3.2 返回转换后的结果
-                return (T) transformationInterface.doTransformation(t);
+                res = (T) transformationInterface.doTransformation(res);
             }
         }
-        return null;
+        return res;
     }
 
     /**
@@ -118,14 +118,15 @@ public class TransformationInstanceCache extends DefaultBeanPostProcessor {
         List<TransformationInterface> transformationList = TRANSFORMATION_MAP.get(superClass);
 
         //3.从所有实例中找符合处理条件的
+        T res = t;
         for (TransformationInterface transformationInterface : transformationList) {
-            if (transformationInterface.needTransformation(t)) {
+            if (transformationInterface.needTransformation(res)) {
                 //3.1 记录当前进行过语法转换
                 TransformationHolder.transformationRecord();
                 //3.2 返回转换后的结果
-                return (T) transformationInterface.doTransformation(t);
+                res = (T) transformationInterface.doTransformation(res);
             }
         }
-        return null;
+        return res;
     }
 }

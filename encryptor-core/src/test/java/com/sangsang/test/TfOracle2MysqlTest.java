@@ -77,26 +77,8 @@ public class TfOracle2MysqlTest {
     String s9 = "SELECT * FROM TB_USER \n" +
             "OFFSET 7 ROWS ";
 
-
-    //窗口函数（mysql高版本才支持窗口函数）
-    String s10 = "SELECT * FROM (\n" +
-            "    SELECT TB.*, ROW_NUMBER() OVER (ORDER BY id) AS row_num \n" +
-            "    FROM TB_USER TB\n" +
-            ") t \n" +
-            "WHERE row_num BETWEEN 11 AND 20";
-
-    //窗口函数（mysql高版本才支持窗口函数） 进行了PARTITION BY 分组
-    String s11 = "SELECT * FROM (\n" +
-            "    SELECT TB.*, ROW_NUMBER() OVER (PARTITION BY phone ORDER BY id) AS row_num \n" +
-            "    FROM TB_USER TB\n" +
-            ") t \n" +
-            "WHERE row_num BETWEEN 11 AND 20";
-
-    //todo-ltq 子查询必须拥有别名 （oracle可以没别名）
-    String s111 = "";
-
     //分页在内层，去掉行号字段后会移除嵌套的子查询,测试其它功能是否正确
-    String s16 = "SELECT \n" +
+    String s10 = "SELECT \n" +
             "  a.* \n" +
             "FROM \n" +
             "(SELECT * FROM (\n" +
@@ -105,8 +87,52 @@ public class TfOracle2MysqlTest {
             ") t \n" +
             "WHERE row_num BETWEEN 11 AND 20)a ";
 
+
+    //窗口函数测试用例1：无 PARTITION BY  整体无order by
+    String s11 = "SELECT * FROM (\n" +
+            "    SELECT TB.*, ROW_NUMBER() OVER (ORDER BY create_time) AS row_num \n" +
+            "    FROM TB_USER TB\n" +
+            ") t " +
+            "WHERE row_num BETWEEN 0 AND 20";
+
+    //窗口函数测试用例2：有 PARTITION BY 整体无order by
+    String s12 = "SELECT * FROM (\n" +
+            "    SELECT TB.*, ROW_NUMBER() OVER (PARTITION BY phone ORDER BY create_time) AS row_num \n" +
+            "    FROM TB_USER TB\n" +
+            ") t \n" +
+            "WHERE row_num BETWEEN 0 AND 20";
+
+    //窗口函数测试用例3： 无 PARTITION BY  整体有order by
+    String s13 = "SELECT * FROM (\n" +
+            "    SELECT TB.*, ROW_NUMBER() OVER (ORDER BY create_time) AS row_num \n" +
+            "    FROM TB_USER TB\n" +
+            ") t \n" +
+            "WHERE row_num BETWEEN 0 AND 20  order by id asc";
+
+    //窗口函数测试用例4：有 PARTITION BY 整体有order by
+    String s14 = "SELECT * FROM (\n" +
+            "    SELECT TB.*, ROW_NUMBER() OVER (PARTITION BY phone ORDER BY create_time) AS row_num \n" +
+            "    FROM TB_USER TB\n" +
+            ") t \n" +
+            "WHERE row_num BETWEEN 0 AND 20 order by id asc";
+
+
+    //todo-ltq 子查询必须拥有别名 （oracle可以没别名）
+    String s111 = "";
+
+
+
     //不是单纯的分页，只是把行号字段进行了比较判断，除了行号的比较外，还存在其他条件判断，这种情况注意要保留其它条件，并且注意层级关系
     String s27 = "";
+
+
+
+
+    String test_sql = "SELECT * FROM (\n" +
+            "    SELECT TB.*, ROW_NUMBER() OVER (ORDER BY id) AS row_num \n" +
+            "    FROM TB_USER TB\n" +
+            ") t \n" +
+            "WHERE row_num BETWEEN 11 AND 20";
 
     /**
      * oracle转mysql语法转换器测试
@@ -126,7 +152,7 @@ public class TfOracle2MysqlTest {
         CacheTestHelper.testInit(fieldProperties);
 
         //需要的sql
-        String sql = s6;
+        String sql = s11;
 
         //语法转换时，对当前sql的进行占位符替换，并且mocksql入参值
         sql = CacheTestHelper.tfHolderMock(sql);
@@ -153,8 +179,7 @@ public class TfOracle2MysqlTest {
 //----------------------------------------校验当前程序是否正确分割线---------------------------------------------------------
 
     //需要测试的sql
-    List<String> sqls = Arrays.asList(s1, s2
-    );
+    List<String> sqls = Arrays.asList();
 
 
     /**

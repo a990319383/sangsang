@@ -522,7 +522,6 @@ public class O2MTfExpressionVisitor extends BaseFieldParseTable implements Expre
 
     /**
      * 窗口函数
-     * todo-ltq
      *
      * @author liutangqi
      * @date 2026/1/14 17:34
@@ -530,6 +529,7 @@ public class O2MTfExpressionVisitor extends BaseFieldParseTable implements Expre
      **/
     @Override
     public void visit(AnalyticExpression aexpr) {
+        // 窗口函数不作为分页的语法转换里面
        /* WindowDefinition windowDefinition = aexpr.getWindowDefinition();
         List<OrderByElement> orderByElements = windowDefinition.getOrderByElements();
         PartitionByClause partitionBy = windowDefinition.getPartitionBy();

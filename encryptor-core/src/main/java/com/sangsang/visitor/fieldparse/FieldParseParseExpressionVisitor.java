@@ -400,7 +400,7 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
                 .sourceTableName(null)
                 .sourceColumn(null)
                 .fromSourceTable(false)
-                .rowNumber(true)
+                .rowNumber(false)//注意：窗口函数不作为行号字段，窗口函数转换的话走单独逻辑，不和 ROWNUM 一样
                 .build();
 
         //将当前字段存入layerSelectTableFieldMap 中
@@ -517,6 +517,14 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
 
     }
 
+    /**
+     * 变量赋值的语法
+     * 这种语法： @xxx:= xxx
+     *
+     * @author liutangqi
+     * @date 2026/1/26 18:02
+     * @Param [variableAssignment]
+     **/
     @Override
     public void visit(VariableAssignment variableAssignment) {
 

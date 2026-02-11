@@ -171,7 +171,7 @@ public class AnswerUtil {
         } catch (Exception e) {
             return null;
         }
-        return new Pair(listFileReader.readString(), mapFileReader.readString());
+        return Pair.of(listFileReader.readString(), mapFileReader.readString());
     }
 
 

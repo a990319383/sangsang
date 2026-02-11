@@ -21,6 +21,7 @@ public interface TransformationInterface<T> {
 
     /**
      * 开始转换
+     * 注意：这里最好有调整后，在原对象t上做调整，然后返回t对象，这样可以避免遗漏某些属性
      *
      * @author liutangqi
      * @date 2025/5/21 10:12

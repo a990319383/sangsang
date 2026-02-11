@@ -16,6 +16,7 @@ import java.util.Optional;
 
 /**
  * oracle的分页语法转换
+ * 将 ROWNUM 转换为 LIMIT
  *
  * @author liutangqi
  * @date 2026/1/5 14:51
@@ -89,7 +90,7 @@ public class PagePlainSelectO2MTf extends PlainSelectTransformation {
             Limit curLimit = ExpressionsUtil.mergeLimit(upstreamLimit, plainSelect.getLimit());
             plainSelect.setLimit(curLimit);
 
-            //4.4 由于sql少了一层，所以将解析结果往上挪一层 todo-ltq ??? 到时候看是否需要挪
+            //4.4 由于sql少了一层，所以将解析结果往上挪一层 todo-ltq ??? 我将plainSelect语法转换放在了visitor的最后一步，目前看起来是不需要挪的
 
         }
 
@@ -103,8 +104,9 @@ public class PagePlainSelectO2MTf extends PlainSelectTransformation {
         Limit limit = ExpressionsUtil.mergeLimit(plainSelect.getLimit(), fetchLimit);
         plainSelect.setLimit(limit);
 
-
-        return PlainSelectTransformationDto.builder().plainSelect(plainSelect).build();
+        //6.结果集赋值
+        psTfDto.setPlainSelect(plainSelect);
+        return psTfDto;
     }
 
 }
