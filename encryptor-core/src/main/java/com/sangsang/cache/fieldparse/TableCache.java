@@ -216,7 +216,6 @@ public class TableCache extends DefaultBeanPostProcessor {
                 && (TransformationPatternTypeConstant.MYSQL_2_DM.equals(fieldProperties.getTransformation().getPatternType())
                 || TransformationPatternTypeConstant.ORACLE_2_MYSQL.equals(fieldProperties.getTransformation().getPatternType()))) {
             fieldProperties.setIdentifierQuote(Arrays.asList(SymbolConstant.FLOAT, SymbolConstant.SINGLE_QUOTES));
-            log.info("【field-encryptor】当前启用了mysql自动转换达梦数据库，且未指定identifierQuote数据库标识引用符，默认使用mysql的 `，项目中表名字段名需要标识引用符引起来时请使用 ` !!!");
             return fieldProperties;
         }
 
