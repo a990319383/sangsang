@@ -8,7 +8,7 @@
     <artifactId>field-encryptor</artifactId>
     <packaging>pom</packaging>
     <version>3.6.1-alpha</version>
-    <description>无侵入数据库字段加解密，无侵入数据库语法转换，个性化数据隔离，个性化脱敏</description>
+    <description>无侵入数据库字段加解密，异构数据库语法转换，无侵入数据隔离，个性化脱敏</description>
     <name>field-encryptor</name>
     <modules>
         <module>encryptor-annos</module>
