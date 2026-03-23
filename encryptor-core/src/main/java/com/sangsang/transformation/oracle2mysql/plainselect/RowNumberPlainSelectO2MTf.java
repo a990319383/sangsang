@@ -85,7 +85,7 @@ public class RowNumberPlainSelectO2MTf extends PlainSelectTransformation {
             currentRoot = finalWrapper;
         }
 
-        psTfDto.setPlainSelect((PlainSelect) currentRoot);
+        psTfDto.setPlainSelect(currentRoot);
         return psTfDto;
     }
 

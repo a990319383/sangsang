@@ -72,7 +72,7 @@ public class JsqlparserUtil {
     }
 
     /**
-     * 补齐 select * 的所有字段
+     * 加解密时，补齐 select * 的所有字段
      * 备注：只补齐有实体类的表，并且这个实体类存在需要加密字段
      *
      * @param selectItem
@@ -83,7 +83,7 @@ public class JsqlparserUtil {
      * @date 2024/2/19 17:20
      **/
     public static List<SelectItem> perfectAllColumns(SelectItem selectItem, Integer layer, Map<Integer, Map<String, List<FieldInfoDto>>> sqlLayerFieldTableMap, List<FieldEncryptor> upstreamNeedEncryptFieldEncryptor) {
-        //-1.获取sql本层的所有的表字段（不包含上游作用域的字段）
+        //-1.获取sql本层的所有的表字段（不包含上游作用域的字段），因为上游作用域的字段一般是不在select * 中的
         Map<String, List<FieldInfoDto>> layerFieldTableMap = sqlLayerFieldTableMap.get(layer);
         if (sqlLayerFieldTableMap instanceof LayerHashMapWrapper) {
             layerFieldTableMap = ((LayerHashMapWrapper) sqlLayerFieldTableMap).getExclusiveUpstreamScope(layer);
@@ -144,6 +144,63 @@ public class JsqlparserUtil {
         return Arrays.asList(selectItem);
     }
 
+    /**
+     * 单纯将select * 或者select 别名.* 转换为select 具体的字段
+     *
+     * @param selectItem
+     * @param layer                 当前sql层数
+     * @param sqlLayerFieldTableMap 当前sql每层拥有的表字段信息
+     * @author liutangqi
+     * @date 2026/3/6 10:24
+     **/
+    public static List<SelectItem<?>> perfectAllColumns(SelectItem<?> selectItem, Integer layer, Map<Integer, Map<String, List<FieldInfoDto>>> sqlLayerFieldTableMap) {
+        //1.获取sql本层的所有的表字段（不包含上游作用域的字段），因为上游作用域的字段一般是不在select * 中的
+        Map<String, List<FieldInfoDto>> layerFieldTableMap = sqlLayerFieldTableMap.get(layer);
+        if (sqlLayerFieldTableMap instanceof LayerHashMapWrapper) {
+            layerFieldTableMap = ((LayerHashMapWrapper) sqlLayerFieldTableMap).getExclusiveUpstreamScope(layer);
+        }
+
+        //2. select 别名.*  （注意：AllColumns AllTableColumns 有继承关系，这里判断顺序不能改）
+        Expression expression = selectItem.getExpression();
+        if (expression instanceof AllTableColumns) {
+            String tableName = ((AllTableColumns) expression).getTable().getName();
+            List<FieldInfoDto> fieldInfoSet = layerFieldTableMap.get(tableName);
+            //2.1没有配置此表的字段信息，返回原表达式
+            if (CollectionUtils.isEmpty(fieldInfoSet)) {
+                return Arrays.asList(selectItem);
+            }
+            //2.2配置了此表的字段信息，将配置的所有字段去替换*
+            fieldInfoSet.stream().map(m -> {
+                Column column = new Column(m.getColumnName());
+                column.setTable(new Table(tableName));
+                return SelectItem.from(column);
+            }).collect(Collectors.toList());
+        }
+
+        //3. select *  未指定别名，将当前层的全部字段作为结果集返回
+        if (expression instanceof AllColumns) {
+            List<SelectItem<?>> selectItems = new ArrayList<>();
+            for (Map.Entry<String, List<FieldInfoDto>> fieldInfoEntry : layerFieldTableMap.entrySet()) {
+                //3.1 此表字段没有配置拥有哪些字段，则使用 别名.*
+                if (CollectionUtils.isEmpty(fieldInfoEntry.getValue())) {
+                    SelectItem<?> item = SelectItem.from(new AllTableColumns(new Table(fieldInfoEntry.getKey())));
+                    selectItems.add(item);
+                }
+                //3.2 此表配置了表字段信息，使用配置的字段替换*
+                else {
+                    for (FieldInfoDto fieldInfoDto : fieldInfoEntry.getValue()) {
+                        Column column = new Column(fieldInfoDto.getColumnName());
+                        column.setTable(new Table(fieldInfoEntry.getKey()));
+                        selectItems.add(SelectItem.from(column));
+                    }
+                }
+            }
+            return selectItems;
+        }
+
+        //4. 不包含*
+        return Arrays.asList(selectItem);
+    }
 
     /**
      * 从layerFieldTableMap中解析当前字段所属表的信息

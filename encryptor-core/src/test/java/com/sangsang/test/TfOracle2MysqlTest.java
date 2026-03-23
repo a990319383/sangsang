@@ -20,26 +20,28 @@ import java.util.List;
  */
 public class TfOracle2MysqlTest {
     //oracle的分页写法1-1 ： 分页逻辑一部分写内层，一部分写嵌套的外层
+    // 注意：这种写法的内层对于行号的判断只能是小于，如果是大于一个比1大的值，会永远都
     String s1 = "SELECT * FROM (\n" +
             "    SELECT tmp_page.*, ROWNUM row_id FROM (\n" +
             "        SELECT * FROM TB_USER \n" +
-            "    ) tmp_page WHERE ROWNUM > ? \n" +
-            ") WHERE row_id < ?";
+            "    ) tmp_page WHERE ROWNUM < 5 \n" +
+            ") WHERE row_id > 2";
 
     //oracle的分页写法1-2： 分页逻辑一部分写内层，一部分写嵌套的外层
     // 内层分页条件判断时还存在其它的条件
+    //注意：这种写法是有问题的，内层最终获取到的行号字段是从1开始的，所以外层的>2这个条件会
     String s2 = "SELECT * FROM (\n" +
             "    SELECT tmp_page.*, ROWNUM row_id FROM (\n" +
             "        SELECT * FROM TB_USER \n" +
-            "    ) tmp_page WHERE ROWNUM > ?  and phone = 'xxx' \n" +
-            ") WHERE row_id < ?";
+            "    ) tmp_page WHERE ROWNUM < 5  and phone != 'xxx' \n" +
+            ") WHERE row_id > 2";
 
     //oracle的分页写法2-1 ： 分页逻辑全部写外层
     String s3 = "SELECT * FROM (\n" +
             "    SELECT tmp_page.*, ROWNUM row_id FROM (\n" +
             "        SELECT * FROM TB_USER \n" +
             "    ) tmp_page\n" +
-            ") WHERE row_id > 10 AND row_id <= 20";
+            ") WHERE row_id > ? AND row_id <= ?";
 
     //oracle的分页写法2-2 ： 分页逻辑全部写外层
     // 内层存在其它条件
@@ -47,7 +49,7 @@ public class TfOracle2MysqlTest {
             "    SELECT tmp_page.*, ROWNUM row_id FROM (\n" +
             "        SELECT * FROM TB_USER  \n" +
             "    ) tmp_page where phone = 'xxx' \n" +
-            ") WHERE row_id > 10 AND row_id <= 20";
+            ") WHERE row_id > 2 AND row_id <= 5";
 
     //oracle的分页写法3-1 ： 分页逻辑全部写外层，且使用between
     //注意：BETWEEN是左右都是闭区间，对比写法1，写法2
@@ -75,7 +77,7 @@ public class TfOracle2MysqlTest {
 
     //oracle的分页写法4-3: 缺了 fetch
     String s9 = "SELECT * FROM TB_USER \n" +
-            "OFFSET 7 ROWS ";
+            "OFFSET 2 ROWS ";
 
     //分页在内层，去掉行号字段后会移除嵌套的子查询,测试其它功能是否正确
     String s10 = "SELECT \n" +
@@ -85,7 +87,7 @@ public class TfOracle2MysqlTest {
             "SELECT TB.*, ROW_NUMBER() OVER (ORDER BY id) AS row_num \n" +
             "FROM TB_USER TB\n" +
             ") t \n" +
-            "WHERE row_num BETWEEN 11 AND 20)a ";
+            "WHERE row_num BETWEEN 2 AND 5)a ";
 
 
     //窗口函数测试用例1：无 PARTITION BY  整体无order by
@@ -93,46 +95,36 @@ public class TfOracle2MysqlTest {
             "    SELECT TB.*, ROW_NUMBER() OVER (ORDER BY create_time) AS row_num \n" +
             "    FROM TB_USER TB\n" +
             ") t " +
-            "WHERE row_num BETWEEN 0 AND 20";
+            "WHERE row_num BETWEEN 2 AND 5";
 
     //窗口函数测试用例2：有 PARTITION BY 整体无order by
     String s12 = "SELECT * FROM (\n" +
             "    SELECT TB.*, ROW_NUMBER() OVER (PARTITION BY phone ORDER BY create_time) AS row_num \n" +
             "    FROM TB_USER TB\n" +
             ") t \n" +
-            "WHERE row_num BETWEEN 0 AND 20";
+            "WHERE row_num BETWEEN 2 AND 5";
 
     //窗口函数测试用例3： 无 PARTITION BY  整体有order by
     String s13 = "SELECT * FROM (\n" +
             "    SELECT TB.*, ROW_NUMBER() OVER (ORDER BY create_time) AS row_num \n" +
             "    FROM TB_USER TB\n" +
             ") t \n" +
-            "WHERE row_num BETWEEN 0 AND 20  order by id asc";
+            "WHERE row_num BETWEEN 2 AND 5  order by id asc";
 
     //窗口函数测试用例4：有 PARTITION BY 整体有order by
     String s14 = "SELECT * FROM (\n" +
             "    SELECT TB.*, ROW_NUMBER() OVER (PARTITION BY phone ORDER BY create_time) AS row_num \n" +
             "    FROM TB_USER TB\n" +
             ") t \n" +
-            "WHERE row_num BETWEEN 0 AND 20 order by id asc";
+            "WHERE row_num BETWEEN 2 AND 5 order by id asc";
 
 
-    //todo-ltq 子查询必须拥有别名 （oracle可以没别名）
-    String s111 = "";
-
+    //子查询必须拥有别名 （oracle可以没别名，但是mysql必须有）
+    String s15 = "SELECT * from (SELECT * FROM tb_user) where id = 1";
 
 
     //不是单纯的分页，只是把行号字段进行了比较判断，除了行号的比较外，还存在其他条件判断，这种情况注意要保留其它条件，并且注意层级关系
     String s27 = "";
-
-
-
-
-    String test_sql = "SELECT * FROM (\n" +
-            "    SELECT TB.*, ROW_NUMBER() OVER (ORDER BY id) AS row_num \n" +
-            "    FROM TB_USER TB\n" +
-            ") t \n" +
-            "WHERE row_num BETWEEN 11 AND 20";
 
     /**
      * oracle转mysql语法转换器测试
@@ -152,7 +144,7 @@ public class TfOracle2MysqlTest {
         CacheTestHelper.testInit(fieldProperties);
 
         //需要的sql
-        String sql = s11;
+        String sql = s2;
 
         //语法转换时，对当前sql的进行占位符替换，并且mocksql入参值
         sql = CacheTestHelper.tfHolderMock(sql);
@@ -172,14 +164,18 @@ public class TfOracle2MysqlTest {
 
     @Test
     public void otherTest() {
-
+        for (int i = 0; i < sqls.size(); i++) {
+            System.out.println((i + 1) + " : " + sqls.get(i));
+        }
     }
 
 
 //----------------------------------------校验当前程序是否正确分割线---------------------------------------------------------
 
     //需要测试的sql
-    List<String> sqls = Arrays.asList();
+    List<String> sqls = Arrays.asList(
+            s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15
+    );
 
 
     /**

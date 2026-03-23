@@ -328,7 +328,7 @@ public class ExpressionsUtil {
      *
      * @author gemini
      * @date 2026/1/9 16:53
-     * @Param [innerLimit, outerLimit]
+     * @Param [innerLimit 内层的limit, outerLimit：外层的limit] 注意顺序不能反
      **/
     public static Limit mergeLimit(Limit innerLimit, Limit outerLimit) {
         if (innerLimit == null) return outerLimit;

@@ -73,13 +73,15 @@ public class PagePlainSelectO2MTf extends PlainSelectTransformation {
         }
 
         //4.改造后的select
-        // 查询的是* 或者别名* && where条件不存在 && from的表是一个嵌套子查询，并且子查询是一个单纯的查询语句
+        // 查询的是* 或者别名* && where条件不存在 && 没有排序 && from的表是一个嵌套子查询，并且子查询是一个单纯的查询语句
         // 则表示这层嵌套没有用了，把这层嵌套去了
         List<SelectItem<?>> curSelectItems = plainSelect.getSelectItems();
         Expression curWhere = plainSelect.getWhere();
         FromItem fromItem = plainSelect.getFromItem();
+        List<OrderByElement> orderByElements = plainSelect.getOrderByElements();
         if ((curSelectItems != null && curSelectItems.size() == 1 && ((curSelectItems.get(0).getExpression() instanceof AllTableColumns) || (curSelectItems.get(0).getExpression() instanceof AllColumns)))
                 && curWhere == null
+                && CollectionUtils.isEmpty(orderByElements)
                 && fromItem instanceof ParenthesedSelect && ((ParenthesedSelect) fromItem).getSelect() instanceof PlainSelect
         ) {
             //4.1去掉的那层有limit的话，把limit挪位置，挪到当前层
@@ -87,7 +89,7 @@ public class PagePlainSelectO2MTf extends PlainSelectTransformation {
             //4.2 去掉这层嵌套
             plainSelect = (PlainSelect) ((ParenthesedSelect) fromItem).getSelect();
             //4.3 如果当前层也存在Limit的话，将上层的Limit和本层的Lmit进行合并
-            Limit curLimit = ExpressionsUtil.mergeLimit(upstreamLimit, plainSelect.getLimit());
+            Limit curLimit = ExpressionsUtil.mergeLimit(plainSelect.getLimit(), upstreamLimit);
             plainSelect.setLimit(curLimit);
 
             //4.4 由于sql少了一层，所以将解析结果往上挪一层 todo-ltq ??? 我将plainSelect语法转换放在了visitor的最后一步，目前看起来是不需要挪的

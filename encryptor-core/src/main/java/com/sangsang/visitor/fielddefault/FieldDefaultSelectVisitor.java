@@ -1,5 +1,6 @@
 package com.sangsang.visitor.fielddefault;
 
+import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.annos.fielddefault.FieldDefault;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
@@ -12,6 +13,7 @@ import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.statement.select.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author liutangqi
@@ -80,6 +82,8 @@ public class FieldDefaultSelectVisitor extends BaseFieldParseTable implements Se
     @Override
     public void visit(PlainSelect plainSelect) {
         //1.存在select * 不做处理
+        //具体不处理的原因见：com.sangsang.visitor.fielddefault.FieldDefaultStatementVisitor.visit(net.sf.jsqlparser.statement.insert.Insert)
+        //或搜索日志:【field-encryptor】insert 存在*。此情况无法设置默认值!!!请规范语法!!!
         List<SelectItem<?>> selectItems = plainSelect.getSelectItems();
         SelectItem<?> allColumnItem = plainSelect.getSelectItems().stream()
                 .filter(f -> (f.getExpression() instanceof AllColumns) || (f.getExpression() instanceof AllTableColumns))

@@ -98,9 +98,9 @@ public class CacheTestHelper {
      **/
     public static String tfHolderMock(String sql) {
         String resSql = StringUtils.question2Placeholder(sql);
-        //这里假定sql的第一个?值是11 第二个?的值是20
-        TfParameterMappingHolder.setParameterMapping(FieldConstant.PLACEHOLDER + 0, 11);
-        TfParameterMappingHolder.setParameterMapping(FieldConstant.PLACEHOLDER + 1, 20);
+        //这里假定sql的第一个?值是2 第二个?的值是5
+        TfParameterMappingHolder.setParameterMapping(FieldConstant.PLACEHOLDER + 0, 2);
+        TfParameterMappingHolder.setParameterMapping(FieldConstant.PLACEHOLDER + 1, 5);
         return resSql;
     }
 }

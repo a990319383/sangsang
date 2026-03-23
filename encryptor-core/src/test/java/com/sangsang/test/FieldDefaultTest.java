@@ -45,6 +45,11 @@ public class FieldDefaultTest {
     //insert into 表 values() 这种不指定插入表字段的语法
     String i8 = "insert into tb_user  values(?,?,?,?,?,?,?,?)";
 
+    // insert into (select *) 备注：这种语法不考虑支持
+    // 原因：虽然我们读取了库的表结构，可以拿到*的字段顺序，但是我们默认只缓存使用到的表的结构信息，此种语法select * 的表大多数情况我们是没有缓存表结构的
+    //要兼容此种语法会浪费较多内存缓存整库的表结构，所以仅输出日志警告
+    String i9 = "insert into tb_user(select * from tb_user where phone = 'xxx')";
+
     // --------------update 测试语句 ---------------
 
     //update 联表  set的时候存在 其它表的值，也存在常量值
@@ -64,7 +69,7 @@ public class FieldDefaultTest {
         CacheTestHelper.testInit(fieldProperties);
 
         //需要的sql
-        String sql = i8;
+        String sql = i9;
 
         //开始进行数据隔离
         Statement statement = JsqlparserUtil.parse(sql);
