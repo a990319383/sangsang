@@ -1,0 +1,1 @@
+SELECT CHAR_LENGTH(phone), CHAR_LENGTH(login_name) FROM TB_USER

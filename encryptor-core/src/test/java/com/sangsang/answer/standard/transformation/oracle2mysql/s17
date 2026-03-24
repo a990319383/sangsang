@@ -1,0 +1,1 @@
+SELECT IFNULL(phone, IFNULL(login_name, 'guest')) FROM TB_USER

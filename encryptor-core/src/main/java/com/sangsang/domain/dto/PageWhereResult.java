@@ -18,7 +18,7 @@ import net.sf.jsqlparser.statement.select.Limit;
  * <p>2. 转换器负责消费解析结果并改写 plainSelect。</p>
  *
  * @author liutangqi && codex && gpt-5.4
- * @date 2026/3/24 10:30
+ * @date 2026/3/24 18:30
  */
 @Getter
 public class PageWhereResult {

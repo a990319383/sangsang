@@ -38,7 +38,7 @@ public class ColumnTableDto {
 
     /**
      * 该字段是否是由数据库特性产生的行号字段
-     * 比如：oracle 的ROWNUM 或者很多数据库都支持的窗口函数 ROW_NUMBER() OVER (ORDER BY id)
+     * 比如：oracle 的ROWNUM
      * 默认是false
      **/
     @Builder.Default

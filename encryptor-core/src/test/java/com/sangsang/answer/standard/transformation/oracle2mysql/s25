@@ -1,0 +1,1 @@
+SELECT DATE_FORMAT(create_time, '%Y-%m-%d') FROM TB_USER

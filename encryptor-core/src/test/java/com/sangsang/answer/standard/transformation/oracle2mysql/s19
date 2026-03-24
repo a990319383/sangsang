@@ -1,0 +1,1 @@
+SELECT SUBSTRING(login_name, 2) FROM TB_USER

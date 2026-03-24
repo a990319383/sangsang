@@ -39,7 +39,7 @@ import java.util.List;
  * <p>5. 合并 Oracle 新版 offset/fetch 分页语法。</p>
  *
  * @author liutangqi && codex && gpt-5.4
- * @date 2026/3/24 10:35
+ * @date 2026/3/24 18:30
  */
 public class PageSyntaxPlainSelectO2MTf extends PlainSelectTransformation {
 

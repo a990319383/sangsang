@@ -35,8 +35,8 @@ import java.util.Map;
  *
  * <p>其它表达式一律按普通业务条件处理并保留原样。</p>
  *
- * @author liutangqi
- * @date 2026/3/24 10:40
+ * @author liutangqi && codex && gpt-5.4
+ * @date 2026/3/24 18:30
  */
 public class OraclePageWhereExpressionVisitor extends BaseFieldParseTable implements ExpressionVisitor {
 

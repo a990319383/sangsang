@@ -48,4 +48,19 @@ public enum TransformationDateFormatEnum {
         }
         return res;
     }
+
+    /**
+     * oracle 的日期格式转换为 mysql 的日期格式。
+     *
+     * @author liutangqi
+     * @date 2026/3/24 11:32
+     * @Param [format]
+     **/
+    public static String oracle2mysqlFormat(String format) {
+        String res = format;
+        for (TransformationDateFormatEnum dateFormatEnum : TransformationDateFormatEnum.values()) {
+            res = res.replace(dateFormatEnum.dm, dateFormatEnum.mysql);
+        }
+        return res;
+    }
 }

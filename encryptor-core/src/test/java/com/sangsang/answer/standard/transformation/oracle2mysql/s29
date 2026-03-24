@@ -1,0 +1,1 @@
+SELECT CASE role_id WHEN 1 THEN 'admin' ELSE 'other' END FROM TB_USER

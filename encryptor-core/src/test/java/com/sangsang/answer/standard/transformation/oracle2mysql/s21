@@ -1,0 +1,1 @@
+SELECT INSTR(login_name, 'a', 2) FROM TB_USER

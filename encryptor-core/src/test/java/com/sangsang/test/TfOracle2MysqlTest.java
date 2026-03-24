@@ -133,8 +133,37 @@ public class TfOracle2MysqlTest {
     String s15 = "SELECT * from (SELECT * FROM tb_user) where id = 1";
 
 
-    //不是单纯的分页，只是把行号字段进行了比较判断，除了行号的比较外，还存在其他条件判断，这种情况注意要保留其它条件，并且注意层级关系
-    String s27 = "";
+    //Oracle NVL
+    String s16 = "SELECT NVL(phone, '13800000000') FROM TB_USER";
+    String s17 = "SELECT NVL(phone, NVL(login_name, 'guest')) FROM TB_USER";
+
+    //Oracle SUBSTR / INSTR / LENGTH
+    String s18 = "SELECT SUBSTR(phone, 2, 3) FROM TB_USER";
+    String s19 = "SELECT SUBSTR(login_name, 2) FROM TB_USER";
+    String s20 = "SELECT INSTR(login_name, 'a') FROM TB_USER";
+    String s21 = "SELECT INSTR(login_name, 'a', 2) FROM TB_USER";
+    String s22 = "SELECT LENGTH(phone), LENGTH(login_name) FROM TB_USER";
+
+    //Oracle SYSDATE
+    String s23 = "SELECT SYSDATE FROM TB_USER";
+    String s24 = "SELECT SYSDATE() FROM TB_USER";
+
+    //Oracle TO_CHAR / TO_DATE
+    String s25 = "SELECT TO_CHAR(create_time, 'YYYY-MM-DD') FROM TB_USER";
+    String s26 = "SELECT TO_CHAR(create_time, 'YYYY-MM-DD HH24:MI:SS') FROM TB_USER";
+    String s27 = "SELECT TO_DATE('2026-03-24', 'YYYY-MM-DD') FROM TB_USER";
+    String s28 = "SELECT TO_DATE('2026-03-24 12:34:56', 'YYYY-MM-DD HH24:MI:SS') FROM TB_USER";
+
+    //Oracle DECODE / TO_NUMBER
+    String s29 = "SELECT DECODE(role_id, 1, 'admin', 'other') FROM TB_USER";
+    String s30 = "SELECT DECODE(role_id, 1, 'admin', 2, 'user', 'other') FROM TB_USER";
+    String s31 = "SELECT DECODE(role_id, 1, 'admin', 2, 'user') FROM TB_USER";
+    String s32 = "SELECT TO_NUMBER(role_id) FROM TB_USER";
+    String s33 = "SELECT TO_NUMBER('12.34', '999.99') FROM TB_USER";
+
+    //多种 Oracle 语法组合使用
+    String s34 = "SELECT NVL(TO_CHAR(create_time, 'YYYY-MM-DD'), '2026-03-24'), " +
+            "DECODE(role_id, 1, TO_NUMBER('1'), TO_NUMBER('2')) FROM TB_USER";
 
     /**
      * oracle转mysql语法转换器测试
@@ -184,7 +213,8 @@ public class TfOracle2MysqlTest {
 
     //需要测试的sql
     List<String> sqls = Arrays.asList(
-            s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15
+            s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15,
+            s16, s17, s18, s19, s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s32, s33, s34
     );
 
 
@@ -218,11 +248,14 @@ public class TfOracle2MysqlTest {
             statement.accept(transformationStatementVisitor);
             String resultSql = transformationStatementVisitor.getResultSql();
 
+            //原始sql的占位符还原
+            sql = StringUtils.placeholder2Question(sql);
+
             //找答案
             String answer = AnswerUtil.readTfAnswerToFile(this, TransformationPatternTypeConstant.ORACLE_2_MYSQL, sql);
             String sqlFieldName = ReflectUtils.getFieldNameByValue(this, sql);
             if (StringUtils.isBlank(answer)) {
-                System.out.println("这个sql没答案，自己检查，然后把正确答案给录到com.sangsang.answer.standard下面 :" + sqlFieldName);
+                System.out.println("这个sql没答案，自己检查，然后把正确答案给录到com.sangsang.answer.standard." + TransformationPatternTypeConstant.ORACLE_2_MYSQL + "下面 :" + sqlFieldName);
                 System.out.println("原始sql: " + sql);
                 return;
             }
@@ -273,6 +306,8 @@ public class TfOracle2MysqlTest {
             TransformationStatementVisitor transformationStatementVisitor = new TransformationStatementVisitor();
             statement.accept(transformationStatementVisitor);
             String resultSql = transformationStatementVisitor.getResultSql();
+            //原始sql的占位符还原
+            sql = StringUtils.placeholder2Question(sql);
             AnswerUtil.writeTfAnswerToFile(this, TransformationPatternTypeConstant.ORACLE_2_MYSQL, sql, resultSql);
         }
     }
