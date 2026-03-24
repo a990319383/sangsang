@@ -1,0 +1,1 @@
+SELECT * FROM (SELECT *, (@rn_row_num := IF(@p_row_num = phone, @rn_row_num + 1, 1)) AS row_num, (@p_row_num := phone) FROM (SELECT TB.* FROM TB_USER TB ORDER BY phone, create_time) AS t_row_num, (SELECT @rn_row_num := 0, @p_row_num := '') AS v_row_num) t WHERE row_num BETWEEN 2 AND 5

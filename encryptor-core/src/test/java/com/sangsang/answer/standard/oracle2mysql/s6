@@ -1,0 +1,1 @@
+SELECT tmp_page.* FROM (SELECT * FROM TB_USER) tmp_page WHERE phone != 'xxx' LIMIT 1, 4

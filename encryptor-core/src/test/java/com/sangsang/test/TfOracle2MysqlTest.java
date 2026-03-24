@@ -19,6 +19,15 @@ import java.util.List;
  * @date 2025/5/27 10:46
  */
 public class TfOracle2MysqlTest {
+    //oracle的分页错误写法（内层是大于，外层是小于）
+    //此种写法的执行结果一直都是空
+    //oracle的ROWNUM是从1开始的，内层过滤条件拿到的第一条ROWNUM是1，不满足大于2的条件，再取下一条，ROWNUM还是1，一直不满足大于2，所以一直拿不到结果集
+    String s0 = "SELECT * FROM (\n" +
+            "    SELECT tmp_page.*, ROWNUM row_id FROM (\n" +
+            "        SELECT * FROM TB_USER \n" +
+            "    ) tmp_page WHERE ROWNUM > 2 \n" +
+            ") WHERE row_id < 5";
+
     //oracle的分页写法1-1 ： 分页逻辑一部分写内层，一部分写嵌套的外层
     // 注意：这种写法的内层对于行号的判断只能是小于，如果是大于一个比1大的值，会永远都
     String s1 = "SELECT * FROM (\n" +
@@ -29,7 +38,8 @@ public class TfOracle2MysqlTest {
 
     //oracle的分页写法1-2： 分页逻辑一部分写内层，一部分写嵌套的外层
     // 内层分页条件判断时还存在其它的条件
-    //注意：这种写法是有问题的，内层最终获取到的行号字段是从1开始的，所以外层的>2这个条件会
+    //注意：内层的判断条件是小于，外层的判断条件是大于。如果写反的话，这种分页语法是有问题的，会得到一个空的结果集
+    //注意：此类语法转换后，哪怕一样的数据，oracle和mysql的执行结果可能不一致，因为缺少order by 条件，两者的排序规则不同，得到的结果集可能是不同的
     String s2 = "SELECT * FROM (\n" +
             "    SELECT tmp_page.*, ROWNUM row_id FROM (\n" +
             "        SELECT * FROM TB_USER \n" +
@@ -48,7 +58,7 @@ public class TfOracle2MysqlTest {
     String s4 = "SELECT * FROM (\n" +
             "    SELECT tmp_page.*, ROWNUM row_id FROM (\n" +
             "        SELECT * FROM TB_USER  \n" +
-            "    ) tmp_page where phone = 'xxx' \n" +
+            "    ) tmp_page where phone != 'xxx' \n" +
             ") WHERE row_id > 2 AND row_id <= 5";
 
     //oracle的分页写法3-1 ： 分页逻辑全部写外层，且使用between
@@ -64,7 +74,7 @@ public class TfOracle2MysqlTest {
     String s6 = "SELECT * FROM (\n" +
             "    SELECT tmp_page.*, ROWNUM row_id FROM (\n" +
             "        SELECT * FROM TB_USER \n" +
-            "    ) tmp_page where phone = 'xxx' \n" +
+            "    ) tmp_page where phone != 'xxx' \n" +
             ") WHERE row_id BETWEEN ? AND ?";
 
     //orcale的分页写法4-1: 高版本支持
@@ -144,7 +154,7 @@ public class TfOracle2MysqlTest {
         CacheTestHelper.testInit(fieldProperties);
 
         //需要的sql
-        String sql = s2;
+        String sql = s8;
 
         //语法转换时，对当前sql的进行占位符替换，并且mocksql入参值
         sql = CacheTestHelper.tfHolderMock(sql);
@@ -174,7 +184,7 @@ public class TfOracle2MysqlTest {
 
     //需要测试的sql
     List<String> sqls = Arrays.asList(
-            s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15
+            s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15
     );
 
 

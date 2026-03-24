@@ -1,0 +1,1 @@
+SELECT * FROM (SELECT * FROM tb_user) oracle2mysql_empty_alias WHERE id = 1
