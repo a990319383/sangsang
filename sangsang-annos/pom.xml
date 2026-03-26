@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>io.gitee.tired-of-the-water</groupId>
+        <artifactId>sangsang</artifactId>
+        <version>3.7.0-alpha</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>sangsang-annos</artifactId>
+    <name>sangsang-annos</name>
+    <description>注解包，某些场景模块只需要注解，不需要mybatis，所以将注解模块独立开来</description>
+
+    <dependencies>
+        <!-- mybatis-plus 的注解 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-annotation</artifactId>
+            <version>3.5.3.1</version>
+        </dependency>
+        <!--jsqlparser-->
+        <dependency>
+            <groupId>com.github.jsqlparser</groupId>
+            <artifactId>jsqlparser</artifactId>
+            <version>4.9</version>
+        </dependency>
+    </dependencies>
+
+</project>

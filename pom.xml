@@ -5,18 +5,18 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.gitee.tired-of-the-water</groupId>
-    <artifactId>field-encryptor</artifactId>
+    <artifactId>sangsang</artifactId>
     <packaging>pom</packaging>
-    <version>3.6.2-alpha</version>
-    <description>无侵入数据库字段加解密，异构数据库语法转换，无侵入数据隔离，个性化脱敏</description>
-    <name>field-encryptor</name>
+    <version>3.7.0-alpha</version>
+    <description>无侵入数据库字段加解密，异构数据库语法转换，无侵入数据权限隔离，个性化脱敏</description>
+    <name>sangsang</name>
     <modules>
-        <module>encryptor-annos</module>
-        <module>encryptor-core</module>
+        <module>sangsang-annos</module>
+        <module>sangsang-core</module>
     </modules>
     <properties>
         <java.version>1.8</java.version>
-        <revision>3.6.2-alpha</revision>
+        <revision>3.7.0-alpha</revision>
     </properties>
     <dependencies>
         <!--lombok-->
@@ -39,7 +39,7 @@
             </roles>
         </developer>
     </developers>
-    <url>https://gitee.com/tired-of-the-water/field-encryptor</url>
+    <url>https://gitee.com/tired-of-the-water/sangsang</url>
     <licenses>
         <license>
             <name>The Apache Software License, Version 2.0</name>
@@ -47,9 +47,9 @@
         </license>
     </licenses>
     <scm>
-        <connection>https://gitee.com/tired-of-the-water/field-encryptorf.git</connection>
-        <developerConnection>scm:git:ssh://git@gitee.com:tired-of-the-water/field-encryptorf.git</developerConnection>
-        <url>https://gitee.com/tired-of-the-water/field-encryptor</url>
+        <connection>https://gitee.com/tired-of-the-water/sangsang.git</connection>
+        <developerConnection>scm:git:ssh://git@gitee.com:tired-of-the-water/sangsang.git</developerConnection>
+        <url>https://gitee.com/tired-of-the-water/sangsang</url>
     </scm>
     <build>
         <plugins>
