@@ -17,10 +17,12 @@ import org.apache.ibatis.reflection.SystemMetaObject;
 import org.apache.ibatis.session.Configuration;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.sql.DataSource;
 
 /**
  * 拦截器相关的工具类
@@ -155,5 +157,86 @@ public class InterceptorUtil {
             pre = InterceptorUtil.forObject(pre).getValue(prop);
         }
         return pre;
+    }
+
+    /**
+     * 获取当前执行sql使用的DataSource
+     *
+     * @author liutangqi
+     * @date 2026/3/26 17:33
+     * @Param [statementHandler]
+     **/
+    public static DataSource getCurrentDataSource(StatementHandler statementHandler) {
+        MetaObject metaObject = InterceptorUtil.forObject(statementHandler);
+        MappedStatement mappedStatement = (MappedStatement) metaObject.getValue("delegate.mappedStatement");
+        if (mappedStatement == null
+                || mappedStatement.getConfiguration() == null
+                || mappedStatement.getConfiguration().getEnvironment() == null) {
+            return null;
+        }
+        return unwrapDataSource(mappedStatement.getConfiguration().getEnvironment().getDataSource());
+    }
+
+    /**
+     * 递归获取当前真正执行的DataSource
+     *
+     * @author liutangqi
+     * @date 2026/3/26 17:33
+     * @Param [dataSource]
+     **/
+    private static DataSource unwrapDataSource(DataSource dataSource) {
+        if (dataSource == null) {
+            return null;
+        }
+
+        DataSource targetDataSource = invokeDataSourceMethod(dataSource, "determineTargetDataSource");
+        if (targetDataSource != null && targetDataSource != dataSource) {
+            return unwrapDataSource(targetDataSource);
+        }
+
+        DataSource delegateDataSource = invokeDataSourceMethod(dataSource, "getTargetDataSource");
+        if (delegateDataSource != null && delegateDataSource != dataSource) {
+            return unwrapDataSource(delegateDataSource);
+        }
+        return dataSource;
+    }
+
+    /**
+     * 反射调用DataSource上的无参方法
+     *
+     * @author liutangqi
+     * @date 2026/3/26 17:33
+     * @Param [dataSource, methodName]
+     **/
+    private static DataSource invokeDataSourceMethod(DataSource dataSource, String methodName) {
+        try {
+            Method method = getMethod(dataSource.getClass(), methodName);
+            if (method == null || method.getParameterTypes().length != 0 || !DataSource.class.isAssignableFrom(method.getReturnType())) {
+                return null;
+            }
+            method.setAccessible(true);
+            return (DataSource) method.invoke(dataSource);
+        } catch (Exception e) {
+            log.debug("【field-encryptor】反射获取DataSource异常 class:{} method:{}", dataSource.getClass().getName(), methodName, e);
+            return null;
+        }
+    }
+
+    /**
+     * 获取类及其父类中的指定方法
+     *
+     * @author liutangqi
+     * @date 2026/3/26 17:33
+     * @Param [cls, methodName]
+     **/
+    private static Method getMethod(Class cls, String methodName) {
+        Method method = Stream.of(cls.getDeclaredMethods()).filter(f -> f.getName().equals(methodName)).findAny().orElse(null);
+
+        Class superClass = cls.getSuperclass();
+        while (method == null && superClass != null) {
+            method = Stream.of(superClass.getDeclaredMethods()).filter(f -> f.getName().equals(methodName)).findAny().orElse(null);
+            superClass = superClass.getSuperclass();
+        }
+        return method;
     }
 }
