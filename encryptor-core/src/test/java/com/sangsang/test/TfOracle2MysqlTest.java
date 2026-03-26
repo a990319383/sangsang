@@ -2,6 +2,7 @@ package com.sangsang.test;
 
 import com.sangsang.config.properties.FieldProperties;
 import com.sangsang.config.properties.TransformationProperties;
+import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.constants.TransformationPatternTypeConstant;
 import com.sangsang.util.AnswerUtil;
 import com.sangsang.util.JsqlparserUtil;
@@ -165,6 +166,12 @@ public class TfOracle2MysqlTest {
     String s34 = "SELECT NVL(TO_CHAR(create_time, 'YYYY-MM-DD'), '2026-03-24'), " +
             "DECODE(role_id, 1, TO_NUMBER('1'), TO_NUMBER('2')) FROM TB_USER";
 
+    //多层嵌套查询，包含常量字段，外层常量字段作为字段名查询
+    String s35 = "SELECT b.\"un\", b.\"tmpName\", b.\"en\" FROM (SELECT a.\"un\", a.\"tmpName\", \"tmpName\" AS en FROM (SELECT \"USER_NAME\" AS un, '中文' AS tmpName FROM TB_USER) a) b";
+
+    //表和字段都用""引起来了
+    String s36 = "SELECT \"USER_NAME\" FROM \"TB_USER\"  ";
+
     /**
      * oracle转mysql语法转换器测试
      *
@@ -179,11 +186,13 @@ public class TfOracle2MysqlTest {
         //设置模式是oracle转mysql
         TransformationProperties transformation = fieldProperties.getTransformation();
         transformation.setPatternType(TransformationPatternTypeConstant.ORACLE_2_MYSQL);
+//        fieldProperties.setIdentifierQuote(Arrays.asList(SymbolConstant.FLOAT, SymbolConstant.SINGLE_QUOTES));
+        fieldProperties.setIdentifierQuote(Arrays.asList(SymbolConstant.FLOAT, SymbolConstant.DOUBLE_QUOTES));
         //初始化缓存
         CacheTestHelper.testInit(fieldProperties);
 
         //需要的sql
-        String sql = s8;
+        String sql = s35;
 
         //语法转换时，对当前sql的进行占位符替换，并且mocksql入参值
         sql = CacheTestHelper.tfHolderMock(sql);
@@ -214,7 +223,7 @@ public class TfOracle2MysqlTest {
     //需要测试的sql
     List<String> sqls = Arrays.asList(
             s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15,
-            s16, s17, s18, s19, s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s32, s33, s34
+            s16, s17, s18, s19, s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s32, s33, s34, s35, s36
     );
 
 
@@ -233,6 +242,7 @@ public class TfOracle2MysqlTest {
         //设置模式是oracle转mysql
         TransformationProperties transformation = fieldProperties.getTransformation();
         transformation.setPatternType(TransformationPatternTypeConstant.ORACLE_2_MYSQL);
+        fieldProperties.setIdentifierQuote(Arrays.asList(SymbolConstant.FLOAT, SymbolConstant.DOUBLE_QUOTES));
         //初始化缓存
         CacheTestHelper.testInit(fieldProperties);
 
@@ -294,6 +304,7 @@ public class TfOracle2MysqlTest {
         //设置模式是oracle转mysql
         TransformationProperties transformation = fieldProperties.getTransformation();
         transformation.setPatternType(TransformationPatternTypeConstant.ORACLE_2_MYSQL);
+        fieldProperties.setIdentifierQuote(Arrays.asList(SymbolConstant.FLOAT, SymbolConstant.DOUBLE_QUOTES));
         //初始化缓存
         CacheTestHelper.testInit(fieldProperties);
 

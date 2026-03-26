@@ -1,0 +1,1 @@
+SELECT b.`un`, b.`tmpName`, b.`en` FROM (SELECT a.`un`, a.`tmpName`, `tmpName` AS en FROM (SELECT `USER_NAME` AS un, '中文' AS tmpName FROM TB_USER) a) b
