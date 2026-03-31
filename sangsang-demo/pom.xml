@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.gitee.tired-of-the-water</groupId>
+        <artifactId>sangsang</artifactId>
+        <version>3.7.0-alpha</version>
+    </parent>
+
+    <packaging>pom</packaging>
+    <artifactId>sangsang-demo</artifactId>
+    <description>Demo modules for sangsang</description>
+
+    <modules>
+        <module>sangsang-demo-encryptor-db</module>
+    </modules>
+
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <!--为了保障每个功能demo的独立性，每个demo都是单独的module，pom依赖和properties配置也是每个独有，没有写在公共的依赖中影响用户理解-->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.gitee.tired-of-the-water</groupId>
+                <artifactId>sangsang-annos</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.gitee.tired-of-the-water</groupId>
+                <artifactId>sangsang-core</artifactId>
+                <version>${revision}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>

@@ -13,6 +13,7 @@
     <modules>
         <module>sangsang-annos</module>
         <module>sangsang-core</module>
+        <module>sangsang-demo</module>
     </modules>
     <properties>
         <java.version>1.8</java.version>

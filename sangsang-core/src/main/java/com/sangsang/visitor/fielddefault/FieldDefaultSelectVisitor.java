@@ -1,6 +1,5 @@
 package com.sangsang.visitor.fielddefault;
 
-import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.annos.fielddefault.FieldDefault;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
@@ -13,7 +12,6 @@ import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.statement.select.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * @author liutangqi
