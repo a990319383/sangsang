@@ -4,8 +4,13 @@
     <select id="getUserListByPhone"
             resultType="com.sangsang.demo.vo.UserVo">
         select *
-        from tb_user
+        from demo_user
         where phone = #{phone}
+    </select>
+    <select id="findAll"
+            resultType="com.sangsang.demo.vo.UserVo">
+        select *
+        from demo_user
     </select>
 </mapper>
 

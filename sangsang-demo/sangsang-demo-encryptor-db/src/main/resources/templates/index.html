@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>首页</title>
+</head>
+<body>
+<h1 th:text="${title}">默认标题</h1>
+<p th:text="${msg}">默认消息内容</p>
+
+<hr>
+
+<div th:if="${title != null}">
+    <p>数据加载成功！</p>
+</div>
+</body>
+</html>

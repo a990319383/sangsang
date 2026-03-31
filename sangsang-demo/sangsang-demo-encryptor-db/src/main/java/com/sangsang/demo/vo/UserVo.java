@@ -17,6 +17,31 @@ public class UserVo {
      */
     private Long id;
     /**
+     * 用户名
+     */
+    private String userName;
+
+    /**
+     * 登录名
+     */
+    private String loginName;
+
+    /**
+     * 登录密码
+     */
+    private String loginPwd;
+
+    /**
+     * 电话
+     */
+    private String phone;
+
+    /**
+     * 组织的全路径（上级的上级权限/上级权限/本级权限）
+     */
+    private String orgSeq;
+
+    /**
      * 创建时间
      */
     private LocalDateTime createTime;
@@ -24,24 +49,4 @@ public class UserVo {
      * 修改时间
      */
     private LocalDateTime updateTime;
-    /**
-     * 用户名
-     */
-    private String userName;
-    /**
-     * 登录名
-     */
-    private String loginName;
-    /**
-     * 登录密码
-     */
-    private String loginPwd;
-    /**
-     * 电话
-     */
-    private String phone;
-    /**
-     * 角色id
-     */
-    private Long roleId;
 }
