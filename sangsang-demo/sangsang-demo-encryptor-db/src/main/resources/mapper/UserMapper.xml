@@ -1,16 +1,55 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.sangsang.demo.mapper.UserMapper">
-    <select id="getUserListByPhone"
-            resultType="com.sangsang.demo.vo.UserVo">
+
+    <select id="getUserListByPhone" resultType="com.sangsang.demo.vo.UserVo">
         select *
         from demo_user
         where phone = #{phone}
     </select>
-    <select id="findAll"
-            resultType="com.sangsang.demo.vo.UserVo">
+
+    <select id="getUserList" resultType="com.sangsang.demo.vo.UserVo">
         select *
         from demo_user
+        <where>
+            <if test="userName != null and userName != ''">
+                and user_name like concat('%', #{userName}, '%')
+            </if>
+            <if test="phone != null and phone != ''">
+                and phone = #{phone}
+            </if>
+        </where>
+        order by create_time desc
     </select>
-</mapper>
 
+    <select id="getUserById" resultType="com.sangsang.demo.vo.UserVo">
+        select *
+        from demo_user
+        where id = #{id}
+    </select>
+
+    <insert id="insertUser" parameterType="com.sangsang.demo.dto.UserSaveDto">
+        insert into demo_user (user_name, login_name, login_pwd, phone, org_seq, create_time, update_time)
+        values (#{userName}, #{loginName}, #{loginPwd}, #{phone}, #{orgSeq}, now(), now())
+    </insert>
+
+    <update id="updateUser" parameterType="com.sangsang.demo.dto.UserUpdateDto">
+        update demo_user
+        <set>
+            <if test="userName != null">user_name = #{userName},</if>
+            <if test="loginName != null">login_name = #{loginName},</if>
+            <if test="loginPwd != null and loginPwd != ''">login_pwd = #{loginPwd},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="orgSeq != null">org_seq = #{orgSeq},</if>
+            update_time = now()
+        </set>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteUserById">
+        delete
+        from demo_user
+        where id = #{id}
+    </delete>
+
+</mapper>

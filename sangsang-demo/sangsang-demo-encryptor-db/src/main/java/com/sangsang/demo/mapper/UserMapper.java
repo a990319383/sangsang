@@ -1,5 +1,8 @@
 package com.sangsang.demo.mapper;
 
+import com.sangsang.demo.dto.UserQueryDto;
+import com.sangsang.demo.dto.UserSaveDto;
+import com.sangsang.demo.dto.UserUpdateDto;
 import com.sangsang.demo.vo.UserVo;
 import org.apache.ibatis.annotations.Param;
 
@@ -19,4 +22,29 @@ public interface UserMapper {
      * @Param [phone]
      **/
     List<UserVo> getUserListByPhone(@Param("phone") String phone);
+
+    /**
+     * 按用户名或电话模糊查询用户列表
+     */
+    List<UserVo> getUserList(UserQueryDto dto);
+
+    /**
+     * 根据ID查询用户
+     */
+    UserVo getUserById(@Param("id") Long id);
+
+    /**
+     * 新增用户
+     */
+    int insertUser(UserSaveDto dto);
+
+    /**
+     * 修改用户
+     */
+    int updateUser(UserUpdateDto dto);
+
+    /**
+     * 删除用户
+     */
+    int deleteUserById(@Param("id") Long id);
 }

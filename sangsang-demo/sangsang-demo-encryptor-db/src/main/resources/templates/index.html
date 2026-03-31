@@ -2,16 +2,491 @@
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>首页</title>
+    <title>【sangsang】</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 30px auto;
+            padding: 0 16px;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .toolbar input {
+            padding: 7px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 200px;
+        }
+
+        .btn {
+            padding: 7px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #1677ff;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #0958d9;
+        }
+
+        .btn-success {
+            background: #52c41a;
+            color: #fff;
+        }
+
+        .btn-success:hover {
+            background: #389e0d;
+        }
+
+        .btn-warning {
+            background: #faad14;
+            color: #fff;
+        }
+
+        .btn-warning:hover {
+            background: #d48806;
+        }
+
+        .btn-danger {
+            background: #ff4d4f;
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            background: #cf1322;
+        }
+
+        .btn-default {
+            background: #fff;
+            color: #333;
+            border: 1px solid #ccc;
+        }
+
+        .btn-default:hover {
+            background: #f0f0f0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+        }
+
+        th {
+            background: #fafafa;
+            color: #555;
+            font-weight: 600;
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+
+        td {
+            padding: 11px 14px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+            color: #333;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: #f9f9ff;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Modal */
+        .modal-mask {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .45);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-mask.show {
+            display: flex;
+        }
+
+        .modal {
+            background: #fff;
+            border-radius: 8px;
+            width: 480px;
+            max-width: 95vw;
+            padding: 28px 32px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .15);
+        }
+
+        .modal h3 {
+            margin-bottom: 20px;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .form-row {
+            margin-bottom: 14px;
+        }
+
+        .form-row label {
+            display: block;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .form-row input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-row input:focus {
+            outline: none;
+            border-color: #1677ff;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 14px;
+        }
+
+        /* Confirm dialog */
+        .confirm-mask {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .45);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .confirm-mask.show {
+            display: flex;
+        }
+
+        .confirm-box {
+            background: #fff;
+            border-radius: 8px;
+            padding: 28px 32px;
+            width: 340px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .15);
+        }
+
+        .confirm-box p {
+            font-size: 15px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .confirm-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+    </style>
 </head>
 <body>
-<h1 th:text="${title}">默认标题</h1>
-<p th:text="${msg}">默认消息内容</p>
-
-<hr>
-
-<div th:if="${title != null}">
-    <p>数据加载成功！</p>
+<div class="container">
+    <h2>【sangsang】db模式加密演示，其中电话号码是密文存储</h2>
+    <p style="margin-bottom:16px;font-size:13px;">项目地址：
+        <a href="https://gitee.com/tired-of-the-water/sangsang"
+           target="_blank" style="color:#1677ff;">https://gitee.com/tired-of-the-water/sangsang</a>
+    </p>
+    <div class="toolbar">
+        <input type="text" id="searchName" placeholder="用户名模糊搜索">
+        <input type="text" id="searchPhone" placeholder="电话号码模糊搜索">
+        <button class="btn btn-primary" onclick="loadList()">搜索</button>
+        <button class="btn btn-success" onclick="openAdd()">+ 新增用户</button>
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>用户名</th>
+            <th>登录名</th>
+            <th>电话</th>
+            <th>组织路径</th>
+            <th>创建时间</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody id="tableBody">
+        <tr>
+            <td colspan="7" class="empty">加载中...</td>
+        </tr>
+        </tbody>
+    </table>
 </div>
+
+<!-- 新增/编辑弹窗 -->
+<div class="modal-mask" id="formModal">
+    <div class="modal">
+        <h3 id="modalTitle">新增用户</h3>
+        <div class="form-row">
+            <label>用户名 <span style="color:red">*</span></label>
+            <input type="text" id="fUserName" placeholder="请输入用户名">
+        </div>
+        <div class="form-row">
+            <label>登录名 <span style="color:red">*</span></label>
+            <input type="text" id="fLoginName" placeholder="请输入登录名">
+        </div>
+        <div class="form-row" id="pwdRow">
+            <label>登录密码 <span style="color:red">*</span></label>
+            <input type="password" id="fLoginPwd" placeholder="请输入登录密码">
+        </div>
+        <div class="form-row">
+            <label>电话 <span style="color:red">*</span></label>
+            <input type="text" id="fPhone" placeholder="请输入电话号码">
+        </div>
+        <div class="form-row">
+            <label>组织路径</label>
+            <input type="text" id="fOrgSeq" placeholder="例如：/root/dept/team">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-default" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitForm()">确定</button>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认弹窗 -->
+<div class="confirm-mask" id="confirmModal">
+    <div class="confirm-box">
+        <p>确定要删除该用户吗？此操作不可恢复。</p>
+        <div class="confirm-footer">
+            <button class="btn btn-default" onclick="closeConfirm()">取消</button>
+            <button class="btn btn-danger" onclick="confirmDelete()">确定删除</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    var editId = null;
+    var deleteId = null;
+
+    function loadList() {
+        var userName = document.getElementById('searchName').value.trim();
+        var phone = document.getElementById('searchPhone').value.trim();
+        var params = [];
+        if (userName) params.push('userName=' + encodeURIComponent(userName));
+        if (phone) params.push('phone=' + encodeURIComponent(phone));
+        var url = '/user/list' + (params.length ? '?' + params.join('&') : '');
+        fetch(url)
+            .then(function (r) {
+                return r.json();
+            })
+            .then(function (data) {
+                renderTable(data);
+            })
+            .catch(function () {
+                renderTable([]);
+            });
+    }
+
+    function renderTable(list) {
+        var tbody = document.getElementById('tableBody');
+        if (!list || list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty">暂无数据</td></tr>';
+            return;
+        }
+        tbody.innerHTML = list.map(function (u) {
+            return '<tr>' +
+                '<td>' + (u.id || '') + '</td>' +
+                '<td>' + esc(u.userName) + '</td>' +
+                '<td>' + esc(u.loginName) + '</td>' +
+                '<td>' + esc(u.phone) + '</td>' +
+                '<td>' + esc(u.orgSeq) + '</td>' +
+                '<td>' + formatTime(u.createTime) + '</td>' +
+                '<td><div class="actions">' +
+                '<button class="btn btn-warning" data-id="' + u.id + '" onclick="openEdit(this)">编辑</button>' +
+                '<button class="btn btn-danger" data-id="' + u.id + '" onclick="askDelete(this)">删除</button>' +
+                '</div></td>' +
+                '</tr>';
+        }).join('');
+    }
+
+    function esc(v) {
+        if (v == null) return '';
+        return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function formatTime(t) {
+        if (!t) return '';
+        if (Array.isArray(t)) {
+            // LocalDateTime 序列化为数组格式 [year,month,day,hour,min,sec]
+            var pad = function (n) {
+                return n < 10 ? '0' + n : n;
+            };
+            return t[0] + '-' + pad(t[1]) + '-' + pad(t[2]) + ' ' + pad(t[3] || 0) + ':' + pad(t[4] || 0) + ':' + pad(t[5] || 0);
+        }
+        return String(t).replace('T', ' ');
+    }
+
+    function openAdd() {
+        editId = null;
+        document.getElementById('modalTitle').textContent = '新增用户';
+        document.getElementById('pwdRow').style.display = '';
+        document.getElementById('fUserName').value = '';
+        document.getElementById('fLoginName').value = '';
+        document.getElementById('fLoginPwd').value = '';
+        document.getElementById('fPhone').value = '';
+        document.getElementById('fOrgSeq').value = '';
+        document.getElementById('formModal').classList.add('show');
+    }
+
+    function openEdit(btn) {
+        var id = btn.getAttribute('data-id');
+        fetch('/user/get?id=' + id)
+            .then(function (r) {
+                return r.json();
+            })
+            .then(function (u) {
+                editId = u.id;
+                document.getElementById('modalTitle').textContent = '编辑用户';
+                document.getElementById('pwdRow').style.display = 'none';
+                document.getElementById('fUserName').value = u.userName || '';
+                document.getElementById('fLoginName').value = u.loginName || '';
+                document.getElementById('fLoginPwd').value = '';
+                document.getElementById('fPhone').value = u.phone || '';
+                document.getElementById('fOrgSeq').value = u.orgSeq || '';
+                document.getElementById('formModal').classList.add('show');
+            });
+    }
+
+    function closeModal() {
+        document.getElementById('formModal').classList.remove('show');
+    }
+
+    function submitForm() {
+        var userName = document.getElementById('fUserName').value.trim();
+        var loginName = document.getElementById('fLoginName').value.trim();
+        var phone = document.getElementById('fPhone').value.trim();
+        var orgSeq = document.getElementById('fOrgSeq').value.trim();
+        if (!userName || !loginName || !phone) {
+            alert('用户名、登录名、电话为必填项');
+            return;
+        }
+        if (editId == null) {
+            var loginPwd = document.getElementById('fLoginPwd').value;
+            if (!loginPwd) {
+                alert('新增时密码为必填项');
+                return;
+            }
+            fetch('/user/save', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    userName: userName,
+                    loginName: loginName,
+                    loginPwd: loginPwd,
+                    phone: phone,
+                    orgSeq: orgSeq
+                })
+            }).then(function () {
+                closeModal();
+                loadList();
+            });
+        } else {
+            fetch('/user/update', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    id: editId,
+                    userName: userName,
+                    loginName: loginName,
+                    phone: phone,
+                    orgSeq: orgSeq
+                })
+            }).then(function () {
+                closeModal();
+                loadList();
+            });
+        }
+    }
+
+    function askDelete(id) {
+        deleteId = id;
+        document.getElementById('confirmModal').classList.add('show');
+    }
+
+    function closeConfirm() {
+        document.getElementById('confirmModal').classList.remove('show');
+        deleteId = null;
+    }
+
+    function confirmDelete() {
+        if (deleteId == null) return;
+        fetch('/user/delete?id=' + deleteId, {method: 'POST'})
+            .then(function () {
+                closeConfirm();
+                loadList();
+            });
+    }
+
+    // 点击遮罩关闭弹窗
+    document.getElementById('formModal').addEventListener('click', function (e) {
+        if (e.target === this) closeModal();
+    });
+    document.getElementById('confirmModal').addEventListener('click', function (e) {
+        if (e.target === this) closeConfirm();
+    });
+
+    // 初始加载
+    loadList();
+</script>
 </body>
 </html>

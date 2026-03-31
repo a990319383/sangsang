@@ -1,0 +1,26 @@
+INSERT INTO sangsang.demo_user (user_name, login_name, login_pwd, phone, org_seq, create_time, update_time)
+VALUES ('宁缺', 'ningque', '密码', 'QD6TtUOci019i/uuxGTJeQ==', '/昊天/书院/二层楼', '2026-03-31 18:30:01',
+        '2026-03-31 15:38:26'),
+       ('桑桑', 'sangsang', '密码', 'LF8/G7WvoWanw2Z2FOYwcA==', '/昊天', '2026-03-31 18:30:01', '2026-03-31 15:41:21'),
+       ('夫子', 'fuzi', '密码', 'fYPAbi496H5D7pAlFOJCcQ==', '/昊天/书院', '2026-03-31 18:30:01', '2026-03-31 15:41:29'),
+       ('李慢慢', 'limanman', '密码', 'rvKxt2uaeeIDuEFkadt1nw==', '/昊天/书院/二层楼', '2026-03-31 18:30:01',
+        '2026-03-31 15:41:36'),
+       ('君陌', 'junmo', '密码', 'sitt2Aq4FLTVJ9YD8bVY6g==', '/昊天/书院/二层楼', '2026-03-31 18:30:01',
+        '2026-03-31 15:41:45'),
+       ('余帘', 'yulian', '密码', 'oPkeN7XwdFBrSRukbGfc0Q==', '/昊天/书院/二层楼', '2026-03-31 18:30:01',
+        '2026-03-31 15:42:37'),
+       ('叶红鱼', 'yehongyu', '密码', 'iAyv/FIlcKJ4NNNE6mNFDQ==', '/昊天/西陵神殿/裁决司', '2026-03-31 18:30:01',
+        '2026-03-31 15:42:50'),
+       ('隆庆', 'longqing', '密码', 'Sp6DDPrlqQcBl95lxkRZyw==', '/昊天/西陵神殿/光明殿', '2026-03-31 18:30:01',
+        '2026-03-31 15:47:58'),
+       ('唐王', 'tangwang', '密码', 'PG2Ku5IPAM0jW6MxKiYyJA==', '/昊天/皇室', '2026-03-31 18:30:01',
+        '2026-03-31 15:47:50'),
+       ('夏天', 'xiatian', '密码', 'sI3rc42J+Y1crCC2CjNNkQ==', '/昊天/皇室/后宫', '2026-03-31 18:30:01',
+        '2026-03-31 15:47:43');
+INSERT INTO sangsang.demo_user (user_name, login_name, login_pwd, phone, org_seq, create_time, update_time)
+VALUES ('陈皮皮', 'chenpipi', '密码', 'IeHqlPXYqhwhhPVc3gBzDA==', '/昊天/书院/二层楼', '2026-03-31 18:30:01',
+        '2026-03-31 15:47:36'),
+       ('叶苏', 'yesu', '密码', 'on8affB1wYg8uSPtlsnE1w==', '/昊天/知守观/弟子', '2026-03-31 18:30:01',
+        '2026-03-31 15:47:29'),
+       ('陈某', 'guanzhu', '密码', 'iAyv/FIlcKJ4NNNE6mNFDQ==', '/昊天/知守观', '2026-03-31 18:30:01',
+        '2026-03-31 15:47:23');
