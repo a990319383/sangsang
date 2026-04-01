@@ -1,9 +1,9 @@
 package com.sangsang.demo.mapper;
 
-import com.sangsang.demo.dto.UserQueryDto;
-import com.sangsang.demo.dto.UserSaveDto;
-import com.sangsang.demo.dto.UserUpdateDto;
-import com.sangsang.demo.vo.UserVo;
+import com.sangsang.demo.domain.dto.UserQueryDto;
+import com.sangsang.demo.domain.dto.UserSaveDto;
+import com.sangsang.demo.domain.dto.UserUpdateDto;
+import com.sangsang.demo.domain.vo.UserVo;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;

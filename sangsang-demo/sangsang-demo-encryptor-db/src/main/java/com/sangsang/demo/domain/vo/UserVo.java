@@ -1,4 +1,4 @@
-package com.sangsang.demo.vo;
+package com.sangsang.demo.domain.vo;
 
 import lombok.Data;
 

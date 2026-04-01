@@ -1,20 +1,15 @@
-package com.sangsang.demo.dto;
+package com.sangsang.demo.domain.dto;
 
 import lombok.Data;
 
 /**
- * 用户修改入参
+ * 用户新增入参
  *
  * @author liutangqi
  * @date 2026/3/31
  */
 @Data
-public class UserUpdateDto {
-    /**
-     * 主键
-     */
-    private Long id;
-
+public class UserSaveDto {
     /**
      * 用户名
      */

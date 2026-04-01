@@ -1,4 +1,4 @@
-package com.sangsang.demo.entity;
+package com.sangsang.demo.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;

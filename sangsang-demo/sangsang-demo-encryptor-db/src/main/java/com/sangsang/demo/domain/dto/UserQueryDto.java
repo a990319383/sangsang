@@ -1,4 +1,4 @@
-package com.sangsang.demo.dto;
+package com.sangsang.demo.domain.dto;
 
 import lombok.Data;
 

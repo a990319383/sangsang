@@ -16,7 +16,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface FieldInterceptorOrder {
     /**
-     * 同生命周期的拦截器，序号越小越先获取到结果
+     * 同生命周期的拦截器，序号越小越先获取到结果，越晚进入拦截器，越内层
      * 注意：这里的执行是指先获取到结果，拦截器执行是嵌套的，先执行的拦截器，可能是后拿到invocation.proceed()的结果的
      */
     int value();
