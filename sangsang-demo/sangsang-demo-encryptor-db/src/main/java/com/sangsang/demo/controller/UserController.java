@@ -33,15 +33,15 @@ public class UserController {
     @GetMapping("/list")
     public UserListVo list(UserQueryDto dto) {
         List<UserVo> users = userMapper.getUserList(dto);
-        List<SqlLogVo> sqlLogs = SqlHolder.getAndReove();
+        List<SqlLogVo> sqlLogs = SqlHolder.getSqls();
         return new UserListVo(users, sqlLogs);
     }
 
     /**
      * 根据ID查询用户
      */
-    @GetMapping("/get")
-    public UserVo get(@RequestParam Long id) {
+    @GetMapping("/get/{id}")
+    public UserVo get(@PathVariable Long id) {
         return userMapper.getUserById(id);
     }
 
@@ -66,8 +66,8 @@ public class UserController {
     /**
      * 删除用户，并返回最新列表和 SQL 日志
      */
-    @PostMapping("/delete")
-    public UserListVo delete(@RequestParam Long id) {
+    @PostMapping("/delete/{id}")
+    public UserListVo delete(@PathVariable Long id) {
         userMapper.deleteUserById(id);
         return list(new UserQueryDto());
     }

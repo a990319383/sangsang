@@ -314,6 +314,51 @@
             <a href="https://gitee.com/tired-of-the-water/sangsang"
                target="_blank" style="color:#1677ff;">https://gitee.com/tired-of-the-water/sangsang</a>
         </p>
+        <style>
+            .db-info-wrapper {
+                margin-top: 8px;
+                font-size: 13px;
+                color: #666;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .info-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 16px;
+                height: 16px;
+                border: 1px solid #faad14;
+                color: #faad14;
+                border-radius: 50%;
+                font-size: 11px;
+                cursor: help;
+                font-weight: bold;
+                position: relative;
+            }
+
+            .info-icon:hover::after {
+                content: "此数据库仅供展示功能使用，请勿攻击，请勿造大量数据";
+                position: absolute;
+                left: 24px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: rgba(0, 0, 0, 0.75);
+                color: #fff;
+                padding: 6px 10px;
+                border-radius: 4px;
+                font-size: 12px;
+                white-space: nowrap;
+                z-index: 1000;
+                font-weight: normal;
+            }
+        </style>
+        <p class="db-info-wrapper">
+            <span class="info-icon">!</span>
+            数据库地址： IP 43.133.199.2 端口 3307 用户名 sangsang 密码 sangsang 库 sangsang
+        </p>
     </div>
     <!-- 上部：SQL 对比 -->
     <div class="sql-area-wrapper" style="margin-bottom:24px;">
@@ -433,7 +478,7 @@
         }
 
         container.innerHTML = logs.map(function (item, idx) {
-            var label = '第' + (idx + 1) + '次执行';
+            var label = '执行sql' + (idx + 1) + '';
             return '<div class="sql-pair">' +
                 '<div class="sql-panel">' +
                 '<div class="sql-panel-title">' + label + ' - 原始SQL</div>' +
@@ -500,7 +545,7 @@
 
     function openEdit(btn) {
         var id = btn.getAttribute('data-id');
-        fetch('/user/get?id=' + id)
+        fetch('/user/get/' + id)
             .then(function (r) {
                 return r.json();
             })
@@ -575,8 +620,8 @@
         }
     }
 
-    function askDelete(id) {
-        deleteId = id;
+    function askDelete(btn) {
+        deleteId = btn.getAttribute('data-id');
         document.getElementById('confirmModal').classList.add('show');
     }
 
@@ -587,7 +632,7 @@
 
     function confirmDelete() {
         if (deleteId == null) return;
-        fetch('/user/delete?id=' + deleteId, {method: 'POST'})
+        fetch('/user/delete/' + deleteId, {method: 'POST'})
             .then(function (r) {
                 closeConfirm();
                 return handleResponse(r);

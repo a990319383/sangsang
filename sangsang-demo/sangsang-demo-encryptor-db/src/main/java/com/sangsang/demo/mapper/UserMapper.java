@@ -13,16 +13,6 @@ import java.util.List;
  * @date 2026/3/30 17:54
  */
 public interface UserMapper {
-
-    /**
-     * sql的入参是需要密文存储的字段，查询的结果也有需要密文存储的字段
-     *
-     * @author liutangqi
-     * @date 2026/3/30 17:55
-     * @Param [phone]
-     **/
-    List<UserVo> getUserListByPhone(@Param("phone") String phone);
-
     /**
      * 按用户名或电话模糊查询用户列表
      */

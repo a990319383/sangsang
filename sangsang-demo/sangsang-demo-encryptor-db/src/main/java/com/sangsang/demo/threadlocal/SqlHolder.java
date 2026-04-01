@@ -41,10 +41,8 @@ public class SqlHolder {
      * @date 2026/3/31 17:19
      * @Param []
      **/
-    public static List<SqlLogVo> getAndReove() {
-        List<SqlLogVo> result = sqlHolder.get();
-        sqlHolder.remove();
-        return result;
+    public static List<SqlLogVo> getSqls() {
+        return sqlHolder.get();
     }
 
     /**

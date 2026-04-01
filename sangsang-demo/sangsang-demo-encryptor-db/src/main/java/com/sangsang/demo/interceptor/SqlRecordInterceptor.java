@@ -2,12 +2,10 @@ package com.sangsang.demo.interceptor;
 
 import com.sangsang.demo.threadlocal.SqlHolder;
 import com.sangsang.domain.annos.FieldInterceptorOrder;
-import com.sangsang.util.InterceptorUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.executor.statement.StatementHandler;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.plugin.*;
-import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -27,7 +25,7 @@ import java.sql.Connection;
 //标记此拦截器处于同生命周期的最外层
 @FieldInterceptorOrder(Integer.MAX_VALUE)
 @Intercepts({@Signature(type = StatementHandler.class, method = "prepare", args = {Connection.class, Integer.class})})
-public class SqlLogInterceptor implements Interceptor, BeanPostProcessor {
+public class SqlRecordInterceptor implements Interceptor, BeanPostProcessor {
 
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
@@ -56,10 +54,10 @@ public class SqlLogInterceptor implements Interceptor, BeanPostProcessor {
             SqlSessionFactory sessionFactory = (SqlSessionFactory) bean;
             boolean alreadyRegistered = sessionFactory.getConfiguration().getInterceptors()
                     .stream()
-                    .anyMatch(i -> SqlLogInterceptor.class.isAssignableFrom(i.getClass()));
+                    .anyMatch(i -> SqlRecordInterceptor.class.isAssignableFrom(i.getClass()));
             if (!alreadyRegistered) {
-                sessionFactory.getConfiguration().addInterceptor(new SqlLogInterceptor());
-                log.info("【demo-interceptor】手动注册拦截器 SqlLogInterceptor");
+                sessionFactory.getConfiguration().addInterceptor(new SqlRecordInterceptor());
+                log.info("【sangsang】手动注册拦截器 SqlLogInterceptor");
             }
             com.sangsang.util.InterceptorUtil.sort(sessionFactory.getConfiguration());
         }
