@@ -1,6 +1,8 @@
 package com.sangsang.demo.interceptor;
 
 import com.sangsang.demo.threadlocal.SqlHolder;
+import com.sangsang.demo.util.IpUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -13,9 +15,11 @@ import javax.servlet.http.HttpServletResponse;
  * @author liutangqi
  * @date 2026/4/1 15:45
  */
+@Slf4j
 public class SqlClearInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        log.info("【sangsang】<访问> ip:{} path:{}", IpUtils.getRealIp(request), request.getServletPath());
         return true;
     }
 
