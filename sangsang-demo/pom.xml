@@ -11,7 +11,7 @@
 
     <packaging>pom</packaging>
     <artifactId>sangsang-demo</artifactId>
-    <description>Demo modules for sangsang</description>
+    <description>【sangsang】的演示模块，用于直观感受框架作用</description>
 
     <modules>
         <module>sangsang-demo-encryptor-db</module>
