@@ -1,9 +1,9 @@
 package com.sangsang.demo.controller;
 
+import com.sangsang.demo.domain.bo.SqlLogBo;
 import com.sangsang.demo.domain.dto.UserQueryDto;
 import com.sangsang.demo.domain.dto.UserSaveDto;
 import com.sangsang.demo.domain.dto.UserUpdateDto;
-import com.sangsang.demo.domain.vo.SqlLogVo;
 import com.sangsang.demo.domain.vo.UserListVo;
 import com.sangsang.demo.mapper.UserMapper;
 import com.sangsang.demo.domain.vo.UserVo;
@@ -11,7 +11,6 @@ import com.sangsang.demo.threadlocal.SqlHolder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -33,7 +32,7 @@ public class UserController {
     @GetMapping("/list")
     public UserListVo list(UserQueryDto dto) {
         List<UserVo> users = userMapper.getUserList(dto);
-        List<SqlLogVo> sqlLogs = SqlHolder.getSqls();
+        List<SqlLogBo> sqlLogs = SqlHolder.getSqls();
         return new UserListVo(users, sqlLogs);
     }
 

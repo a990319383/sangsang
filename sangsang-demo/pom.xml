@@ -15,6 +15,7 @@
 
     <modules>
         <module>sangsang-demo-encryptor-db</module>
+        <module>sangsang-demo-common</module>
     </modules>
 
     <properties>
@@ -23,7 +24,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
-    <!--为了保障每个功能demo的独立性，每个demo都是单独的module，pom依赖和properties配置也是每个独有，没有写在公共的依赖中影响用户理解-->
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -34,6 +34,11 @@
             <dependency>
                 <groupId>io.gitee.tired-of-the-water</groupId>
                 <artifactId>sangsang-core</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.gitee.tired-of-the-water</groupId>
+                <artifactId>sangsang-demo-common</artifactId>
                 <version>${revision}</version>
             </dependency>
         </dependencies>

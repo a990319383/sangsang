@@ -1,6 +1,6 @@
 package com.sangsang.demo.threadlocal;
 
-import com.sangsang.demo.domain.vo.SqlLogVo;
+import com.sangsang.demo.domain.bo.SqlLogBo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +15,7 @@ public class SqlHolder {
     /**
      * 记录当前请求中的sql
      */
-    private static final ThreadLocal<List<SqlLogVo>> sqlHolder = new ThreadLocal<>();
+    private static final ThreadLocal<List<SqlLogBo>> sqlHolder = new ThreadLocal<>();
 
     /**
      * 记录当前的sql
@@ -25,12 +25,12 @@ public class SqlHolder {
      * @Param [oldSql, newSql]
      **/
     public static void recordSql(String oldSql, String newSql) {
-        List<SqlLogVo> sqlLists = sqlHolder.get();
+        List<SqlLogBo> sqlLists = sqlHolder.get();
         if (sqlLists == null) {
             sqlLists = new ArrayList<>();
             sqlHolder.set(sqlLists);
         }
-        sqlLists.add(new SqlLogVo(oldSql, newSql));
+        sqlLists.add(new SqlLogBo(oldSql, newSql));
     }
 
     /**
@@ -41,7 +41,7 @@ public class SqlHolder {
      * @date 2026/3/31 17:19
      * @Param []
      **/
-    public static List<SqlLogVo> getSqls() {
+    public static List<SqlLogBo> getSqls() {
         return sqlHolder.get();
     }
 

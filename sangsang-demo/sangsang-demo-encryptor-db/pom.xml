@@ -16,39 +16,15 @@
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring.boot.version>2.6.15</spring.boot.version>
     </properties>
 
     <dependencies>
-        <!--springboot + mybatis + mysql 基本依赖-->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-            <version>${spring.boot.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.mybatis.spring.boot</groupId>
-            <artifactId>mybatis-spring-boot-starter</artifactId>
-            <version>2.2.2</version>
-        </dependency>
-        <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-            <version>8.3.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <!--前端界面需要依赖-->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-thymeleaf</artifactId>
-            <version>${spring.boot.version}</version>
-        </dependency>
-        <!--本框架需要的依赖-->
         <dependency>
             <groupId>io.gitee.tired-of-the-water</groupId>
-            <artifactId>sangsang-core</artifactId>
+            <artifactId>sangsang-demo-common</artifactId>
         </dependency>
     </dependencies>
+
 
     <build>
         <finalName>${project.artifactId}</finalName>
@@ -65,19 +41,6 @@
             </resource>
         </resources>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <configuration>
-                    <excludes>
-                        <exclude>*.txt</exclude>
-                        <exclude>*.properties</exclude>
-                        <exclude>*.yml</exclude>
-                        <exclude>*.xml</exclude>
-                        <exclude>static/</exclude>
-                    </excludes>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>

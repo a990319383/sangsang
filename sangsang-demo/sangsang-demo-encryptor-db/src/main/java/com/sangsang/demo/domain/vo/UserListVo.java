@@ -1,5 +1,6 @@
 package com.sangsang.demo.domain.vo;
 
+import com.sangsang.demo.domain.bo.SqlLogBo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -24,5 +25,5 @@ public class UserListVo {
     /**
      * sangsang改写前后的SQL对比列表
      */
-    private List<SqlLogVo> sqlLogs;
+    private List<SqlLogBo> sqlLogs;
 }

@@ -1,8 +1,6 @@
 package com.sangsang.demo.util;
 
 import com.sangsang.demo.domain.constants.CommonConstants;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 import java.net.Inet4Address;

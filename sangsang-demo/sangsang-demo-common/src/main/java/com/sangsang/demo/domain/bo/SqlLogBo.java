@@ -1,19 +1,19 @@
-package com.sangsang.demo.domain.vo;
+package com.sangsang.demo.domain.bo;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 单条SQL改写前后对比
- *
  * @author liutangqi
- * @date 2026/3/31
+ * @date 2026/4/2 13:09
  */
 @Data
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class SqlLogVo {
+public class SqlLogBo {
     /**
      * sangsang处理前的原始SQL
      */
