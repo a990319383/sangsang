@@ -304,6 +304,36 @@
             background: #1e1e1e;
             border-radius: 6px;
         }
+
+        /* 全屏loading菊花 */
+        .loading-mask {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .3);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-mask.show {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, .3);
+            border-top-color: #1677ff;
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 <body>
@@ -402,6 +432,11 @@
     </div>
 </div>
 
+<!-- 全屏loading -->
+<div class="loading-mask" id="loadingMask">
+    <div class="loading-spinner"></div>
+</div>
+
 <!-- 新增/编辑弹窗 -->
 <div class="modal-mask" id="formModal">
     <div class="modal">
@@ -448,7 +483,26 @@
     var editId = null;
     var deleteId = null;
 
+    /* ---- 全屏loading + 防抖 ---- */
+    var _loading = false;
+
+    function showLoading() {
+        _loading = true;
+        document.getElementById('loadingMask').classList.add('show');
+    }
+
+    function hideLoading() {
+        _loading = false;
+        document.getElementById('loadingMask').classList.remove('show');
+    }
+
+    function isLoading() {
+        return _loading;
+    }
+
     function loadList() {
+        if (isLoading()) return;
+        showLoading();
         var userName = document.getElementById('searchName').value.trim();
         var phone = document.getElementById('searchPhone').value.trim();
         var params = [];
@@ -466,6 +520,9 @@
             .catch(function () {
                 renderTable([]);
                 renderSqlPanel([]);
+            })
+            .finally(function () {
+                hideLoading();
             });
     }
 
@@ -544,6 +601,8 @@
     }
 
     function openEdit(btn) {
+        if (isLoading()) return;
+        showLoading();
         var id = btn.getAttribute('data-id');
         fetch('/user/get/' + id)
             .then(function (r) {
@@ -559,6 +618,9 @@
                 document.getElementById('fPhone').value = u.phone || '';
                 document.getElementById('fOrgSeq').value = u.orgSeq || '';
                 document.getElementById('formModal').classList.add('show');
+            })
+            .finally(function () {
+                hideLoading();
             });
     }
 
@@ -574,6 +636,7 @@
     }
 
     function submitForm() {
+        if (isLoading()) return;
         var userName = document.getElementById('fUserName').value.trim();
         var loginName = document.getElementById('fLoginName').value.trim();
         var phone = document.getElementById('fPhone').value.trim();
@@ -582,9 +645,11 @@
             alert('用户名、登录名、电话为必填项');
             return;
         }
+        showLoading();
         if (editId == null) {
             var loginPwd = document.getElementById('fLoginPwd').value;
             if (!loginPwd) {
+                hideLoading();
                 alert('新增时密码为必填项');
                 return;
             }
@@ -601,6 +666,8 @@
             }).then(function (r) {
                 closeModal();
                 return handleResponse(r);
+            }).finally(function () {
+                hideLoading();
             });
         } else {
             fetch('/user/update', {
@@ -616,6 +683,8 @@
             }).then(function (r) {
                 closeModal();
                 return handleResponse(r);
+            }).finally(function () {
+                hideLoading();
             });
         }
     }
@@ -632,10 +701,15 @@
 
     function confirmDelete() {
         if (deleteId == null) return;
+        if (isLoading()) return;
+        showLoading();
         fetch('/user/delete/' + deleteId, {method: 'POST'})
             .then(function (r) {
                 closeConfirm();
                 return handleResponse(r);
+            })
+            .finally(function () {
+                hideLoading();
             });
     }
 
