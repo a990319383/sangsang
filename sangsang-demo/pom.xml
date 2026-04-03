@@ -14,8 +14,9 @@
     <description>【sangsang】的演示模块，用于直观感受框架作用</description>
 
     <modules>
-        <module>sangsang-demo-encryptor-db</module>
         <module>sangsang-demo-common</module>
+        <module>sangsang-demo-encryptor-db</module>
+        <module>sangsang-demo-isolation</module>
     </modules>
 
     <properties>
@@ -39,6 +40,11 @@
             <dependency>
                 <groupId>io.gitee.tired-of-the-water</groupId>
                 <artifactId>sangsang-demo-common</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.gitee.tired-of-the-water</groupId>
+                <artifactId>sangsang-demo-isolation</artifactId>
                 <version>${revision}</version>
             </dependency>
         </dependencies>

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.sangsang.demo.mapper.DbUserMapper">
+<mapper namespace="com.sangsang.demo.mapper.IsoUserMapper">
 
     <select id="getUserList" resultType="com.sangsang.demo.domain.vo.UserVo">
         <bind name="key_offset" value="(pageNum-1)*pageSize"></bind>
         select *
-        from demo_db_user
+        from demo_isolation_user
         <where>
             <if test="userName != null and userName != ''">
                 and user_name like concat('%', #{userName}, '%')
@@ -20,7 +20,7 @@
 
     <select id="countUserList" resultType="java.lang.Long">
         select count(*)
-        from demo_db_user
+        from demo_isolation_user
         <where>
             <if test="userName != null and userName != ''">
                 and user_name like concat('%', #{userName}, '%')
@@ -33,17 +33,17 @@
 
     <select id="getUserById" resultType="com.sangsang.demo.domain.vo.UserVo">
         select *
-        from demo_db_user
+        from demo_isolation_user
         where id = #{id}
     </select>
 
     <insert id="insertUser" parameterType="com.sangsang.demo.domain.dto.UserSaveDto">
-        insert into demo_db_user (user_name, login_name, login_pwd, phone, org_seq, create_time, update_time)
+        insert into demo_isolation_user (user_name, login_name, login_pwd, phone, org_seq, create_time, update_time)
         values (#{userName}, #{loginName}, #{loginPwd}, #{phone}, #{orgSeq}, now(), now())
     </insert>
 
     <update id="updateUser" parameterType="com.sangsang.demo.domain.dto.UserUpdateDto">
-        update demo_db_user
+        update demo_isolation_user
         <set>
             <if test="userName != null">user_name = #{userName},</if>
             <if test="loginName != null">login_name = #{loginName},</if>
@@ -57,7 +57,7 @@
 
     <delete id="deleteUserById">
         delete
-        from demo_db_user
+        from demo_isolation_user
         where id = #{id}
     </delete>
 

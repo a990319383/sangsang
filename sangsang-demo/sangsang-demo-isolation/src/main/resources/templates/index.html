@@ -2,7 +2,6 @@
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" href="data:,">
     <title>【sangsang】</title>
     <style>
         * {
@@ -380,8 +379,8 @@
 <body>
 <div class="container">
     <div class="page-header">
-        <h2>【sangsang】db模式加密演示，其中电话号码是密文存储</h2>
-        <h3> 操作下方增删改查，可初步体验db模式数据库加密效果</h3>
+        <h2>【sangsang】数据权限隔离演示，下拉框选择组织模拟登陆组织</h2>
+        <h3> 操作下方增删改查可以初步感受数据权限隔离效果</h3>
         <p style="margin-top:8px;font-size:13px;">项目地址：
             <a href="https://gitee.com/tired-of-the-water/sangsang"
                target="_blank" style="color:#1677ff;">https://gitee.com/tired-of-the-water/sangsang</a>
@@ -427,10 +426,10 @@
                 font-weight: normal;
             }
         </style>
-        <p class="db-info-wrapper">
-            <span class="info-icon">!</span>
-            数据库地址： IP 43.133.199.2 端口 3307 用户名 sangsang 密码 sangsang 库 sangsang
-        </p>
+        <!-- <p class="db-info-wrapper">
+             <span class="info-icon">!</span>
+             数据库地址： IP 43.133.199.2 端口 3307 用户名 sangsang 密码 sangsang 库 sangsang
+         </p>-->
     </div>
     <!-- 上部：SQL 对比 -->
     <div class="sql-area-wrapper" style="margin-bottom:24px;">
@@ -447,6 +446,21 @@
 
     <!-- 下部：列表 -->
     <div class="list-area">
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;">
+            <span style="font-size:13px;color:#555;">选择下拉框，模拟当前登录人的组织信息：</span>
+            <select id="orgSelect" onchange="switchOrg()"
+                    style="padding:7px 10px;border:1px solid #ccc;border-radius:4px;font-size:14px;min-width:200px;">
+                <option value="/昊天" selected>/昊天</option>
+                <option value="/昊天/书院">/昊天/书院</option>
+                <option value="/昊天/书院/二层楼">/昊天/书院/二层楼</option>
+                <option value="/昊天/西陵神殿/裁决司">/昊天/西陵神殿/裁决司</option>
+                <option value="/昊天/西陵神殿/光明殿">/昊天/西陵神殿/光明殿</option>
+                <option value="/昊天/皇室">/昊天/皇室</option>
+                <option value="/昊天/皇室/后宫">/昊天/皇室/后宫</option>
+                <option value="/昊天/知守观/弟子">/昊天/知守观/弟子</option>
+                <option value="/昊天/知守观">/昊天/知守观</option>
+            </select>
+        </div>
         <div class="toolbar">
             <input type="text" id="searchName" placeholder="用户名模糊搜索">
             <input type="text" id="searchPhone" placeholder="电话号码模糊搜索">
@@ -510,8 +524,10 @@
             <input type="text" id="fPhone" placeholder="请输入电话号码">
         </div>
         <div class="form-row">
-            <label>组织路径</label>
-            <input type="text" id="fOrgSeq" placeholder="例如：/root/dept/team">
+            <label>组织路径 <span style="color:red">*</span></label>
+            <input type="text" id="fOrgSeq" placeholder="必须以 /昊天 开头，例如：/昊天/书院">
+            <small style="color:#999;font-size:12px;margin-top:4px;display:block;">提示：组织路径必须以 /昊天
+                开头</small>
         </div>
         <div class="modal-footer">
             <button class="btn btn-default" onclick="closeModal()">取消</button>
@@ -714,6 +730,17 @@
             alert('用户名、登录名、电话为必填项');
             return;
         }
+        // 新增时组织路径必填且必须以/昊天开头
+        if (editId == null) {
+            if (!orgSeq) {
+                alert('组织路径为必填项');
+                return;
+            }
+            if (!orgSeq.startsWith('/昊天')) {
+                alert('组织路径必须以 /昊天 开头');
+                return;
+            }
+        }
         showLoading();
         if (editId == null) {
             var loginPwd = document.getElementById('fLoginPwd').value;
@@ -813,6 +840,17 @@
 
     // 初始加载
     loadList();
+
+    function switchOrg() {
+        var orgSeq = document.getElementById('orgSelect').value;
+        fetch('/user/switchOrg', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({orgSeq: orgSeq})
+        }).then(function () {
+            loadList();
+        });
+    }
 </script>
 </body>
 </html>

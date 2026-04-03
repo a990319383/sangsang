@@ -1,17 +1,21 @@
 package com.sangsang.demo.controller;
 
 import com.sangsang.demo.domain.bo.SqlLogBo;
+import com.sangsang.demo.domain.constants.LoginUserHelper;
 import com.sangsang.demo.domain.dto.UserQueryDto;
 import com.sangsang.demo.domain.dto.UserSaveDto;
 import com.sangsang.demo.domain.dto.UserUpdateDto;
 import com.sangsang.demo.domain.vo.UserListVo;
-import com.sangsang.demo.mapper.DbUserMapper;
+import com.sangsang.demo.mapper.IsoUserMapper;
 import com.sangsang.demo.domain.vo.UserVo;
 import com.sangsang.demo.threadlocal.SqlHolder;
+import com.sangsang.demo.util.IpUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 用户增删改查接口
@@ -24,7 +28,18 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final DbUserMapper userMapper;
+    private final IsoUserMapper userMapper;
+
+    /**
+     * 切换当前登录人的组织信息
+     */
+    @PostMapping("/switchOrg")
+    public Map<String, Object> switchOrg(@RequestBody Map<String, String> body) {
+        String orgSeq = body.get("orgSeq");
+        String localIp = IpUtils.getLocalIp();
+        LoginUserHelper.setLoginUserOrgSeq(localIp, orgSeq);
+        return Collections.singletonMap("success", true);
+    }
 
     /**
      * 查询用户列表（支持按用户名/电话模糊搜索），同时返回 sangsang 改写前后的 SQL

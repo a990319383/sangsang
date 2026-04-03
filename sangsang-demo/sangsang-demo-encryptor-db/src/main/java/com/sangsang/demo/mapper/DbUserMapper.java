@@ -12,11 +12,16 @@ import java.util.List;
  * @author liutangqi
  * @date 2026/3/30 17:54
  */
-public interface UserMapper {
+public interface DbUserMapper {
     /**
      * 按用户名或电话模糊查询用户列表
      */
     List<UserVo> getUserList(UserQueryDto dto);
+
+    /**
+     * 统计用户总数
+     */
+    Long countUserList(UserQueryDto dto);
 
     /**
      * 根据ID查询用户

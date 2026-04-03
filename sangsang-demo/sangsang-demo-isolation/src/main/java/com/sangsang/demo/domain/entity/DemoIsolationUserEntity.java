@@ -3,7 +3,7 @@ package com.sangsang.demo.domain.entity;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.sangsang.domain.annos.encryptor.FieldEncryptor;
+import com.sangsang.demo.strategies.OrgIsolationStrategy;
 import com.sangsang.domain.annos.isolation.DataIsolation;
 
 import java.time.LocalDateTime;
@@ -12,9 +12,9 @@ import java.time.LocalDateTime;
  * 实体类
  * sangsang启动时会扫描实体类，将需要加密的表字段缓存到本地
  */
-@TableName(value = "demo_user")
-@DataIsolation
-public class DemoUserEntity {
+@TableName(value = "demo_isolation_user")
+@DataIsolation(OrgIsolationStrategy.class)
+public class DemoIsolationUserEntity {
     /**
      * 主键
      */
@@ -43,8 +43,6 @@ public class DemoUserEntity {
      * 电话
      */
     @TableField(value = "phone")
-    //标识这个字段是加密的字段
-    @FieldEncryptor
     private String phone;
 
     /**

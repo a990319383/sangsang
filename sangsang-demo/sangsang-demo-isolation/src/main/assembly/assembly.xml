@@ -1,0 +1,63 @@
+<assembly>
+    <id>{project.version}-bin</id>
+    <formats>
+        <format>tar.gz</format>
+    </formats>
+    <includeBaseDirectory>true</includeBaseDirectory>
+    <fileSets>
+        <!-- bin 目录 -->
+        <fileSet>
+            <directory>src/main/assembly/script</directory>
+            <includes>
+                <include>*.sh</include>
+                <include>*.bat</include>
+            </includes>
+            <outputDirectory>bin</outputDirectory>
+            <fileMode>0755</fileMode>
+        </fileSet>
+
+        <!-- conf 目录 默认不覆盖，把优先的配置文件放前面 -->
+        <fileSet>
+            <directory>src/main/profiles/${profile.id}</directory>
+            <includes>
+                <include>*.properties</include>
+                <include>*.xml</include>
+                <include>*.yml</include>
+            </includes>
+            <outputDirectory>conf</outputDirectory>
+        </fileSet>
+        <fileSet>
+            <directory>src/main/resources</directory>
+            <includes>
+                <include>*.properties</include>
+                <include>*.xml</include>
+                <include>*.yml</include>
+            </includes>
+            <outputDirectory>conf</outputDirectory>
+        </fileSet>
+        <!-- 著作权、readme、版本说明 -->
+        <fileSet>
+            <directory>src/main/assembly/script</directory>
+            <includes>
+                <include>readme.txt</include>
+            </includes>
+            <outputDirectory>/</outputDirectory>
+        </fileSet>
+    </fileSets>
+    <dependencySets>
+        <!--增量包lib，只修改业务代码的情况-->
+        <dependencySet>
+            <includes>
+                <include>com.sangsang:demo*</include>
+            </includes>
+            <outputDirectory>lib</outputDirectory>
+        </dependencySet>
+        <!--全量包lib，有修改pom中第三方依赖时需要打开该处的注释-->
+        <dependencySet>
+            <excludes>
+                <exclude>com.sangsang:demo*</exclude>
+            </excludes>
+            <outputDirectory>extlib</outputDirectory>
+        </dependencySet>
+    </dependencySets>
+</assembly>
