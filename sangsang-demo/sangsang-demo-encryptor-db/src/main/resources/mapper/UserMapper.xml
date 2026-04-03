@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.sangsang.demo.mapper.PojoUserMapper">
+<mapper namespace="com.sangsang.demo.mapper.DbUserMapper">
 
     <select id="getUserList" resultType="com.sangsang.demo.domain.vo.UserVo">
         <bind name="key_offset" value="(pageNum-1)*pageSize"></bind>

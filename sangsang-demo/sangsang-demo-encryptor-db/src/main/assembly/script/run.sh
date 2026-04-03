@@ -39,7 +39,7 @@ fi
 STDOUT_FILE=$LOGS_DIR/stdout.log
 #JAVA 环境配置 10,100000表示生成10个文件，每个文件记录100000次gc
 JAVA_OPTS=" -Djava.net.preferIPv4Stack=true -Dlog.home=$LOGS_DIR "
-JAVA_MEM_OPTS=" -server -Xms512m -Xmx512m \
+JAVA_MEM_OPTS=" -server -Xms256m -Xmx256m \
               -XX:+PrintGCDetails \
               -XX:+PrintGCDateStamps \
               -Xloggc:${LOGS_DIR}/gc/gc_%p.log \
