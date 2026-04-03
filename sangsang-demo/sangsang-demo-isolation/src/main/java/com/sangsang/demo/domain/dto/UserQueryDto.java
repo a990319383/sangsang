@@ -23,10 +23,10 @@ public class UserQueryDto {
     /**
      * 页码（从1开始）
      */
-    private Integer pageNum;
+    private Integer pageNum = 1;
 
     /**
      * 每页大小
      */
-    private Integer pageSize;
+    private Integer pageSize = 10;
 }

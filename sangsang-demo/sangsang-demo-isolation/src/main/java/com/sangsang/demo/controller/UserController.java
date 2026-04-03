@@ -45,13 +45,6 @@ public class UserController {
      */
     @GetMapping("/list")
     public UserListVo list(UserQueryDto dto) {
-        // 设置默认分页参数
-        if (dto.getPageNum() == null || dto.getPageNum() < 1) {
-            dto.setPageNum(1);
-        }
-        if (dto.getPageSize() == null || dto.getPageSize() < 1) {
-            dto.setPageSize(10);
-        }
         List<UserVo> users = userMapper.getUserList(dto);
         Long total = userMapper.countUserList(dto);
         List<SqlLogBo> sqlLogs = SqlHolder.getSqls();

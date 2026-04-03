@@ -16,6 +16,7 @@
     <modules>
         <module>sangsang-demo-common</module>
         <module>sangsang-demo-encryptor-db</module>
+        <module>sangsang-demo-encryptor-pojo</module>
         <module>sangsang-demo-isolation</module>
     </modules>
 
@@ -40,11 +41,6 @@
             <dependency>
                 <groupId>io.gitee.tired-of-the-water</groupId>
                 <artifactId>sangsang-demo-common</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.gitee.tired-of-the-water</groupId>
-                <artifactId>sangsang-demo-isolation</artifactId>
                 <version>${revision}</version>
             </dependency>
         </dependencies>

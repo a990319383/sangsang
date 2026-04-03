@@ -5,7 +5,7 @@ import com.sangsang.demo.domain.dto.UserQueryDto;
 import com.sangsang.demo.domain.dto.UserSaveDto;
 import com.sangsang.demo.domain.dto.UserUpdateDto;
 import com.sangsang.demo.domain.vo.UserListVo;
-import com.sangsang.demo.mapper.DbUserMapper;
+import com.sangsang.demo.mapper.PojoUserMapper;
 import com.sangsang.demo.domain.vo.UserVo;
 import com.sangsang.demo.threadlocal.SqlHolder;
 import lombok.RequiredArgsConstructor;
@@ -24,13 +24,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final DbUserMapper userMapper;
+    private final PojoUserMapper userMapper;
 
     /**
      * 查询用户列表（支持按用户名/电话模糊搜索），同时返回 sangsang 改写前后的 SQL
      */
     @GetMapping("/list")
     public UserListVo list(UserQueryDto dto) {
+        // 设置默认分页参数
         List<UserVo> users = userMapper.getUserList(dto);
         Long total = userMapper.countUserList(dto);
         List<SqlLogBo> sqlLogs = SqlHolder.getSqls();
