@@ -2,6 +2,7 @@ package com.sangsang.demo.controller;
 
 import com.sangsang.demo.domain.bo.SqlLogBo;
 import com.sangsang.demo.domain.constants.LoginUserHelper;
+import com.sangsang.demo.domain.dto.SwitchOrgDto;
 import com.sangsang.demo.domain.dto.UserQueryDto;
 import com.sangsang.demo.domain.dto.UserSaveDto;
 import com.sangsang.demo.domain.dto.UserUpdateDto;
@@ -34,10 +35,8 @@ public class UserController {
      * 切换当前登录人的组织信息
      */
     @PostMapping("/switchOrg")
-    public Map<String, Object> switchOrg(@RequestBody Map<String, String> body) {
-        String orgSeq = body.get("orgSeq");
-        String localIp = IpUtils.getLocalIp();
-        LoginUserHelper.setLoginUserOrgSeq(localIp, orgSeq);
+    public Map<String, Object> switchOrg(@RequestBody SwitchOrgDto dto) {
+        LoginUserHelper.setLoginUserOrgSeq(IpUtils.getLocalIp(), dto.getOrgSeq());
         return Collections.singletonMap("success", true);
     }
 
