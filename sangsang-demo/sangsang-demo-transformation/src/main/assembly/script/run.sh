@@ -30,13 +30,8 @@ LIB_JARS="$LIB_JARS:$EXTLIB_JARS"
 #应用进程
 PIDS=`ps -ef | grep ${JAVA_EXEC} | grep "$DEPLOY_DIR" | awk '{print $2}'`
 #设置日志文件的输出目录
-LOGS_DIR=/logs/web_app/$SERVER_NAME
-if [ ! -d $LOGS_DIR ]; then
-    mkdir $LOGS_DIR
-fi
 
 #日志
-STDOUT_FILE=$LOGS_DIR/stdout.log
 #JAVA 环境配置 10,100000表示生成10个文件，每个文件记录100000次gc
 JAVA_OPTS=" -Djava.net.preferIPv4Stack=true -Dlog.home=$LOGS_DIR "
 JAVA_MEM_OPTS=" -server -Xms128m -Xmx128m \
@@ -60,7 +55,7 @@ function start() {
 
 
 	echo -e "Starting the $SERVER_NAME ...\c"
-	nohup ${JAVA_EXEC} $JAVA_OPTS $JAVA_MEM_OPTS -classpath $CONF_DIR:$LIB_JARS $MAIN_CLASS $PROFILE $ARGS > $STDOUT_FILE 2>&1 &
+	nohup ${JAVA_EXEC} $JAVA_OPTS $JAVA_MEM_OPTS -classpath $CONF_DIR:$LIB_JARS $MAIN_CLASS $PROFILE $ARGS > /dev/null 2>&1 &
 
 	COUNT=0
 	while [ $COUNT -lt 1 ]; do
@@ -75,8 +70,6 @@ function start() {
 	echo "OK!"
 	PIDS=`ps -f | grep ${JAVA_EXEC} | grep "$DEPLOY_DIR" | awk '{print $2}'`
 	echo "PID: $PIDS"
-	echo "STDOUT: $STDOUT_FILE"
-
 }
 
 function stop() {
