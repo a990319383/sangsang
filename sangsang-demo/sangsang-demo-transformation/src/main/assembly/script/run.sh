@@ -60,7 +60,7 @@ function start() {
 
 
 	echo -e "Starting the $SERVER_NAME ...\c"
-	nohup ${JAVA_EXEC} $JAVA_OPTS $JAVA_MEM_OPTS -classpath $CONF_DIR:$LIB_JARS $MAIN_CLASS $PROFILE $ARGS > $STDOUT_FILE 2>&1 &
+	nohup ${JAVA_EXEC} $JAVA_OPTS $JAVA_MEM_OPTS -classpath $CONF_DIR:$LIB_JARS $MAIN_CLASS $PROFILE $ARGS > /dev/null 2>&1 &
 
 	COUNT=0
 	while [ $COUNT -lt 1 ]; do

@@ -27,7 +27,7 @@
 
 
     <build>
-        <finalName>${project.artifactId}</finalName>
+        <finalName>sangsang-transformation</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
