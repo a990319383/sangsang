@@ -172,6 +172,9 @@ public class TfOracle2MysqlTest {
     //表和字段都用""引起来了
     String s36 = "SELECT \"USER_NAME\" FROM \"TB_USER\"  ";
 
+    // || 连接符写法
+    String s37 = "select * from tb_user where phone like '%'||?||'%'";
+
     /**
      * oracle转mysql语法转换器测试
      *
@@ -192,13 +195,12 @@ public class TfOracle2MysqlTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要的sql
-        String sql = s35;
+        String sql = s37;
+        System.out.println("----------------------原始sql-----------------------");
+        System.out.println(sql);
 
         //语法转换时，对当前sql的进行占位符替换，并且mocksql入参值
         sql = CacheTestHelper.tfHolderMock(sql);
-
-        System.out.println("----------------------原始sql-----------------------");
-        System.out.println(sql);
 
         //开始进行语法转换
         Statement statement = JsqlparserUtil.parse(sql);
@@ -206,7 +208,10 @@ public class TfOracle2MysqlTest {
         statement.accept(transformationStatementVisitor);
 
         System.out.println("----------------------语法转换后sql-----------------------");
-        System.out.println(transformationStatementVisitor.getResultSql());
+        //原始sql的占位符还原
+        String resultSql = transformationStatementVisitor.getResultSql();
+        resultSql = StringUtils.placeholder2Question(resultSql);
+        System.out.println(resultSql);
         System.out.println("---------------------------------------------");
     }
 

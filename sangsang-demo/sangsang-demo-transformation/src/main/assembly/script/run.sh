@@ -10,7 +10,7 @@ else
 fi
 PROFILE=''
 ARGS=''
-MAIN_CLASS=com.sangsang.demo.EncryptorPoJoApp
+MAIN_CLASS=com.sangsang.demo.TransformationApp
 #脚本所在目录
 cd `dirname $0`
 cd ..

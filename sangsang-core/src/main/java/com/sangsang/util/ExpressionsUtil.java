@@ -149,7 +149,7 @@ public class ExpressionsUtil {
      * @date 2025/6/21 22:25
      * @Param [objList]
      **/
-    public static List<Expression> buildExpressionList(List<Object> objList) {
+    public static List<Expression> buildConstantExpressionList(List<Object> objList) {
         List<Expression> res = new ArrayList<>();
         for (Object obj : objList) {
             res.add(buildConstant(obj));
@@ -425,4 +425,16 @@ public class ExpressionsUtil {
     }
 
 
+    /**
+     * 构建ExpressionList表达式
+     *
+     * @author liutangqi
+     * @date 2026/4/7 14:03
+     * @Param [exp]
+     **/
+    public static ExpressionList buildExpressionList(Expression... exp) {
+        ExpressionList expressionList = new ExpressionList();
+        expressionList.addExpressions(exp);
+        return expressionList;
+    }
 }

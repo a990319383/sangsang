@@ -153,7 +153,7 @@ public class IsolationInstanceCache extends DefaultBeanPostProcessor {
             Integer subsectionSize = TableCache.getCurConfig().getIsolation().getInRelationSubsectionSize();
             List<List> isolationValueList = ListUtil.split((List) isolationValue, subsectionSize);
             for (List iValue : isolationValueList) {
-                List expressionList = ExpressionsUtil.buildExpressionList(iValue);
+                List expressionList = ExpressionsUtil.buildConstantExpressionList(iValue);
                 ParenthesedExpressionList parenthesedExpressionList = new ParenthesedExpressionList();
                 parenthesedExpressionList.addAll(expressionList);
                 inExpressionList.add(parenthesedExpressionList);

@@ -18,6 +18,7 @@
         <module>sangsang-demo-encryptor-db</module>
         <module>sangsang-demo-encryptor-pojo</module>
         <module>sangsang-demo-isolation</module>
+        <module>sangsang-demo-transformation</module>
     </modules>
 
     <properties>

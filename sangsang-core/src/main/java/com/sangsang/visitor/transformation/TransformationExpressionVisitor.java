@@ -495,7 +495,8 @@ public class TransformationExpressionVisitor extends BaseFieldParseTable impleme
 
     @Override
     public void visit(Concat concat) {
-
+        //分别解析左右表达式
+        JsqlparserUtil.visitTfBinaryExpression(this, concat);
     }
 
     @Override

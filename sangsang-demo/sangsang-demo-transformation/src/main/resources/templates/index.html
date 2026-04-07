@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="data:,">
+    <title>【sangsang】</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 30px auto;
+            padding: 0 16px;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .toolbar input {
+            padding: 7px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 200px;
+        }
+
+        .btn {
+            padding: 7px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #1677ff;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #0958d9;
+        }
+
+        .btn-success {
+            background: #52c41a;
+            color: #fff;
+        }
+
+        .btn-success:hover {
+            background: #389e0d;
+        }
+
+        .btn-warning {
+            background: #faad14;
+            color: #fff;
+        }
+
+        .btn-warning:hover {
+            background: #d48806;
+        }
+
+        .btn-danger {
+            background: #ff4d4f;
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            background: #cf1322;
+        }
+
+        .btn-default {
+            background: #fff;
+            color: #333;
+            border: 1px solid #ccc;
+        }
+
+        .btn-default:hover {
+            background: #f0f0f0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+        }
+
+        th {
+            background: #fafafa;
+            color: #555;
+            font-weight: 600;
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+
+        td {
+            padding: 11px 14px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+            color: #333;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: #f9f9ff;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Modal */
+        .modal-mask {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .45);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-mask.show {
+            display: flex;
+        }
+
+        .modal {
+            background: #fff;
+            border-radius: 8px;
+            width: 480px;
+            max-width: 95vw;
+            padding: 28px 32px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .15);
+        }
+
+        .modal h3 {
+            margin-bottom: 20px;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .form-row {
+            margin-bottom: 14px;
+        }
+
+        .form-row label {
+            display: block;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .form-row input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-row input:focus {
+            outline: none;
+            border-color: #1677ff;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 14px;
+        }
+
+        /* Confirm dialog */
+        .confirm-mask {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .45);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .confirm-mask.show {
+            display: flex;
+        }
+
+        .confirm-box {
+            background: #fff;
+            border-radius: 8px;
+            padding: 28px 32px;
+            width: 340px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .15);
+        }
+
+        .confirm-box p {
+            font-size: 15px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .confirm-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* 上下布局 */
+        .page-header {
+            margin-bottom: 16px;
+        }
+
+        .sql-pair {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+        }
+
+        .sql-panel {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sql-panel-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sql-box {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 6px;
+            padding: 12px 16px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            min-height: 80px;
+            line-height: 1.6;
+        }
+
+        .sql-box.before {
+            border-left: 4px solid #faad14;
+        }
+
+        .sql-box.after {
+            border-left: 4px solid #52c41a;
+        }
+
+        .list-area {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+        }
+
+        .sql-empty {
+            color: #999;
+            font-size: 13px;
+            text-align: center;
+            line-height: 80px;
+            background: #1e1e1e;
+            border-radius: 6px;
+        }
+
+        /* 全屏loading菊花 */
+        .loading-mask {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .3);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-mask.show {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, .3);
+            border-top-color: #1677ff;
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 分页样式 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #f0f0f0;
+        }
+
+        .pagination button:disabled {
+            color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .pagination button.active {
+            background: #1677ff;
+            color: #fff;
+            border-color: #1677ff;
+        }
+
+        .pagination .page-info {
+            font-size: 14px;
+            color: #666;
+            margin: 0 8px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="page-header">
+        <h2>【sangsang】异构数据库语法转换演示，演示项目的sql语法是oracle，数据库是mysql</h2>
+        <h3> 操作下方增删改查，可初步体验语法转换效果</h3>
+        <p style="margin-top:8px;font-size:13px;">项目地址：
+            <a href="https://gitee.com/tired-of-the-water/sangsang"
+               target="_blank" style="color:#1677ff;">https://gitee.com/tired-of-the-water/sangsang</a>
+        </p>
+        <style>
+            .db-info-wrapper {
+                margin-top: 8px;
+                font-size: 13px;
+                color: #666;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .info-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 16px;
+                height: 16px;
+                border: 1px solid #faad14;
+                color: #faad14;
+                border-radius: 50%;
+                font-size: 11px;
+                cursor: help;
+                font-weight: bold;
+                position: relative;
+            }
+
+            .info-icon:hover::after {
+                content: "此数据库仅供展示功能使用，请勿攻击，请勿造大量数据";
+                position: absolute;
+                left: 24px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: rgba(0, 0, 0, 0.75);
+                color: #fff;
+                padding: 6px 10px;
+                border-radius: 4px;
+                font-size: 12px;
+                white-space: nowrap;
+                z-index: 1000;
+                font-weight: normal;
+            }
+        </style>
+    </div>
+    <!-- 上部：SQL 对比 -->
+    <div class="sql-area-wrapper" style="margin-bottom:24px;">
+        <div class="sql-panel-title" style="margin-bottom:12px; font-weight:600; font-size:15px; color:#333;">SQL
+            执行序列（最新操作）
+        </div>
+        <div id="sqlContainer">
+            <div class="sql-empty"
+                 style="background:#fff; padding:30px; border-radius:8px; text-align:center; color:#999; border:1px dashed #ddd;">
+                暂无记录
+            </div>
+        </div>
+    </div>
+
+    <!-- 下部：列表 -->
+    <div class="list-area">
+        <div class="toolbar">
+            <input type="text" id="searchName" placeholder="用户名模糊搜索">
+            <input type="text" id="searchPhone" placeholder="电话号码模糊搜索">
+            <button class="btn btn-primary" onclick="loadList()">搜索</button>
+            <button class="btn btn-success" onclick="openAdd()">+ 新增用户</button>
+        </div>
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>用户名</th>
+                <th>登录名</th>
+                <th>电话</th>
+                <th>组织路径</th>
+                <th>创建时间</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody id="tableBody">
+            <tr>
+                <td colspan="7" class="empty">加载中...</td>
+            </tr>
+            </tbody>
+        </table>
+        <div class="pagination" id="pagination">
+            <button onclick="changePage(1)" id="firstPage">首页</button>
+            <button onclick="changePage(currentPage - 1)" id="prevPage">上一页</button>
+            <span class="page-info">
+                第 <span id="currentPageNum">1</span> 页 / 共 <span id="totalPages">1</span> 页，
+                总计 <span id="totalRecords">0</span> 条
+            </span>
+            <button onclick="changePage(currentPage + 1)" id="nextPage">下一页</button>
+            <button onclick="changePage(totalPages)" id="lastPage">末页</button>
+        </div>
+    </div>
+</div>
+
+<!-- 全屏loading -->
+<div class="loading-mask" id="loadingMask">
+    <div class="loading-spinner"></div>
+</div>
+
+<!-- 新增/编辑弹窗 -->
+<div class="modal-mask" id="formModal">
+    <div class="modal">
+        <h3 id="modalTitle">新增用户</h3>
+        <div class="form-row">
+            <label>用户名 <span style="color:red">*</span></label>
+            <input type="text" id="fUserName" placeholder="请输入用户名">
+        </div>
+        <div class="form-row">
+            <label>登录名 <span style="color:red">*</span></label>
+            <input type="text" id="fLoginName" placeholder="请输入登录名">
+        </div>
+        <div class="form-row" id="pwdRow">
+            <label>登录密码 <span style="color:red">*</span></label>
+            <input type="password" id="fLoginPwd" placeholder="请输入登录密码">
+        </div>
+        <div class="form-row">
+            <label>电话 <span style="color:red">*</span></label>
+            <input type="text" id="fPhone" placeholder="请输入电话号码">
+        </div>
+        <div class="form-row">
+            <label>组织路径</label>
+            <input type="text" id="fOrgSeq" placeholder="例如：/root/dept/team">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-default" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitForm()">确定</button>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认弹窗 -->
+<div class="confirm-mask" id="confirmModal">
+    <div class="confirm-box">
+        <p>确定要删除该用户吗？此操作不可恢复。</p>
+        <div class="confirm-footer">
+            <button class="btn btn-default" onclick="closeConfirm()">取消</button>
+            <button class="btn btn-danger" onclick="confirmDelete()">确定删除</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    var editId = null;
+    var deleteId = null;
+    var currentPage = 1;
+    var totalPages = 1;
+    var pageSize = 10;
+    var currentUserName = '';
+    var currentPhone = '';
+
+    /* ---- 全屏loading + 防抖 ---- */
+    var _loading = false;
+
+    function showLoading() {
+        _loading = true;
+        document.getElementById('loadingMask').classList.add('show');
+    }
+
+    function hideLoading() {
+        _loading = false;
+        document.getElementById('loadingMask').classList.remove('show');
+    }
+
+    function isLoading() {
+        return _loading;
+    }
+
+    function loadList(resetPage) {
+        if (isLoading()) return;
+        showLoading();
+        var userName = document.getElementById('searchName').value.trim();
+        var phone = document.getElementById('searchPhone').value.trim();
+        // 搜索条件变化时重置到第一页
+        if (resetPage !== false && (userName !== currentUserName || phone !== currentPhone)) {
+            currentPage = 1;
+        }
+        currentUserName = userName;
+        currentPhone = phone;
+        var params = [];
+        if (userName) params.push('userName=' + encodeURIComponent(userName));
+        if (phone) params.push('phone=' + encodeURIComponent(phone));
+        params.push('pageNum=' + currentPage);
+        params.push('pageSize=' + pageSize);
+        var url = '/user/list?' + params.join('&');
+        fetch(url)
+            .then(function (r) {
+                return r.json();
+            })
+            .then(function (data) {
+                renderTable(data.users);
+                renderSqlPanel(data.sqlLogs);
+                updatePagination(data.total, data.pageNum, data.pageSize);
+            })
+            .catch(function () {
+                renderTable([]);
+                renderSqlPanel([]);
+                updatePagination(0, 1, pageSize);
+            })
+            .finally(function () {
+                hideLoading();
+            });
+    }
+
+    function renderSqlPanel(logs) {
+        var container = document.getElementById('sqlContainer');
+
+        if (!logs || logs.length === 0) {
+            container.innerHTML = '<div class="sql-empty" style="background:#fff; padding:30px; border-radius:8px; text-align:center; color:#999; border:1px dashed #ddd;">暂无记录</div>';
+            return;
+        }
+
+        container.innerHTML = logs.map(function (item, idx) {
+            var label = '执行sql' + (idx + 1) + '';
+            return '<div class="sql-pair">' +
+                '<div class="sql-panel">' +
+                '<div class="sql-panel-title">' + label + ' - 原始SQL</div>' +
+                '<div class="sql-box before">' + esc(item.before) + '</div>' +
+                '</div>' +
+                '<div class="sql-panel">' +
+                '<div class="sql-panel-title">' + label + ' - 【sangsang】改写后SQL</div>' +
+                '<div class="sql-box after">' + esc(item.after) + '</div>' +
+                '</div>' +
+                '</div>';
+        }).join('');
+    }
+
+    function renderTable(list) {
+        var tbody = document.getElementById('tableBody');
+        if (!list || list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty">暂无数据</td></tr>';
+            return;
+        }
+        tbody.innerHTML = list.map(function (u) {
+            return '<tr>' +
+                '<td>' + (u.id || '') + '</td>' +
+                '<td>' + esc(u.userName) + '</td>' +
+                '<td>' + esc(u.loginName) + '</td>' +
+                '<td>' + esc(u.phone) + '</td>' +
+                '<td>' + esc(u.orgSeq) + '</td>' +
+                '<td>' + formatTime(u.createTime) + '</td>' +
+                '<td><div class="actions">' +
+                '<button class="btn btn-warning" data-id="' + u.id + '" onclick="openEdit(this)">编辑</button>' +
+                '<button class="btn btn-danger" data-id="' + u.id + '" onclick="askDelete(this)">删除</button>' +
+                '</div></td>' +
+                '</tr>';
+        }).join('');
+    }
+
+    function esc(v) {
+        if (v == null) return '';
+        return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function formatTime(t) {
+        if (!t) return '';
+        if (Array.isArray(t)) {
+            // LocalDateTime 序列化为数组格式 [year,month,day,hour,min,sec]
+            var pad = function (n) {
+                return n < 10 ? '0' + n : n;
+            };
+            return t[0] + '-' + pad(t[1]) + '-' + pad(t[2]) + ' ' + pad(t[3] || 0) + ':' + pad(t[4] || 0) + ':' + pad(t[5] || 0);
+        }
+        return String(t).replace('T', ' ');
+    }
+
+    function openAdd() {
+        editId = null;
+        document.getElementById('modalTitle').textContent = '新增用户';
+        document.getElementById('pwdRow').style.display = '';
+        document.getElementById('fUserName').value = '';
+        document.getElementById('fLoginName').value = '';
+        document.getElementById('fLoginPwd').value = '';
+        document.getElementById('fPhone').value = '';
+        document.getElementById('fOrgSeq').value = '';
+        document.getElementById('formModal').classList.add('show');
+    }
+
+    function openEdit(btn) {
+        if (isLoading()) return;
+        showLoading();
+        var id = btn.getAttribute('data-id');
+        fetch('/user/get/' + id)
+            .then(function (r) {
+                return r.json();
+            })
+            .then(function (u) {
+                editId = u.id;
+                document.getElementById('modalTitle').textContent = '编辑用户';
+                document.getElementById('pwdRow').style.display = 'none';
+                document.getElementById('fUserName').value = u.userName || '';
+                document.getElementById('fLoginName').value = u.loginName || '';
+                document.getElementById('fLoginPwd').value = '';
+                document.getElementById('fPhone').value = u.phone || '';
+                document.getElementById('fOrgSeq').value = u.orgSeq || '';
+                document.getElementById('formModal').classList.add('show');
+            })
+            .finally(function () {
+                hideLoading();
+            });
+    }
+
+    function closeModal() {
+        document.getElementById('formModal').classList.remove('show');
+    }
+
+    function handleResponse(r) {
+        return r.json().then(function (data) {
+            currentPage = 1;
+            renderTable(data.users);
+            renderSqlPanel(data.sqlLogs);
+            updatePagination(data.total, data.pageNum, data.pageSize);
+        });
+    }
+
+    function submitForm() {
+        if (isLoading()) return;
+        var userName = document.getElementById('fUserName').value.trim();
+        var loginName = document.getElementById('fLoginName').value.trim();
+        var phone = document.getElementById('fPhone').value.trim();
+        var orgSeq = document.getElementById('fOrgSeq').value.trim();
+        if (!userName || !loginName || !phone) {
+            alert('用户名、登录名、电话为必填项');
+            return;
+        }
+        showLoading();
+        if (editId == null) {
+            var loginPwd = document.getElementById('fLoginPwd').value;
+            if (!loginPwd) {
+                hideLoading();
+                alert('新增时密码为必填项');
+                return;
+            }
+            fetch('/user/save', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    userName: userName,
+                    loginName: loginName,
+                    loginPwd: loginPwd,
+                    phone: phone,
+                    orgSeq: orgSeq
+                })
+            }).then(function (r) {
+                closeModal();
+                return handleResponse(r);
+            }).finally(function () {
+                hideLoading();
+            });
+        } else {
+            fetch('/user/update', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    id: editId,
+                    userName: userName,
+                    loginName: loginName,
+                    phone: phone,
+                    orgSeq: orgSeq
+                })
+            }).then(function (r) {
+                closeModal();
+                return handleResponse(r);
+            }).finally(function () {
+                hideLoading();
+            });
+        }
+    }
+
+    function askDelete(btn) {
+        deleteId = btn.getAttribute('data-id');
+        document.getElementById('confirmModal').classList.add('show');
+    }
+
+    function closeConfirm() {
+        document.getElementById('confirmModal').classList.remove('show');
+        deleteId = null;
+    }
+
+    function confirmDelete() {
+        if (deleteId == null) return;
+        if (isLoading()) return;
+        showLoading();
+        fetch('/user/delete/' + deleteId, {method: 'POST'})
+            .then(function (r) {
+                closeConfirm();
+                return handleResponse(r);
+            })
+            .finally(function () {
+                hideLoading();
+            });
+    }
+
+    function changePage(page) {
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        loadList(false);
+    }
+
+    function updatePagination(total, pageNum, pageSize) {
+        totalPages = Math.ceil(total / pageSize);
+        if (totalPages === 0) totalPages = 1;
+        currentPage = pageNum;
+
+        document.getElementById('currentPageNum').textContent = pageNum;
+        document.getElementById('totalPages').textContent = totalPages;
+        document.getElementById('totalRecords').textContent = total;
+
+        document.getElementById('firstPage').disabled = pageNum === 1;
+        document.getElementById('prevPage').disabled = pageNum === 1;
+        document.getElementById('nextPage').disabled = pageNum === totalPages;
+        document.getElementById('lastPage').disabled = pageNum === totalPages;
+    }
+
+    // 点击遮罩关闭弹窗
+    document.getElementById('formModal').addEventListener('click', function (e) {
+        if (e.target === this) closeModal();
+    });
+    document.getElementById('confirmModal').addEventListener('click', function (e) {
+        if (e.target === this) closeConfirm();
+    });
+
+    // 初始加载
+    loadList();
+</script>
+</body>
+</html>
