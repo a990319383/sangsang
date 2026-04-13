@@ -17,7 +17,7 @@ import java.util.Date;
 @Data
 @Accessors(chain = true)
 @EqualsAndHashCode(callSuper = true)
-@TableName(value = "sys_org")
+@TableName(value = "sys_org")//这个类没必要用于mapper，service的入参/返回值
 public class SysOrgEntity extends BaseEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;

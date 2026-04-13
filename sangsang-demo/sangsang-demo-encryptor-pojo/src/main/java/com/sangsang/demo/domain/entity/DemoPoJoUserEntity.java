@@ -10,8 +10,10 @@ import java.time.LocalDateTime;
 /**
  * 实体类
  * sangsang启动时会扫描实体类，将需要加密的表字段缓存到本地
+ * 备注1：我可以getter setter都没有，仅作为配置标注
+ * 备注2：mapper方法，service方法的返回值也和我没关系
  */
-@TableName(value = "demo_pojo_user")
+@TableName(value = "demo_pojo_user")//这个类没必要用于mapper，service的入参/返回值
 public class DemoPoJoUserEntity {
     /**
      * 主键

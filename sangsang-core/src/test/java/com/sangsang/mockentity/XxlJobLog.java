@@ -9,7 +9,7 @@ import java.util.Date;
  *
  * @author xuxueli  2015-12-19 23:19:09
  */
-@TableName("xxl_job_log")
+@TableName("xxl_job_log")//这个类没必要用于mapper，service的入参/返回值
 public class XxlJobLog {
 
     private long id;

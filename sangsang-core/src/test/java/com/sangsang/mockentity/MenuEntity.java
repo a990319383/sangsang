@@ -7,7 +7,7 @@ import com.sangsang.domain.annos.encryptor.FieldEncryptor;
 /**
  * mock实体类，主要展示表结构，所以没有getter setter
  */
-@TableName(value = "tb_menu")
+@TableName(value = "tb_menu")//这个类没必要用于mapper，service的入参/返回值
 public class MenuEntity extends BaseEntity {
     /**
      * 菜单名

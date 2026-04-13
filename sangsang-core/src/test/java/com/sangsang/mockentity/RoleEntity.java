@@ -9,7 +9,7 @@ import com.sangsang.strategy.TestDBFieldEncryptorStrategy;
  * @author liutangqi
  * @date 2025/7/2 14:45
  */
-@TableName("tb_role")
+@TableName("tb_role")//这个类没必要用于mapper，service的入参/返回值
 public class RoleEntity extends BaseEntity {
 
     @TableField("role_name")

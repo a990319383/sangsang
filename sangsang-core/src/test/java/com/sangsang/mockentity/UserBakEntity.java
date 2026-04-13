@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 /**
  * mock实体类，主要展示表结构，所以没有getter setter
  */
-@TableName(value = "tb_user_bak")
+@TableName(value = "tb_user_bak")//这个类没必要用于mapper，service的入参/返回值
 public class UserBakEntity extends BaseEntity {
 
     /**

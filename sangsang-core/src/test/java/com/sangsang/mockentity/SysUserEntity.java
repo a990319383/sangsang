@@ -11,7 +11,7 @@ import com.sangsang.strategy.TestDataIsolationStrategy;
  *
  * @author hgwlpt
  */
-@TableName("sys_user")
+@TableName("sys_user")//这个类没必要用于mapper，service的入参/返回值
 @DataIsolation(conditionalRelation = IsolationConditionalRelationEnum.OR, value = {TestDataIsolationStrategy.class, Test222DataIsolationStrategy.class})
 public class SysUserEntity {
     /**
