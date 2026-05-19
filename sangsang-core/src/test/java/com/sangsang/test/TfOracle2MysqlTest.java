@@ -4,6 +4,7 @@ import com.sangsang.config.properties.SangSangProperties;
 import com.sangsang.config.properties.TransformationProperties;
 import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.constants.TransformationPatternTypeConstant;
+import com.sangsang.domain.dto.DataSourceConfig;
 import com.sangsang.util.AnswerUtil;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.ReflectUtils;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author liutangqi
@@ -175,6 +177,14 @@ public class TfOracle2MysqlTest {
     // || 连接符写法
     String s37 = "select * from tb_user where phone like '%'||?||'%'";
 
+
+    //jsqlparser4.9版本不支持此种语法，无法转换
+    String i1 = "INSERT ALL \n" +
+            "    INTO TB_USER (username, phone) VALUES ('张三', '138001')\n" +
+            "    INTO TB_USER (username, phone) VALUES ('李四', '138002')\n" +
+            "    INTO TB_USER (username, phone) VALUES ('王五', '138003')\n" +
+            "SELECT 1 FROM DUAL";
+
     /**
      * oracle转mysql语法转换器测试
      *
@@ -195,7 +205,7 @@ public class TfOracle2MysqlTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要的sql
-        String sql = s37;
+        String sql = s15;
         System.out.println("----------------------原始sql-----------------------");
         System.out.println(sql);
 

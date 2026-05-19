@@ -49,8 +49,7 @@ public class TableCache extends DefaultBeanPostProcessor {
     /**
      * 缓存当前可以从DataSource中读取到，并且不需要由配置文件去调整的一些信息
      */
-    @Getter
-    private static DataSourceConfig dataSourceConfig = DataSourceConfig.DEFAULT;
+    private static DataSourceConfig dataSourceConfig;
 
     /**
      * key: 表名  value: (key:字段名  value: 实体类上标注的@FieldEncryptor注解)
@@ -160,9 +159,12 @@ public class TableCache extends DefaultBeanPostProcessor {
                 if (CollectionUtils.isEmpty(sangSangProperties.getIdentifierQuote())) {
                     identifierQuotes.add(metaData.getIdentifierQuoteString());
                 }
-                //2.2 获取数据源的版本号信息，当前暂未适配多异构数据源的场景，默认每个DataSource的版本号信息是一致的，所以这里只取第一个
-                if (Objects.equals(NumberConstant.ZERO, i)) {
-                    dataSourceConfig = DataSourceConfig.builder().databaseMajorVersion(metaData.getDatabaseMajorVersion()).databaseMinorVersion(metaData.getDatabaseMinorVersion()).build();
+                //2.2 获取数据源的版本号信息，当前暂未适配多异构数据源的场景,只有多数据源的版本号信息全部一致时，才维护数据源的版本信息
+                DataSourceConfig curDataSourceConfig = DataSourceConfig.builder().databaseMajorVersion(metaData.getDatabaseMajorVersion()).databaseMinorVersion(metaData.getDatabaseMinorVersion()).build();
+                if (dataSourceConfig == null) {
+                    dataSourceConfig = curDataSourceConfig;
+                } else if (!Objects.equals(dataSourceConfig, curDataSourceConfig)) {
+                    dataSourceConfig = DataSourceConfig.DEFAULT;
                 }
             } catch (Exception e) {
                 log.error("【sangsang】通过DataSource读取信息异常", e);
@@ -438,6 +440,18 @@ public class TableCache extends DefaultBeanPostProcessor {
      **/
     public static FieldHashSetWrapper getCurConfigTable() {
         return Stream.of(TableCache.getFieldEncryptTable(), TableCache.getFieldDefaultTable(), TableCache.getIsolationTable()).flatMap(Collection::stream).collect(FieldHashSetWrapper::new, Set::add, Set::addAll);
+    }
+
+
+    /**
+     * 获取当前缓存的数据源配置信息
+     *
+     * @author liutangqi
+     * @date 2026/5/19 14:55
+     * @Param []
+     **/
+    public static DataSourceConfig getDataSourceConfig() {
+        return Optional.ofNullable(dataSourceConfig).orElse(DataSourceConfig.DEFAULT);
     }
 
 }

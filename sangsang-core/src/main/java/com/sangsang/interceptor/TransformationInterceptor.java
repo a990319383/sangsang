@@ -1,9 +1,7 @@
 package com.sangsang.interceptor;
 
-import com.sangsang.cache.encryptor.EncryptorInstanceCache;
 import com.sangsang.cache.transformation.TransformationSqlCache;
 import com.sangsang.domain.annos.FieldInterceptorOrder;
-import com.sangsang.domain.annos.encryptor.FieldEncryptor;
 import com.sangsang.domain.constants.FieldConstant;
 import com.sangsang.domain.constants.InterceptorOrderConstant;
 import com.sangsang.domain.context.TfParameterMappingHolder;
@@ -24,7 +22,6 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 
-import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;

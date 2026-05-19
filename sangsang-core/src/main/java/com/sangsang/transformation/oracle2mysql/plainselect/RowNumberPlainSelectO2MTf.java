@@ -4,6 +4,7 @@ import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.constants.NumberConstant;
 import com.sangsang.domain.dto.PlainSelectTransformationDto;
 import com.sangsang.transformation.PlainSelectTransformation;
+import com.sangsang.util.CollectionUtils;
 import net.sf.jsqlparser.expression.*;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.*;
@@ -33,10 +34,15 @@ public class RowNumberPlainSelectO2MTf extends PlainSelectTransformation {
      * @Param [plainSelectTransformationDto]
      **/
     @Override
-    public boolean needTransformation(PlainSelectTransformationDto plainSelectTransformationDto) {
-        //拿不到当前的主版本号信息 || 当前主版本< 8 ，则表示当前mysql不兼容窗口函数，需要进行转换
-        return TableCache.getDataSourceConfig().getDatabaseMajorVersion() == null
-                || TableCache.getDataSourceConfig().getDatabaseMajorVersion() < NumberConstant.EIGHT;
+    public boolean needTransformation(PlainSelectTransformationDto psTfDto) {
+        //提取 SelectItems 中的窗口函数
+        List<SelectItem> windowItems = psTfDto.getPlainSelect().getSelectItems().stream()
+                .filter(item -> item.getExpression() instanceof AnalyticExpression)
+                .collect(Collectors.toList());
+        //(拿不到当前的主版本号信息 || 当前主版本< 8 ，则表示当前mysql不兼容窗口函数) && 当前select中存在窗口函数 需要进行转换
+        return (TableCache.getDataSourceConfig().getDatabaseMajorVersion() == null
+                || TableCache.getDataSourceConfig().getDatabaseMajorVersion() < NumberConstant.EIGHT)
+                && CollectionUtils.isNotEmpty(windowItems);
     }
 
     @Override
@@ -47,7 +53,7 @@ public class RowNumberPlainSelectO2MTf extends PlainSelectTransformation {
         List<SelectItem> windowItems = currentSelect.getSelectItems().stream()
                 .filter(item -> item.getExpression() instanceof AnalyticExpression)
                 .collect(Collectors.toList());
-        if (windowItems.isEmpty()) {
+        if (CollectionUtils.isEmpty(windowItems)) {
             return psTfDto;
         }
 

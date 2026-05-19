@@ -2,9 +2,7 @@ package com.sangsang.transformation.oracle2mysql.plainselect;
 
 import com.sangsang.domain.dto.PlainSelectTransformationDto;
 import com.sangsang.transformation.PlainSelectTransformation;
-import com.sangsang.util.ExpressionsUtil;
 import net.sf.jsqlparser.expression.Alias;
-import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
@@ -26,7 +24,11 @@ public class AliasPlainSelectO2MTf extends PlainSelectTransformation {
      **/
     @Override
     public boolean needTransformation(PlainSelectTransformationDto pSTfDto) {
-        return true;
+        PlainSelect plainSelect = pSTfDto.getPlainSelect();
+        //select from (select) 这种语法，并且不存在别名
+        return plainSelect.getFromItem() instanceof ParenthesedSelect
+                && plainSelect.getFromItem().getAlias() == null
+                && ((ParenthesedSelect) plainSelect.getFromItem()).getSelect() instanceof PlainSelect;
     }
 
     /**
@@ -39,15 +41,9 @@ public class AliasPlainSelectO2MTf extends PlainSelectTransformation {
     @Override
     public PlainSelectTransformationDto doTransformation(PlainSelectTransformationDto pSTfDto) {
         PlainSelect plainSelect = pSTfDto.getPlainSelect();
-        //select from (select) 这种语法，并且不存在别名
-        if (plainSelect.getFromItem() instanceof ParenthesedSelect
-                && plainSelect.getFromItem().getAlias() == null
-                && ((ParenthesedSelect) plainSelect.getFromItem()).getSelect() instanceof PlainSelect
-        ) {
-            FromItem fromItem = plainSelect.getFromItem();
-            //这里设置默认的别名，注意：这里的别名要求不带 as，虽然mysql可以正常解析，但是oracle不能解析，我们尽量转换为适应性强的语法
-            fromItem.setAlias(new Alias("oracle2mysql_empty_alias", false));
-        }
+        FromItem fromItem = plainSelect.getFromItem();
+        //这里设置默认的别名，注意：这里的别名要求不带 as，虽然mysql可以正常解析，但是oracle不能解析，我们尽量转换为适应性强的语法
+        fromItem.setAlias(new Alias("oracle2mysql_empty_alias", false));
         return pSTfDto;
     }
 }

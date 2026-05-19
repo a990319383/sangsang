@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * 当前可以从DataSource中读取的一些配置信息
+ * 注意：当前版本，仅多数据源的版本号信息一致时才会维护数据源版本号信息
  *
  * @author liutangqi
  * @date 2026/1/20 10:13
