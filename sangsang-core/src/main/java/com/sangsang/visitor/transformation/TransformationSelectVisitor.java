@@ -7,7 +7,6 @@ import com.sangsang.domain.dto.PlainSelectTransformationDto;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import com.sangsang.visitor.transformation.wrap.ExpressionWrapper;
-import lombok.Getter;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.statement.select.*;
@@ -161,7 +160,8 @@ public class TransformationSelectVisitor extends BaseFieldParseTable implements 
             groupBy.accept(tfGroupByVisitor);
         }
 
-        //7.对select整体语句进行转换（注意：因为有些分页的场景处理会去掉一层分页子查询，导致存储每层字段信息的缓存层级结构层数对不上，这种情况下转换实现类请注意对缓存层级的维护）
+        //7.对select整体语句进行转换
+        // 注意：这个处理必须放在最后，因为嵌套子查询的时候，先处理内层的select，内层全部处理完了，最后再处理这个整体语句，就能一层一层剥开
         this.processedPlainSelect = Optional.ofNullable(TransformationInstanceCache.transformation(PlainSelectTransformationDto.builder().plainSelect(plainSelect).baseFieldParseTable(this).build())).map(PlainSelectTransformationDto::getPlainSelect).orElse(plainSelect);
     }
 
