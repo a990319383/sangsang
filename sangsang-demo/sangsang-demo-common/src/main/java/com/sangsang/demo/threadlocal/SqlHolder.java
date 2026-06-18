@@ -35,7 +35,6 @@ public class SqlHolder {
 
     /**
      * 获取当前执行的sql
-     * 并清空
      *
      * @author liutangqi
      * @date 2026/3/31 17:19
