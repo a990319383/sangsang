@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class TransformationApp {
 
     public static void main(String[] args) {
+        log.info("【sangsang】请确保将sangsang-demo-common的application-common.properties配置文件的数据库地址切换成自己的");
         SpringApplication.run(TransformationApp.class, args);
         log.info("【sangsang】<demo-transformation> 启动成功，可以访问 localhost:8004 查看效果，结合F12查看接口写法效果更佳");
     }
