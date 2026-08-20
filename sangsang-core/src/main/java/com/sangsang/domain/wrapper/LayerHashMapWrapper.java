@@ -128,7 +128,7 @@ public class LayerHashMapWrapper implements Map<Integer, Map<String, List<FieldI
         }
 
         //2.记录此层存放过的表
-        CollectionUtils.putList(this.layerTableMap, key, new FieldHashSetWrapper(value.keySet()));
+        CollectionUtils.putList(this.layerTableMap, key, new FieldHashSetWrapper(value.keySet()), new FieldHashSetWrapper());
 
         //3. 之前不存在这个key，直接put
         Map<String, List<FieldInfoDto>> tableMap = this.layerMap.get(key);

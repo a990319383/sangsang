@@ -61,4 +61,40 @@
         where id = #{id}
     </delete>
 
+    <resultMap id="UserResultType" type="com.sangsang.demo.domain.vo.UserResultMapVo">
+        <id property="ID" column="id"/>
+        <result property="mobilePhone" column="phone"/>
+        <result property="uSERNaMe" column="user_NAMe"/>
+        <result property="loginName" column="LOGin_name"/>
+        <result property="loginPwd" column="login_pwd"/>
+        <result property="orgSeq" column="ORG_SEQ"/>
+        <result property="createTime" column="CREATE_TIME"/>
+        <result property="updateTime" column="UPDATE_TIME"/>
+    </resultMap>
+    <select id="getUserResultMapList"
+            resultMap="UserResultType">
+        select *
+        from demo_pojo_user
+        order by create_time desc limit 10
+    </select>
+    <select id="getUserResultTypeList"
+            resultType="com.sangsang.demo.domain.vo.UserResultTypeVo">
+        select *
+        from demo_pojo_user
+        order by create_time desc limit 10
+    </select>
+    <select id="getUserUnderLineList"
+            resultType="com.sangsang.demo.domain.vo.UserUnderLineVo">
+        select
+               id          as id,
+               user_name   as uSer_Name,
+               phone       as phone,
+               login_name  as login_name,
+               login_pwd   as logIn_Pwd,
+               org_seq     as orG_Seq,
+               create_time as create_Time,
+               update_time as updAte_Time
+        from demo_pojo_user
+        order by create_time desc limit 10
+    </select>
 </mapper>

@@ -4,11 +4,12 @@ import com.sangsang.demo.domain.bo.SqlLogBo;
 import com.sangsang.demo.domain.dto.UserQueryDto;
 import com.sangsang.demo.domain.dto.UserSaveDto;
 import com.sangsang.demo.domain.dto.UserUpdateDto;
-import com.sangsang.demo.domain.vo.UserListVo;
+import com.sangsang.demo.domain.vo.*;
 import com.sangsang.demo.mapper.PojoUserMapper;
-import com.sangsang.demo.domain.vo.UserVo;
 import com.sangsang.demo.threadlocal.SqlHolder;
 import lombok.RequiredArgsConstructor;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -71,5 +72,41 @@ public class UserController {
     public UserListVo delete(@PathVariable Long id) {
         userMapper.deleteUserById(id);
         return list(new UserQueryDto());
+    }
+
+    /**
+     * 测试ResultType大小写随便写的映射
+     *
+     * @author liutangqi
+     * @date 2026/8/14 16:10
+     * @Param []
+     **/
+    @GetMapping("/testUserResultTypeList")
+    public List<UserResultTypeVo> getUserResultTypeList() {
+        return userMapper.getUserResultTypeList();
+    }
+
+    /**
+     * 测试ResultMap特殊映射
+     *
+     * @author liutangqi
+     * @date 2026/8/14 16:10
+     * @Param []
+     **/
+    @GetMapping("/testUserResultMapList")
+    public List<UserResultMapVo> getUserResultMapList() {
+        return userMapper.getUserResultMapList();
+    }
+
+    /**
+     * 测试下划线到下划线的映射
+     *
+     * @author liutangqi
+     * @date 2026/8/14 17:00
+     * @Param []
+     **/
+    @GetMapping("/testUserUnderLineList")
+    public List<UserUnderLineVo> getUserUnderLineList() {
+        return userMapper.getUserUnderLineList();
     }
 }

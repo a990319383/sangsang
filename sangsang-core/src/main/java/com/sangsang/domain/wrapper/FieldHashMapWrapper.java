@@ -11,7 +11,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 装饰器模式将HashMap<String,T> 进行一次包装，其中的key 进行大小写敏感处理，忽略关键字符的处理
+ * 装饰器模式将HashMap<String,T> 进行一次包装，其中的key 根据当前的配置进行大小写敏感处理，忽略关键字符的处理
  * 注意：这里的keySet() entrySet() 返回的都是新的引用信息，entry的key无法修改，所以无法复用之前的引用，所以是无法使用迭代器对里面的元素进行删除的，使用时需要注意
  *
  * @author liutangqi

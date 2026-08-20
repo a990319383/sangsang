@@ -130,30 +130,33 @@ public class CollectionUtils {
     /**
      * 往Map<K,Set<V>> 中添加元素
      *
+     * @param map        往这个map中存放元素
+     * @param key
+     * @param value
+     * @param defaultSet 当map中这个key不存在时，使用这个默认集合存放value
      * @author liutangqi
      * @date 2025/12/24 14:58
-     * @Param [map, key, value]
      **/
-    public static <K> void putList(Map<K, Set<String>> map, K key, String value) {
-        Set<String> list = map.get(key);
+    public static <K, V> void putList(Map<K, Set<V>> map, K key, V value, Set<V> defaultSet) {
+        Set<V> list = map.get(key);
         if (list == null) {
-            list = new FieldHashSetWrapper();
+            list = defaultSet;
             map.put(key, list);
         }
         list.add(value);
     }
 
     /**
-     * 往Map<K,Set<V>> 中添加元素
+     * Map<K, Set<V>> map 中添加集合元素，当Map中对应的key的集合不存在时，则使用defaultSet来存放这些value
      *
      * @author liutangqi
      * @date 2025/12/24 14:58
      * @Param [map, key, value]
      **/
-    public static <K> void putList(Map<K, Set<String>> map, K key, Collection<String> values) {
+    public static <K, V> void putList(Map<K, Set<V>> map, K key, Collection<V> values, Set<V> defaultSet) {
         if (CollectionUtils.isNotEmpty(values)) {
-            for (String value : values) {
-                putList(map, key, value);
+            for (V value : values) {
+                putList(map, key, value, defaultSet);
             }
         }
     }
@@ -256,32 +259,4 @@ public class CollectionUtils {
         return comparingStr;
     }
 
-
-    /**
-     * 获取两个值之间的最小值
-     *
-     * @author liutangqi
-     * @date 2026/1/9 17:51
-     * @Param [a, b]
-     **/
-    public static Long getMin(Long a, Long b) {
-        return Optional.ofNullable(a)
-                .flatMap(aVal -> Optional.ofNullable(b)
-                        .map(bVal -> Math.min(aVal, bVal)))
-                .orElse(Optional.ofNullable(a).orElse(b));
-    }
-
-    /**
-     * 获取两个值之间的最大值
-     *
-     * @author liutangqi
-     * @date 2026/1/9 17:52
-     * @Param [a, b]
-     **/
-    public static Long getMax(Long a, Long b) {
-        return Optional.ofNullable(a)
-                .flatMap(aVal -> Optional.ofNullable(b)
-                        .map(bVal -> Math.max(aVal, bVal)))
-                .orElse(Optional.ofNullable(a).orElse(b));
-    }
 }

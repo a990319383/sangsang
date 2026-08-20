@@ -3,6 +3,7 @@ package com.sangsang.config;
 import com.sangsang.cache.SqlParseCache;
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.config.properties.SangSangProperties;
+import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -29,9 +30,11 @@ public class SangSangConfig {
      **/
     @Bean
     public TableCache initTableCache(@Autowired(required = false) List<DataSource> dataSources,
-                                     SangSangProperties sangSangProperties) {
+                                     @Autowired(required = false) SqlSessionFactory sqlSessionFactory,
+                                     SangSangProperties sangSangProperties
+    ) {
         //1.初始化表结构字段信息到本地缓存
-        TableCache.init(dataSources, sangSangProperties);
+        TableCache.init(dataSources, sqlSessionFactory, sangSangProperties);
 
         //2.初始化jsqlparser解析缓存
         SqlParseCache.init(sangSangProperties);

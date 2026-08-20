@@ -328,6 +328,23 @@ public class StringUtils {
     }
 
     /**
+     * 忽略大小写，判断两个字符串是否相等
+     *
+     * @author liutangqi
+     * @date 2026/8/18 16:57
+     * @Param [a, b]
+     **/
+    public static boolean ignoreCaseEquals(String a, String b) {
+        //1.非空校验
+        // 在此项目的场景中，只要有一个字符串是空的都可以判断两个是不等的，哪怕两个都是空字符串（正常流程中，是不存在两个都是空的情况的）
+        if (StringUtils.isBlank(a) || StringUtils.isBlank(b)) {
+            return false;
+        }
+        //2.进行忽略大小写的判断
+        return a.equalsIgnoreCase(b);
+    }
+
+    /**
      * 忽略关键字的符号，判断两个字段是否相等
      * 注意：此方法没有非空校验
      *

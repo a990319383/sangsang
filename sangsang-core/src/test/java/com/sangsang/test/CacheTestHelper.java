@@ -33,7 +33,7 @@ public class CacheTestHelper {
      **/
     public static void testInit(SangSangProperties sangSangProperties) throws Exception {
         //1.将指定包路径的表结构信息缓存起来
-        TableCache.init(null, sangSangProperties);
+        TableCache.init(null, null, sangSangProperties);
 
         //2.初始化DB模式默认的加解密算法
         for (String scanPackage : sangSangProperties.getScanEntityPackage()) {

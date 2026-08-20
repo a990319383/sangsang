@@ -3,6 +3,9 @@ package com.sangsang.demo.mapper;
 import com.sangsang.demo.domain.dto.UserQueryDto;
 import com.sangsang.demo.domain.dto.UserSaveDto;
 import com.sangsang.demo.domain.dto.UserUpdateDto;
+import com.sangsang.demo.domain.vo.UserResultMapVo;
+import com.sangsang.demo.domain.vo.UserResultTypeVo;
+import com.sangsang.demo.domain.vo.UserUnderLineVo;
 import com.sangsang.demo.domain.vo.UserVo;
 import org.apache.ibatis.annotations.Param;
 
@@ -42,4 +45,33 @@ public interface PojoUserMapper {
      * 删除用户
      */
     int deleteUserById(@Param("id") Long id);
+
+    /**
+     * 测试特殊字段映射
+     * 这里使用resultMap，其中column的大小写是随便写的
+     *
+     * @author liutangqi
+     * @date 2026/8/14 16:06
+     * @Param [dto]
+     **/
+    List<UserResultMapVo> getUserResultMapList();
+
+    /**
+     * 测试特殊字段映射
+     * 这里使用resultType，其中映射类的属性大小写是随便写的
+     *
+     * @author liutangqi
+     * @date 2026/8/14 16:06
+     * @Param [dto]
+     **/
+    List<UserResultTypeVo> getUserResultTypeList();
+
+    /**
+     * 测试xml里面是下划线，实体类是下划线的映射，其中大小写是随便写的
+     *
+     * @author liutangqi
+     * @date 2026/8/14 16:54
+     * @Param []
+     **/
+    List<UserUnderLineVo> getUserUnderLineList();
 }

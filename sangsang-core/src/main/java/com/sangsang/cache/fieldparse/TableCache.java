@@ -9,10 +9,10 @@ import com.sangsang.domain.annos.encryptor.FieldEncryptor;
 import com.sangsang.domain.annos.encryptor.ShardingTableEncryptor;
 import com.sangsang.domain.annos.fielddefault.FieldDefault;
 import com.sangsang.domain.annos.isolation.DataIsolation;
-import com.sangsang.domain.constants.NumberConstant;
 import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.constants.TransformationPatternTypeConstant;
 import com.sangsang.domain.dto.DataSourceConfig;
+import com.sangsang.domain.dto.SqlSessionFactoryConfig;
 import com.sangsang.domain.dto.TableFieldDto;
 import com.sangsang.domain.dto.TableInfoDto;
 import com.sangsang.domain.exception.FieldException;
@@ -20,8 +20,8 @@ import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.domain.wrapper.FieldHashSetWrapper;
 import com.sangsang.domain.wrapper.FieldLinkedListWarpper;
 import com.sangsang.util.*;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.ibatis.session.SqlSessionFactory;
 
 import javax.sql.DataSource;
 import java.lang.reflect.Field;
@@ -50,6 +50,10 @@ public class TableCache extends DefaultBeanPostProcessor {
      * 缓存当前可以从DataSource中读取到，并且不需要由配置文件去调整的一些信息
      */
     private static DataSourceConfig dataSourceConfig;
+    /**
+     * 缓存当前可以从SqlSessionFactory中读取到的一些信息
+     */
+    private static SqlSessionFactoryConfig sqlSessionFactoryConfig;
 
     /**
      * key: 表名  value: (key:字段名  value: 实体类上标注的@FieldEncryptor注解)
@@ -96,12 +100,14 @@ public class TableCache extends DefaultBeanPostProcessor {
     /**
      * 初始化当前表结构信息
      *
-     * @param dataSources     当前项目的
+     * @param dataSources        当前项目的
      * @param sangSangProperties
      * @author liutangqi
      * @date 2024/2/1 13:27
      **/
-    public static void init(List<DataSource> dataSources, SangSangProperties sangSangProperties) {
+    public static void init(List<DataSource> dataSources,
+                            SqlSessionFactory sqlSessionFactory,
+                            SangSangProperties sangSangProperties) {
         long startTime = System.currentTimeMillis();
         //1.处理当前项目的数据库标识符的引用符
         TableCache.sangSangProperties = fillIdentifierQuote(sangSangProperties);
@@ -131,9 +137,28 @@ public class TableCache extends DefaultBeanPostProcessor {
 
         //7.从当前DataSource中读取一些配置，缓存下来
         cacheDataSourceConfig(dataSources);
+
+        //8.读取当前SqlSessionFactory的一些配置信息缓存下来
+        cacheSqlSessionFactoryConfig(sqlSessionFactory);
+
         log.info("【sangsang】初始化表结构信息，处理完毕 耗时：{}ms", (System.currentTimeMillis() - startTime));
     }
 
+    /**
+     * 从当前spring环境中的SqlSessionFactory中读取一些需要的配置信息缓存到本地
+     *
+     * @author liutangqi
+     * @date 2026/8/17 17:18
+     * @Param [sqlSessionFactory]
+     **/
+    private static void cacheSqlSessionFactoryConfig(SqlSessionFactory sqlSessionFactory) {
+        if (sqlSessionFactory == null || sqlSessionFactory.getConfiguration() == null) {
+            return;
+        }
+        TableCache.sqlSessionFactoryConfig = SqlSessionFactoryConfig.builder()
+                .mapUnderscoreToCamelCase(sqlSessionFactory.getConfiguration().isMapUnderscoreToCamelCase())
+                .build();
+    }
 
     /**
      * 从当前DataSource中读取一些配置，缓存下来
@@ -454,4 +479,15 @@ public class TableCache extends DefaultBeanPostProcessor {
         return Optional.ofNullable(dataSourceConfig).orElse(DataSourceConfig.DEFAULT);
     }
 
+
+    /**
+     * 获取当前缓存的Sqlsessionfactory中读取的相关配置信息
+     *
+     * @author liutangqi
+     * @date 2026/8/18 11:11
+     * @Param []
+     **/
+    public static SqlSessionFactoryConfig getSqlSessionFactoryConfig() {
+        return Optional.ofNullable(sqlSessionFactoryConfig).orElse(SqlSessionFactoryConfig.DEFAULT);
+    }
 }
