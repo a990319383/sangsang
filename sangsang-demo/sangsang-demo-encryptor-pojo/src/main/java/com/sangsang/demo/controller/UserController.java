@@ -8,11 +8,10 @@ import com.sangsang.demo.domain.vo.*;
 import com.sangsang.demo.mapper.PojoUserMapper;
 import com.sangsang.demo.threadlocal.SqlHolder;
 import lombok.RequiredArgsConstructor;
-import org.apache.ibatis.session.SqlSessionFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 用户增删改查接口
@@ -108,5 +107,29 @@ public class UserController {
     @GetMapping("/testUserUnderLineList")
     public List<UserUnderLineVo> getUserUnderLineList() {
         return userMapper.getUserUnderLineList();
+    }
+
+    /**
+     * 返回值是List<Map>
+     *
+     * @author liutangqi
+     * @date 2026/8/21 15:31
+     * @Param []
+     **/
+    @GetMapping("/getUserMapList")
+    public List<Map<String, Object>> getUserMapList() {
+        return userMapper.getUserMapList();
+    }
+
+    /**
+     * 测试返回值是List<String>
+     *
+     * @author liutangqi
+     * @date 2026/8/21 15:31
+     * @Param []
+     **/
+    @GetMapping("/getUserPhoneList")
+    public List<String> getUserPhoneList() {
+        return userMapper.getUserPhoneList();
     }
 }

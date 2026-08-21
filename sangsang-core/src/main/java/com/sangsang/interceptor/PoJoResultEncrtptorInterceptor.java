@@ -134,7 +134,7 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
         }
 
         //2.解析出xml中配置的resultMap
-        Map<String, String> resultMap = parseResultMap(mappedStatement);
+        Map<String, Set<String>> resultMap = parseResultMap(mappedStatement);
 
         //3.将当前sql的解析结果以字段为key，进行存储，便于后续通过key快速匹配。使用MappingHashMapWrapper能屏蔽掉大小写差异，并根据当前配置进行下划线和驼峰的兼容
         Map<String, FieldEncryptorInfoDto> fieldEncryptorMap = new MappingHashMapWrapper(resultMap);
@@ -142,11 +142,13 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
             fieldEncryptorMap.put(fieldEncryptorInfoDto.getColumnName(), fieldEncryptorInfoDto);
         }
 
-        //4.收集结果集里面每个涉及到需要解密处理的策略和对应密文数据集，如果响应值是java类的话，同时缓存反射获取的所有字段信息，避免两次反射获取字段信息的巨大损耗
+        //4.收集结果集里面每个涉及到需要解密处理的策略和对应密文数据集
         Map<FieldEncryptorStrategy, Set<String>> fieldEncryptorStrategyMap = new HashMap<>();
-        List<Field> allFields = new ArrayList<>();
-        for (Object res : resList) {
-            collectionCiphertext(fieldEncryptorStrategyMap, allFields, res, fieldEncryptorMap);
+        //如果响应值是java类的话，同时缓存反射获取的需要解密的字段信息，避免两次反射获取字段信息的巨大损耗
+        Map<Integer, Set<Field>> decryptionFieldMap = new HashMap<>();
+        Object[] resArray = resList.toArray();
+        for (int i = 0; i < resArray.length; i++) {
+            collectionCiphertext(fieldEncryptorStrategyMap, decryptionFieldMap, resArray[i], i, fieldEncryptorMap);
         }
 
         //5.批量解密
@@ -159,8 +161,8 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
 
         //7.用明文替换密文
         List<Object> decryptionRes = new ArrayList<>();
-        for (Object res : resList) {
-            decryptionRes.add(replaceCiphertext(cleartextMap, allFields, res, fieldEncryptorMap));
+        for (int i = 0; i < resArray.length; i++) {
+            decryptionRes.add(replaceCiphertext(cleartextMap, decryptionFieldMap, resArray[i], i, fieldEncryptorMap));
         }
 
         return decryptionRes;
@@ -168,18 +170,20 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
 
     /**
      * 获取到当前执行的mapper的resultMap配置
+     * key：resultMap的 column (即sql查询结果的字段名)
+     * value：resultMap的 property (即java类属性名，同一个resultMap中，一个column可以映射到多个property中，所以这里是个集合)
      *
      * @author liutangqi
      * @date 2026/8/19 17:41
      * @Param [mappedStatement]
      **/
-    private Map<String, String> parseResultMap(MappedStatement mappedStatement) {
-        Map<String, String> resMap = new HashMap<>();
+    private Map<String, Set<String>> parseResultMap(MappedStatement mappedStatement) {
+        Map<String, Set<String>> resMap = new HashMap<>();
         List<ResultMap> resultMaps = mappedStatement.getResultMaps();
         for (ResultMap resultMap : resultMaps) {
             List<ResultMapping> resultMappings = resultMap.getResultMappings();
             for (ResultMapping resultMapping : resultMappings) {
-                resMap.put(resultMapping.getColumn(), resultMapping.getProperty());
+                CollectionUtils.putList(resMap, resultMapping.getColumn(), resultMapping.getProperty(), new HashSet<>());
             }
         }
         return resMap;
@@ -190,17 +194,20 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
      * 收集结果集中需要密文存储的字段集合，用于后续的批量解密做出准备
      *
      * @param fieldEncryptorStrategyMap 用于存放收集结果的容器 key:加解密策略实例 value:需要这个策略处理的字段
-     * @param allFields                 如果返回值是java类的话，这个list缓存反射获取的所有字段信息，避免两次反射获取字段信息的巨额损耗
+     * @param decryptionFieldMap        如果返回值是java类的话，这个list缓存反射获取的需要解密的字段信息，避免两次反射获取字段信息的巨额损耗 key是index下标，value是字段信息
      * @param res                       mapper的执行结果
+     * @param index                     下标，sql执行结果的集合的下标，会作为decryptionFields的key
      * @param fieldEncryptorMap         解析sql的结果集
      * @author liutangqi
      * @date 2026/8/13 17:49
      **/
     private void collectionCiphertext(Map<FieldEncryptorStrategy, Set<String>> fieldEncryptorStrategyMap,
-                                      List<Field> allFields,
+                                      Map<Integer, Set<Field>> decryptionFieldMap,
                                       Object res,
+                                      Integer index,
                                       Map<String, FieldEncryptorInfoDto> fieldEncryptorMap)
             throws IllegalAccessException {
+
         //0.整个对象都为null，直接返回
         if (res == null) {
             return;
@@ -229,8 +236,8 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
         }
         //3.响应类型是其它实体类
         else {
-            allFields = ReflectUtils.getNotStaticFinalFields(res.getClass());
-            for (Field field : allFields) {
+            List<Field> notStaticFinalFields = ReflectUtils.getNotStaticFinalFields(res.getClass());
+            for (Field field : notStaticFinalFields) {
                 //优先取响应实体类字段上面的@PoJoResultEncryptor 的信息 ，取不到再根据实体类上面标注的信息取
                 Class<? extends FieldEncryptorStrategy> poJoResultEncryptorCls = Optional.ofNullable(field.getAnnotation(PoJoResultEncryptor.class)).map(PoJoResultEncryptor::value).orElse(null);
                 Class<? extends FieldEncryptorStrategy> fieldEncryptorCls = Optional.ofNullable(getFieldEncryptorByFieldName(field.getName(), fieldEncryptorMap)).map(FieldEncryptor::value).orElse(null);
@@ -239,6 +246,8 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
                     field.setAccessible(true);
                     String fieldValue = Optional.ofNullable(field.get(res)).map(Object::toString).orElse(null);
                     CollectionUtils.putList(fieldEncryptorStrategyMap, EncryptorInstanceCache.<String>getInstance(encryptorStrategyCls), fieldValue, new HashSet<>());
+                    //这个字段需要解密，缓存下来，避免后续替换时二次反射拿信息
+                    CollectionUtils.putList(decryptionFieldMap, index, field, new HashSet<>());
                 }
             }
         }
@@ -247,18 +256,20 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
     /**
      * 使用明文替换结果集中的密文
      *
-     * @param cleartextMap      key:密文 value:明文
-     * @param allFields         如果返回值是java类的话，这个list缓存反射获取的所有字段信息，避免两次反射获取的巨大损耗
-     * @param res
-     * @param fieldEncryptorMap
+     * @param cleartextMap       key:密文 value:明文
+     * @param decryptionFieldMap 如果返回值是java类的话，这个list缓存反射获取的需要解密的字段信息，避免两次反射获取字段信息的巨额损耗 key是index下标，value是字段信息
+     * @param res                mapper的执行结果
+     * @param index              下标，sql执行结果的集合的下标，会作为decryptionFields的key
      * @author liutangqi
      * @date 2026/8/14 13:49
      **/
     private Object replaceCiphertext(Map<String, String> cleartextMap,
-                                     List<Field> allFields,
+                                     Map<Integer, Set<Field>> decryptionFieldMap,
                                      Object res,
+                                     Integer index,
                                      Map<String, FieldEncryptorInfoDto> fieldEncryptorMap)
             throws IllegalAccessException {
+
         //0.整个对象都为null，直接返回
         if (res == null) {
             return res;
@@ -286,18 +297,13 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
             }
             return resMap;
         }
-        //3.响应类型是其它实体类，上面搜集字段信息批量解密时已经反射获取到所有字段信息了，这里直接使用缓存值
+        //3.响应类型是其它实体类，上面搜集字段信息批量解密时已经反射获取到所有需要解密的字段信息了，这里直接使用缓存值
         else {
-            for (Field field : allFields) {
-                //优先取响应实体类字段上面的@PoJoResultEncryptor 的信息 ，取不到再根据实体类上面标注的信息取
-                Class<? extends FieldEncryptorStrategy> poJoResultEncryptorCls = Optional.ofNullable(field.getAnnotation(PoJoResultEncryptor.class)).map(PoJoResultEncryptor::value).orElse(null);
-                Class<? extends FieldEncryptorStrategy> fieldEncryptorCls = Optional.ofNullable(getFieldEncryptorByFieldName(field.getName(), fieldEncryptorMap)).map(FieldEncryptor::value).orElse(null);
-                Class<? extends FieldEncryptorStrategy> encryptorStrategyCls = poJoResultEncryptorCls != null ? poJoResultEncryptorCls : fieldEncryptorCls;
-                if (encryptorStrategyCls != null) {
-                    field.setAccessible(true);
-                    String fieldValue = Optional.ofNullable(field.get(res)).map(Object::toString).orElse(null);
-                    field.set(res, cleartextMap.get(fieldValue));
-                }
+            Set<Field> resDecryptionFields = decryptionFieldMap.getOrDefault(index, CollectionUtils.EMPTY_SET);
+            for (Field field : resDecryptionFields) {
+                field.setAccessible(true);
+                String fieldValue = Optional.ofNullable(field.get(res)).map(Object::toString).orElse(null);
+                field.set(res, cleartextMap.getOrDefault(fieldValue, fieldValue));
             }
             return res;
         }

@@ -25,9 +25,19 @@ public class UserResultMapVo {
 
     /**
      * 电话
-     * PS:这里特意写成和表字段的phone字段不同的另外一个单词
+     * PS:这里特意写成和表字段的phone字段不同的另外一个单词，通过resultMap映射
      */
     private String mobilePhone;
+
+    /**
+     * 电话，这里特意写成和表字段phone字段不同的另一个单词，通过resultMap映射
+     */
+    private String telephone;
+    /**
+     * 电话
+     * PS:注意 sql的查询字段有这个值，但是resultMap中没有配置这个值
+     */
+    private String phoneCall;
 
     /**
      * 登录名

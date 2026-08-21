@@ -15,6 +15,12 @@ import java.util.*;
  */
 public class CollectionUtils {
     /**
+     * 空集合
+     */
+    public static final List EMPTY_LIST = Collections.emptyList();
+    public static final Set EMPTY_SET = Collections.emptySet();
+
+    /**
      * 校验集合是否为空
      *
      * @param coll 入参

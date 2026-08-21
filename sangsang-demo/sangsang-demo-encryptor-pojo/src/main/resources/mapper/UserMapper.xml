@@ -64,6 +64,7 @@
     <resultMap id="UserResultType" type="com.sangsang.demo.domain.vo.UserResultMapVo">
         <id property="ID" column="id"/>
         <result property="mobilePhone" column="phone"/>
+        <result property="telephone" column="phone"/>
         <result property="uSERNaMe" column="user_NAMe"/>
         <result property="loginName" column="LOGin_name"/>
         <result property="loginPwd" column="login_pwd"/>
@@ -73,7 +74,16 @@
     </resultMap>
     <select id="getUserResultMapList"
             resultMap="UserResultType">
-        select *
+        select
+            id,
+            user_name,
+            phone,
+            phone as phoneCall,
+            login_name,
+            login_pwd,
+            org_seq,
+            create_time,
+            update_time
         from demo_pojo_user
         order by create_time desc limit 10
     </select>
@@ -94,6 +104,25 @@
                org_seq     as orG_Seq,
                create_time as create_Time,
                update_time as updAte_Time
+        from demo_pojo_user
+        order by create_time desc limit 10
+    </select>
+    <select id="getUserMapList"
+            resultType="java.util.Map">
+        select id,
+               user_name,
+               phone as mobile_phone,
+               login_name,
+               login_pwd,
+               org_seq,
+               create_time,
+               update_time
+        from demo_pojo_user
+        order by create_time desc limit 10
+    </select>
+    <select id="getUserPhoneList"
+            resultType="java.lang.String">
+        select phone
         from demo_pojo_user
         order by create_time desc limit 10
     </select>

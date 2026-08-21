@@ -10,6 +10,7 @@ import com.sangsang.demo.domain.vo.UserVo;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author liutangqi
@@ -74,4 +75,22 @@ public interface PojoUserMapper {
      * @Param []
      **/
     List<UserUnderLineVo> getUserUnderLineList();
+
+    /**
+     * 返回值是List<Map>
+     *
+     * @author liutangqi
+     * @date 2026/8/21 15:31
+     * @Param []
+     **/
+    List<Map<String, Object>> getUserMapList();
+
+    /**
+     * 测试返回值是List<String>
+     *
+     * @author liutangqi
+     * @date 2026/8/21 15:31
+     * @Param []
+     **/
+    List<String> getUserPhoneList();
 }

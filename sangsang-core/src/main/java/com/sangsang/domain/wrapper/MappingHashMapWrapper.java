@@ -31,9 +31,10 @@ public class MappingHashMapWrapper<T> implements Map<String, T>, Serializable {
      * xml中配置的resultMap
      * key: column  (xml中sql的字段名)
      * value: property （接收结果的java变量名）
-     * 注意：实测中column是大小写不敏感的
+     * 注意1：实测中column是大小写不敏感的
+     * 注意2：resultMap中同一个column可以配置多个property，所以这里使用set，此种情况，我们在put的时候，会将这个Set所有的值作为key，put一样的内容进去
      */
-    private final Map<IgnoreCaseCacheKey, String> resultMap = new HashMap<>();
+    private final Map<IgnoreCaseCacheKey, Set<String>> resultMap = new HashMap<>();
 
     /**
      * 将原始的xml的sql的字段进行转驼峰处理后存储
@@ -56,11 +57,11 @@ public class MappingHashMapWrapper<T> implements Map<String, T>, Serializable {
      * @date 2026/8/19 14:21
      * @Param [resultMap]
      **/
-    public MappingHashMapWrapper(Map<String, String> resultMap) {
+    public MappingHashMapWrapper(Map<String, Set<String>> resultMap) {
         if (CollectionUtils.isEmpty(resultMap)) {
             return;
         }
-        for (Map.Entry<String, String> entry : resultMap.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : resultMap.entrySet()) {
             this.resultMap.put(IgnoreCaseCacheKey.buildKey(entry.getKey()), entry.getValue());
         }
     }
@@ -90,10 +91,10 @@ public class MappingHashMapWrapper<T> implements Map<String, T>, Serializable {
         //原始key类型转换
         IgnoreCaseCacheKey ignoreCaseCacheKey = IgnoreCaseCacheKey.buildKey((String) key);
 
-        //通过原始的key从resultMap中看是否有映射的key，如果存在映射的key的话，需要使用映射的key去取值
-        String resultMapKey = this.resultMap.get(ignoreCaseCacheKey);
-        if (StringUtils.isNotBlank(resultMapKey)) {
-            ignoreCaseCacheKey = IgnoreCaseCacheKey.buildKey(resultMapKey);
+        //通过原始的key从resultMap中看是否有映射的key，如果存在映射的key的话，需要使用映射的key去取值,这些映射的key的值都是一样的，所以随便取一个
+        Set<String> resultMapKeys = this.resultMap.get(ignoreCaseCacheKey);
+        if (CollectionUtils.isNotEmpty(resultMapKeys)) {
+            ignoreCaseCacheKey = IgnoreCaseCacheKey.buildKey(resultMapKeys.iterator().next());
         }
 
         //查询当前mybatis配置是否开启了下换线自动转驼峰，开启的话，就两个map中有一个有这个key就算有
@@ -123,10 +124,10 @@ public class MappingHashMapWrapper<T> implements Map<String, T>, Serializable {
         //真正使用的key
         String genuineKey = (String) key;
 
-        //通过原始的key从resultMap中看是否有映射的key，如果存在映射的key的话，需要使用映射的key去存值
-        String resultMapKey = this.resultMap.get(IgnoreCaseCacheKey.buildKey(genuineKey));
-        if (StringUtils.isNotBlank(resultMapKey)) {
-            genuineKey = resultMapKey;
+        //通过原始的key从resultMap中看是否有映射的key，如果存在映射的key的话，需要使用映射的key去取值,这些映射的key的值都是一样的，所以随便取一个
+        Set<String> resultMapKeys = this.resultMap.get(IgnoreCaseCacheKey.buildKey(genuineKey));
+        if (CollectionUtils.isNotEmpty(resultMapKeys)) {
+            genuineKey = resultMapKeys.iterator().next();
         }
 
         //类型转换，构建忽略大小写的key
@@ -150,20 +151,22 @@ public class MappingHashMapWrapper<T> implements Map<String, T>, Serializable {
         }
 
         //真正使用的key
-        String genuineKey = key;
+        Set<String> genuineKeys = new HashSet<>(Arrays.asList(key));
 
-        //通过原始的key从resultMap中看是否有映射的key，如果存在映射的key的话，需要使用映射的key去存值
-        String resultMapKey = this.resultMap.get(IgnoreCaseCacheKey.buildKey(genuineKey));
-        if (StringUtils.isNotBlank(resultMapKey)) {
-            genuineKey = resultMapKey;
+        //通过原始的key从resultMap中看是否有映射的key，如果存在映射的key的话，需要使用映射的key去存值,这些映射的key都存相同的值
+        Set<String> resultMapKeys = this.resultMap.get(IgnoreCaseCacheKey.buildKey(key));
+        if (CollectionUtils.isNotEmpty(resultMapKeys)) {
+            genuineKeys = resultMapKeys;
         }
 
-        //转驼峰后存一份
-        this.humpMap.put(IgnoreCaseCacheKey.buildKey(NamingCase.toCamelCase(genuineKey)), value);
-
-        //原始的map中存一份
-        return this.originalMap.put(IgnoreCaseCacheKey.buildKey(genuineKey), value);
-
+        //如果映射的值存在多个，则这些映射的值都存一份一样的
+        for (String genuineKey : genuineKeys) {
+            //转驼峰后存一份
+            this.humpMap.put(IgnoreCaseCacheKey.buildKey(NamingCase.toCamelCase(genuineKey)), value);
+            //原始的map中存一份
+            this.originalMap.put(IgnoreCaseCacheKey.buildKey(genuineKey), value);
+        }
+        return null;
     }
 
     @Override
@@ -176,19 +179,21 @@ public class MappingHashMapWrapper<T> implements Map<String, T>, Serializable {
         typeCheck(key);
 
         //真正使用的key
-        String genuineKey = (String) key;
+        Set<String> genuineKeys = new HashSet<>(Arrays.asList((String) key));
 
-        //通过原始的key从resultMap中看是否有映射的key，如果存在映射的key的话，需要使用映射的key去移除
-        String resultMapKey = this.resultMap.get(IgnoreCaseCacheKey.buildKey(genuineKey));
-        if (StringUtils.isNotBlank(resultMapKey)) {
-            genuineKey = resultMapKey;
+        //通过原始的key从resultMap中看是否有映射的key，如果存在映射的key的话，需要使用映射的key去存值,这些映射的key都需要移除
+        Set<String> resultMapKeys = this.resultMap.get(IgnoreCaseCacheKey.buildKey((String) key));
+        if (CollectionUtils.isNotEmpty(resultMapKeys)) {
+            genuineKeys = resultMapKeys;
         }
 
-        //转驼峰后移除掉
-        this.humpMap.remove(IgnoreCaseCacheKey.buildKey(NamingCase.toCamelCase(genuineKey)));
-
-        //原始的map移除掉
-        return this.originalMap.remove(IgnoreCaseCacheKey.buildKey(genuineKey));
+        for (String genuineKey : genuineKeys) {
+            //转驼峰后移除掉
+            this.humpMap.remove(IgnoreCaseCacheKey.buildKey(NamingCase.toCamelCase(genuineKey)));
+            //原始的map移除掉
+            this.originalMap.remove(IgnoreCaseCacheKey.buildKey(genuineKey));
+        }
+        return null;
     }
 
     @Override
