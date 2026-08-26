@@ -104,6 +104,6 @@
 |                             方式                             | 说明                                |
 | :----------------------------------------------------------: |:----------------------------------|
 | <img src="https://img.shields.io/badge/📧-邮箱-9cf" alt="邮箱"/> | **990319383@qq.com**              |
-| ![QQ群](https://img.shields.io/badge/QQ群-1072901252-orange) | 群文件有 MySQL SM4 国密算法扩展包<br>当前群人数：4 |
+| ![QQ群](https://img.shields.io/badge/QQ群-1072901252-orange) | 群文件有 MySQL SM4 国密算法扩展包<br>当前群人数：5 |
 
 
