@@ -650,7 +650,7 @@ public class SqlTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = s1;
+        String sql = s5;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -841,11 +841,6 @@ public class SqlTest {
 
     @Test
     public void otherTest() throws Exception {
-
-        List<String> sqls = Arrays.asList(s1, s1, s1, s1, s1);
-        for (String sql : sqls) {
-            JsqlparserUtil.parse(sql);
-        }
 
     }
 

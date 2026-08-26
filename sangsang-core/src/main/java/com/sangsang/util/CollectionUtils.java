@@ -19,6 +19,7 @@ public class CollectionUtils {
      */
     public static final List EMPTY_LIST = Collections.emptyList();
     public static final Set EMPTY_SET = Collections.emptySet();
+    public static final Map EMPTY_MAP = Collections.emptyMap();
 
     /**
      * 校验集合是否为空
@@ -165,6 +166,29 @@ public class CollectionUtils {
                 putList(map, key, value, defaultSet);
             }
         }
+    }
+
+
+    /**
+     * 往Map<K,Map<F,V>> 中添加元素
+     *
+     * @param map        往这个map中存放元素
+     * @param key
+     * @param field
+     * @param value
+     * @param defaultMap 当map中这个key不存在时，使用这个默认集合存放value
+     * @author liutangqi
+     * @author liutangqi
+     * @date 2026/8/26 14:54
+     * @Param [map, key, field, value, defaultMap]
+     **/
+    public static <K, F, V> void putMap(Map<K, Map<F, V>> map, K key, F field, V value, Map<F, V> defaultMap) {
+        Map<F, V> fMap = map.get(key);
+        if (fMap == null) {
+            fMap = defaultMap;
+            map.put(key, fMap);
+        }
+        fMap.put(field, value);
     }
 
     /**

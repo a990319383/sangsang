@@ -1,8 +1,8 @@
 package com.sangsang.domain.wrapper;
 
-import cn.hutool.core.util.ObjectUtil;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.util.CollectionUtils;
+import com.sangsang.util.DeepCloneUtil;
 
 import java.io.Serializable;
 import java.util.*;
@@ -124,7 +124,7 @@ public class LayerHashMapWrapper implements Map<Integer, Map<String, List<FieldI
         //1. 上游作用域不为空 && 第一次放这层数据 ，则将上游作用域的Map中的数据添加到当前Map中(注意：先放上游作用域的值，当前字段和上游字段重复时，当前的字段put时就可以把上游作用域的给替换掉，这个在某些语法校验不严格的数据库是这样的逻辑)
         if (CollectionUtils.isNotEmpty(upstreamScopeMap) && !this.layerMap.containsKey(key)) {
             //这里将上游作用域的数据深拷贝一份，避免对上游作用域的数据进行修改
-            this.layerMap.put(key, ObjectUtil.cloneByStream(this.upstreamScopeMap));
+            this.layerMap.put(key, DeepCloneUtil.MapClone.cloneStrKey(this.upstreamScopeMap));
         }
 
         //2.记录此层存放过的表

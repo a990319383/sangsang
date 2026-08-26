@@ -140,7 +140,6 @@ public class ReflectUtils {
 
         //设置可访问private的字段
         field.setAccessible(true);
-        Object res = null;
         try {
             field.set(obj, value);
         } catch (IllegalAccessException e) {

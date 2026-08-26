@@ -1,11 +1,11 @@
 package com.sangsang.visitor.fieldparse;
 
-import cn.hutool.core.util.ObjectUtil;
 import com.sangsang.domain.constants.NumberConstant;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.wrapper.LayerHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
+import com.sangsang.util.DeepCloneUtil;
 import net.sf.jsqlparser.statement.select.*;
 
 import java.util.*;
@@ -73,8 +73,8 @@ public class FieldParseParseTableSelectVisitor extends BaseFieldParseTable imple
      **/
     public static FieldParseParseTableSelectVisitor newInstanceIndividualMap(BaseFieldParseTable baseFieldParseTable) {
         //将现在的两个存储解析结果的map深克隆拷贝一份，用这两份数据去解析子查询的结果，避免这个子查询也拥有子查询，导致影响当前解析结果的map的下一层结果出错
-        Map<Integer, Map<String, List<FieldInfoDto>>> cloneLayerSelectTableFieldMap = ObjectUtil.cloneByStream(baseFieldParseTable.getLayerSelectTableFieldMap());
-        Map<Integer, Map<String, List<FieldInfoDto>>> cloneLayerFieldTableMap = ObjectUtil.cloneByStream(baseFieldParseTable.getLayerFieldTableMap());
+        Map<Integer, Map<String, List<FieldInfoDto>>> cloneLayerSelectTableFieldMap = DeepCloneUtil.MapClone.cloneIntKey(baseFieldParseTable.getLayerSelectTableFieldMap());
+        Map<Integer, Map<String, List<FieldInfoDto>>> cloneLayerFieldTableMap = DeepCloneUtil.MapClone.cloneIntKey(baseFieldParseTable.getLayerFieldTableMap());
         //将当前层的表字段信息作为上游作用域传递到下层
         LayerHashMapWrapper LayerSelectTableFieldMapWrapper = new LayerHashMapWrapper(cloneLayerSelectTableFieldMap.get(baseFieldParseTable.getLayer()));
         LayerHashMapWrapper LayerFieldTableMapWrapper = new LayerHashMapWrapper(cloneLayerFieldTableMap.get(baseFieldParseTable.getLayer()));

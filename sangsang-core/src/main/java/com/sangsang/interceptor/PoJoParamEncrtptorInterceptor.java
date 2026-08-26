@@ -7,7 +7,6 @@ import com.sangsang.domain.annos.FieldInterceptorOrder;
 import com.sangsang.domain.annos.encryptor.FieldEncryptor;
 import com.sangsang.domain.constants.FieldConstant;
 import com.sangsang.domain.constants.InterceptorOrderConstant;
-import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.domain.dto.FieldEncryptorInfoDto;
 import com.sangsang.util.InterceptorUtil;

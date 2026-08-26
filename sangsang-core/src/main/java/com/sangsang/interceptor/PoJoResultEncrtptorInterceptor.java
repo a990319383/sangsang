@@ -11,6 +11,7 @@ import com.sangsang.domain.constants.InterceptorOrderConstant;
 import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.domain.dto.FieldEncryptorInfoDto;
 import com.sangsang.domain.strategy.encryptor.FieldEncryptorStrategy;
+import com.sangsang.domain.wrapper.ClassHashMapWrapper;
 import com.sangsang.domain.wrapper.MappingHashMapWrapper;
 import com.sangsang.util.*;
 import com.sangsang.visitor.pojoencrtptor.PoJoEncrtptorStatementVisitor;
@@ -142,13 +143,16 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
             fieldEncryptorMap.put(fieldEncryptorInfoDto.getColumnName(), fieldEncryptorInfoDto);
         }
 
-        //4.收集结果集里面每个涉及到需要解密处理的策略和对应密文数据集
+        //4.通过反射，缓存这个映射类的字段信息，字段对应的解密策略信息，需要解密的密文集合
+        //4.1创建缓存Map：用于缓存每个解密策略对应密文数据集（key:解密策略 value:对应的密文集合）
         Map<FieldEncryptorStrategy, Set<String>> fieldEncryptorStrategyMap = new HashMap<>();
-        //如果响应值是java类的话，同时缓存反射获取的需要解密的字段信息，避免两次反射获取字段信息的巨大损耗
-        Map<Integer, Set<Field>> decryptionFieldMap = new HashMap<>();
-        Object[] resArray = resList.toArray();
-        for (int i = 0; i < resArray.length; i++) {
-            collectionCiphertext(fieldEncryptorStrategyMap, decryptionFieldMap, resArray[i], i, fieldEncryptorMap);
+        //4.2创建缓存Map：当响应是java类时，用于缓存每个类的所有字段信息（key:映射接受参数的java类 value:(key:field的name value:Field对象)）
+        Map<Class, Map<String, Field>> clsFieldMap = new ClassHashMapWrapper<>();
+        //4.3创建缓存Map：当响应是java类时，用于缓存每个类需要解密的字段信息(key:映射接受参数的java类 value:（key:field的name value:这个字段的加解密策略）)
+        Map<Class, Map<String, FieldEncryptorStrategy>> clsFieldStrategyMap = new ClassHashMapWrapper<>();
+        for (Object res : resList) {
+            collectionCiphertext(fieldEncryptorStrategyMap, clsFieldStrategyMap, clsFieldMap, res, fieldEncryptorMap);
+
         }
 
         //5.批量解密
@@ -161,8 +165,8 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
 
         //7.用明文替换密文
         List<Object> decryptionRes = new ArrayList<>();
-        for (int i = 0; i < resArray.length; i++) {
-            decryptionRes.add(replaceCiphertext(cleartextMap, decryptionFieldMap, resArray[i], i, fieldEncryptorMap));
+        for (Object res : resList) {
+            decryptionRes.add(replaceCiphertext(cleartextMap, clsFieldStrategyMap, clsFieldMap, fieldEncryptorMap, res));
         }
 
         return decryptionRes;
@@ -194,17 +198,20 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
      * 收集结果集中需要密文存储的字段集合，用于后续的批量解密做出准备
      *
      * @param fieldEncryptorStrategyMap 用于存放收集结果的容器 key:加解密策略实例 value:需要这个策略处理的字段
-     * @param decryptionFieldMap        如果返回值是java类的话，这个list缓存反射获取的需要解密的字段信息，避免两次反射获取字段信息的巨额损耗 key是index下标，value是字段信息
+     * @param clsFieldStrategyMap       用于缓存每个类需要解密的字段策略信息(key:class value(key:field的name value:加解密策略实例)
+     * @param clsFieldMap               缓存映射java类的每个字段 （key:class value(key:field的name value:field对象)）
      * @param res                       mapper的执行结果
-     * @param index                     下标，sql执行结果的集合的下标，会作为decryptionFields的key
      * @param fieldEncryptorMap         解析sql的结果集
+     * @author liutangqi
+     * @date 2026/8/19 17:41
+     * @Param [fieldEncryptorStrategyMap,))
      * @author liutangqi
      * @date 2026/8/13 17:49
      **/
     private void collectionCiphertext(Map<FieldEncryptorStrategy, Set<String>> fieldEncryptorStrategyMap,
-                                      Map<Integer, Set<Field>> decryptionFieldMap,
+                                      Map<Class, Map<String, FieldEncryptorStrategy>> clsFieldStrategyMap,
+                                      Map<Class, Map<String, Field>> clsFieldMap,
                                       Object res,
-                                      Integer index,
                                       Map<String, FieldEncryptorInfoDto> fieldEncryptorMap)
             throws IllegalAccessException {
 
@@ -236,18 +243,43 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
         }
         //3.响应类型是其它实体类
         else {
-            List<Field> notStaticFinalFields = ReflectUtils.getNotStaticFinalFields(res.getClass());
-            for (Field field : notStaticFinalFields) {
-                //优先取响应实体类字段上面的@PoJoResultEncryptor 的信息 ，取不到再根据实体类上面标注的信息取
-                Class<? extends FieldEncryptorStrategy> poJoResultEncryptorCls = Optional.ofNullable(field.getAnnotation(PoJoResultEncryptor.class)).map(PoJoResultEncryptor::value).orElse(null);
-                Class<? extends FieldEncryptorStrategy> fieldEncryptorCls = Optional.ofNullable(getFieldEncryptorByFieldName(field.getName(), fieldEncryptorMap)).map(FieldEncryptor::value).orElse(null);
-                Class<? extends FieldEncryptorStrategy> encryptorStrategyCls = poJoResultEncryptorCls != null ? poJoResultEncryptorCls : fieldEncryptorCls;
-                if (encryptorStrategyCls != null) {
+            Map<String, FieldEncryptorStrategy> fieldStrategyMap = clsFieldStrategyMap.get(res.getClass());
+            //3.1 当前类未反射获取过字段信息
+            if (fieldStrategyMap == null) {
+                Map<String, FieldEncryptorStrategy> currentFieldStrategyMap = new HashMap<>();
+                //3.1.1 反射获取所有字段
+                List<Field> notStaticFinalFields = ReflectUtils.getNotStaticFinalFields(res.getClass());
+                for (Field field : notStaticFinalFields) {
+                    //3.1.2 缓存当前类的字段信息
+                    CollectionUtils.putMap(clsFieldMap, res.getClass(), field.getName(), field, new HashMap<>());
+
+                    //优先取响应实体类字段上面的@PoJoResultEncryptor 的信息 ，取不到再根据实体类上面标注的信息取
+                    Class<? extends FieldEncryptorStrategy> poJoResultEncryptorCls = Optional.ofNullable(field.getAnnotation(PoJoResultEncryptor.class)).map(PoJoResultEncryptor::value).orElse(null);
+                    Class<? extends FieldEncryptorStrategy> fieldEncryptorCls = Optional.ofNullable(getFieldEncryptorByFieldName(field.getName(), fieldEncryptorMap)).map(FieldEncryptor::value).orElse(null);
+                    Class<? extends FieldEncryptorStrategy> encryptorStrategyCls = poJoResultEncryptorCls != null ? poJoResultEncryptorCls : fieldEncryptorCls;
+                    if (encryptorStrategyCls != null) {
+                        //3.1.3 缓存当前字段对应策略
+                        currentFieldStrategyMap.put(field.getName(), EncryptorInstanceCache.<FieldEncryptorStrategy>getInstance(encryptorStrategyCls));
+
+                        //记录当前字段的策略和实际值，用于后续批量解密
+                        field.setAccessible(true);
+                        String fieldValue = Optional.ofNullable(field.get(res)).map(Object::toString).orElse(null);
+                        //3.1.4 缓存当前需要解密的明文值，后于后续批量解密
+                        CollectionUtils.putList(fieldEncryptorStrategyMap, EncryptorInstanceCache.<String>getInstance(encryptorStrategyCls), fieldValue, new HashSet<>());
+                    }
+                }
+                clsFieldStrategyMap.put(res.getClass(), currentFieldStrategyMap);
+            }
+            //3.2 当前类已经反射获取过字段信息
+            else {
+                //3.2.1 获取当前类的全部字段信息（当前字段存在解密策略，说明肯定反射缓存过字段了，所以fieldMap一定不为空）
+                Map<String, Field> fieldMap = clsFieldMap.get(res.getClass());
+                for (Map.Entry<String, FieldEncryptorStrategy> entry : fieldStrategyMap.entrySet()) {
+                    //3.2.2 缓存当前对象的密文字段，用于后续批量解密
+                    Field field = fieldMap.get(entry.getKey());
                     field.setAccessible(true);
                     String fieldValue = Optional.ofNullable(field.get(res)).map(Object::toString).orElse(null);
-                    CollectionUtils.putList(fieldEncryptorStrategyMap, EncryptorInstanceCache.<String>getInstance(encryptorStrategyCls), fieldValue, new HashSet<>());
-                    //这个字段需要解密，缓存下来，避免后续替换时二次反射拿信息
-                    CollectionUtils.putList(decryptionFieldMap, index, field, new HashSet<>());
+                    CollectionUtils.putList(fieldEncryptorStrategyMap, entry.getValue(), fieldValue, new HashSet<>());
                 }
             }
         }
@@ -256,18 +288,19 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
     /**
      * 使用明文替换结果集中的密文
      *
-     * @param cleartextMap       key:密文 value:明文
-     * @param decryptionFieldMap 如果返回值是java类的话，这个list缓存反射获取的需要解密的字段信息，避免两次反射获取字段信息的巨额损耗 key是index下标，value是字段信息
-     * @param res                mapper的执行结果
-     * @param index              下标，sql执行结果的集合的下标，会作为decryptionFields的key
+     * @param cleartextMap        批量解密后的结果集 key:密文 value:明文
+     * @param clsFieldStrategyMap 用于缓存每个类需要解密的字段策略信息(key:class value(key:field的name value:加解密策略实例)
+     * @param clsFieldMap         缓存映射java类的每个字段 （key:class value(key:field的name value:field对象)）
+     * @param fieldEncryptorMap   解析sql的结果集
+     * @param res                 mapper的执行结果
      * @author liutangqi
      * @date 2026/8/14 13:49
      **/
     private Object replaceCiphertext(Map<String, String> cleartextMap,
-                                     Map<Integer, Set<Field>> decryptionFieldMap,
-                                     Object res,
-                                     Integer index,
-                                     Map<String, FieldEncryptorInfoDto> fieldEncryptorMap)
+                                     Map<Class, Map<String, FieldEncryptorStrategy>> clsFieldStrategyMap,
+                                     Map<Class, Map<String, Field>> clsFieldMap,
+                                     Map<String, FieldEncryptorInfoDto> fieldEncryptorMap,
+                                     Object res)
             throws IllegalAccessException {
 
         //0.整个对象都为null，直接返回
@@ -299,10 +332,14 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
         }
         //3.响应类型是其它实体类，上面搜集字段信息批量解密时已经反射获取到所有需要解密的字段信息了，这里直接使用缓存值
         else {
-            Set<Field> resDecryptionFields = decryptionFieldMap.getOrDefault(index, CollectionUtils.EMPTY_SET);
-            for (Field field : resDecryptionFields) {
+            //3.1 缓存中获取当前类需要解密的字段和策略信息
+            Map<String, FieldEncryptorStrategy> fieldStrategyMap = clsFieldStrategyMap.getOrDefault(res.getClass(), CollectionUtils.EMPTY_MAP);
+            for (Map.Entry<String, FieldEncryptorStrategy> entry : fieldStrategyMap.entrySet()) {
+                //3.2 从缓存里面获取字段值
+                Field field = clsFieldMap.get(res.getClass()).get(entry.getKey());
                 field.setAccessible(true);
                 String fieldValue = Optional.ofNullable(field.get(res)).map(Object::toString).orElse(null);
+                //3.3 从批量解密的结果集中拿到对应明文，替换对象的字段值
                 field.set(res, cleartextMap.getOrDefault(fieldValue, fieldValue));
             }
             return res;
