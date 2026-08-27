@@ -146,13 +146,12 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
         //4.通过反射，缓存这个映射类的字段信息，字段对应的解密策略信息，需要解密的密文集合
         //4.1创建缓存Map：用于缓存每个解密策略对应密文数据集（key:解密策略 value:对应的密文集合）
         Map<FieldEncryptorStrategy, Set<String>> fieldEncryptorStrategyMap = new HashMap<>();
-        //4.2创建缓存Map：当响应是java类时，用于缓存每个类的所有字段信息（key:映射接受参数的java类 value:(key:field的name value:Field对象)）
+        //4.2创建缓存Map：当响应是java类时，用于缓存每个类的所有字段信息（key:映射接受参数的java类 value:(key:field的toGenericString() value:Field对象)）
         Map<Class, Map<String, Field>> clsFieldMap = new ClassHashMapWrapper<>();
-        //4.3创建缓存Map：当响应是java类时，用于缓存每个类需要解密的字段信息(key:映射接受参数的java类 value:（key:field的name value:这个字段的加解密策略）)
+        //4.3创建缓存Map：当响应是java类时，用于缓存每个类需要解密的字段信息(key:映射接受参数的java类 value:（key:field的toGenericString() value:这个字段的加解密策略）)
         Map<Class, Map<String, FieldEncryptorStrategy>> clsFieldStrategyMap = new ClassHashMapWrapper<>();
         for (Object res : resList) {
             collectionCiphertext(fieldEncryptorStrategyMap, clsFieldStrategyMap, clsFieldMap, res, fieldEncryptorMap);
-
         }
 
         //5.批量解密
@@ -198,8 +197,8 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
      * 收集结果集中需要密文存储的字段集合，用于后续的批量解密做出准备
      *
      * @param fieldEncryptorStrategyMap 用于存放收集结果的容器 key:加解密策略实例 value:需要这个策略处理的字段
-     * @param clsFieldStrategyMap       用于缓存每个类需要解密的字段策略信息(key:class value(key:field的name value:加解密策略实例)
-     * @param clsFieldMap               缓存映射java类的每个字段 （key:class value(key:field的name value:field对象)）
+     * @param clsFieldStrategyMap       用于缓存每个类需要解密的字段策略信息(key:class value(key:field的toGenericString() value:加解密策略实例)
+     * @param clsFieldMap               缓存映射java类的每个字段 （key:class value(key:field的toGenericString() value:field对象)）
      * @param res                       mapper的执行结果
      * @param fieldEncryptorMap         解析sql的结果集
      * @author liutangqi
@@ -251,7 +250,7 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
                 List<Field> notStaticFinalFields = ReflectUtils.getNotStaticFinalFields(res.getClass());
                 for (Field field : notStaticFinalFields) {
                     //3.1.2 缓存当前类的字段信息
-                    CollectionUtils.putMap(clsFieldMap, res.getClass(), field.getName(), field, new HashMap<>());
+                    CollectionUtils.putMap(clsFieldMap, res.getClass(), field.toGenericString(), field, new HashMap<>());
 
                     //优先取响应实体类字段上面的@PoJoResultEncryptor 的信息 ，取不到再根据实体类上面标注的信息取
                     Class<? extends FieldEncryptorStrategy> poJoResultEncryptorCls = Optional.ofNullable(field.getAnnotation(PoJoResultEncryptor.class)).map(PoJoResultEncryptor::value).orElse(null);
@@ -259,7 +258,7 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
                     Class<? extends FieldEncryptorStrategy> encryptorStrategyCls = poJoResultEncryptorCls != null ? poJoResultEncryptorCls : fieldEncryptorCls;
                     if (encryptorStrategyCls != null) {
                         //3.1.3 缓存当前字段对应策略
-                        currentFieldStrategyMap.put(field.getName(), EncryptorInstanceCache.<FieldEncryptorStrategy>getInstance(encryptorStrategyCls));
+                        currentFieldStrategyMap.put(field.toGenericString(), EncryptorInstanceCache.<FieldEncryptorStrategy>getInstance(encryptorStrategyCls));
 
                         //记录当前字段的策略和实际值，用于后续批量解密
                         field.setAccessible(true);
@@ -289,8 +288,8 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
      * 使用明文替换结果集中的密文
      *
      * @param cleartextMap        批量解密后的结果集 key:密文 value:明文
-     * @param clsFieldStrategyMap 用于缓存每个类需要解密的字段策略信息(key:class value(key:field的name value:加解密策略实例)
-     * @param clsFieldMap         缓存映射java类的每个字段 （key:class value(key:field的name value:field对象)）
+     * @param clsFieldStrategyMap 用于缓存每个类需要解密的字段策略信息(key:class value(key:field的toGenericString() value:加解密策略实例)
+     * @param clsFieldMap         缓存映射java类的每个字段 （key:class value(key:field的toGenericString() value:field对象)）
      * @param fieldEncryptorMap   解析sql的结果集
      * @param res                 mapper的执行结果
      * @author liutangqi
