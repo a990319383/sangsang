@@ -79,6 +79,14 @@ public class IsolationSelectVisitor extends BaseFieldParseTable implements Selec
      **/
     @Override
     public void visit(PlainSelect plainSelect) {
+        // CTE 定义挂在 PlainSelect 上时，先处理 CTE 内部的真实表
+        List<WithItem> withItems = plainSelect.getWithItemsList();
+        if (CollectionUtils.isNotEmpty(withItems)) {
+            for (WithItem withItem : withItems) {
+                withItem.accept(this);
+            }
+        }
+
         //1.处理from的表（只处理嵌套查询）
         FromItem fromItem = plainSelect.getFromItem();
         if (fromItem != null) {
@@ -107,6 +115,14 @@ public class IsolationSelectVisitor extends BaseFieldParseTable implements Selec
      **/
     @Override
     public void visit(SetOperationList setOpList) {
+        // WITH 定义挂在 SetOperationList 上时，先处理 CTE 内部的真实表
+        List<WithItem> withItems = setOpList.getWithItemsList();
+        if (CollectionUtils.isNotEmpty(withItems)) {
+            for (WithItem withItem : withItems) {
+                withItem.accept(this);
+            }
+        }
+
         List<Select> selects = setOpList.getSelects();
         List<Select> resSelectBody = new ArrayList<>();
         for (int i = 0; i < selects.size(); i++) {
@@ -125,9 +141,27 @@ public class IsolationSelectVisitor extends BaseFieldParseTable implements Selec
         setOpList.setSelects(resSelectBody);
     }
 
+    /**
+     * CTE语法 栗如： WITH x AS (SELECT id,name FROM tb_user)
+     * 这里括号内部的语法是一个完全独立的sql，不涉及访问外部作用域，所以单独处理即可
+     *
+     * @author liutangqi
+     * @date 2026/9/4 14:16
+     * @Param [withItem]
+     **/
     @Override
     public void visit(WithItem withItem) {
+        if (withItem.getSelect() == null) {
+            return;
+        }
 
+        //因为是完全独立的sql，所以单独解析这层sql
+        FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
+        withItem.getSelect().accept(fieldParseTableSelectVisitor);
+
+        //利用解析好的结果集，对内部字段进行数据权限隔离处理
+        IsolationSelectVisitor isolationSelectVisitor = IsolationSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor);
+        withItem.getSelect().accept(isolationSelectVisitor);
     }
 
     @Override

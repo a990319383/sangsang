@@ -1,0 +1,1 @@
+UPDATE tb_user tu SET tu.phone = su.mobile FROM sys_user su WHERE tu.id = su.id AND ((su.id = 333 OR su.role_id = 1111111) AND tu.role_id = 1111111)

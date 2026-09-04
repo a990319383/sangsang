@@ -1,0 +1,1 @@
+SELECT * FROM tb_user ts WHERE (SELECT max(id) FROM tb_user ts2 WHERE ts.role_id = 1111111 AND ts2.role_id = 1111111) = ts.id AND ts.role_id = 1111111

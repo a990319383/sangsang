@@ -118,9 +118,15 @@ public class IsolationStatementVisitor implements StatementVisitor {
         //update的表
         Table table = update.getTable();
         table.accept(fieldParseTableFromItemVisitor);
-        //join的表
+        //from中的表 栗如：UPDATE tb_user tu SET tu.phone = su.mobile FROM sys_user su WHERE tu.id = su.id ，这里是可以接from的
+        Optional.ofNullable(update.getFromItem()).ifPresent(p -> p.accept(fieldParseTableFromItemVisitor));
+        //join的表 (不同数据库的join解析有些许差异，有的在startJoins中，有的在joins中)
         List<Join> joins = Optional.ofNullable(update.getStartJoins()).orElse(new ArrayList<>());
         for (Join join : joins) {
+            join.getRightItem().accept(fieldParseTableFromItemVisitor);
+        }
+        List<Join> fromJoins = Optional.ofNullable(update.getJoins()).orElse(new ArrayList<>());
+        for (Join join : fromJoins) {
             join.getRightItem().accept(fieldParseTableFromItemVisitor);
         }
 
@@ -139,9 +145,9 @@ public class IsolationStatementVisitor implements StatementVisitor {
             return;
         }
 
-        //2.只用处理Insert(select) 这种情况，只有这样才会存在where需要处理的
+        //2.处理 Insert-Select 语句，括号和非括号形式的 select 都可能携带需要隔离的来源表  insert( select) 或者 insert select 有括号和没括号
         Select select = insert.getSelect();
-        if (select instanceof ParenthesedSelect) {
+        if (select != null) {
             //2.1 解析当前sql拥有的全部字段信息
             FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
             select.accept(fieldParseTableSelectVisitor);

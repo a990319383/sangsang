@@ -61,6 +61,15 @@ public class IsolationFromItemVisitor extends BaseFieldParseTable implements Fro
 
     }
 
+    /**
+     * from的是一个括号包裹起来的join这种语法
+     * 栗如： select * from (tb_user tu join sys_user su on tu.id = su.id)的括号里面的部分
+     * 这个语法和本功能无任何关联
+     *
+     * @author liutangqi
+     * @date 2026/9/4 13:42
+     * @Param [aThis]
+     **/
     @Override
     public void visit(ParenthesedFromItem aThis) {
 

@@ -6,9 +6,12 @@ import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.wrapper.LayerHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.DeepCloneUtil;
+import com.sangsang.util.JsqlparserUtil;
+import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.statement.select.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * select 语句解析每一层拥有的表和拥有的全部字段解析入口
@@ -99,6 +102,14 @@ public class FieldParseParseTableSelectVisitor extends BaseFieldParseTable imple
 
     @Override
     public void visit(PlainSelect plainSelect) {
+        //解析CTE语法 栗如： WITH x AS (SELECT * FROM tb_user)
+        List<WithItem> withItems = plainSelect.getWithItemsList();
+        if (CollectionUtils.isNotEmpty(withItems)) {
+            for (WithItem withItem : withItems) {
+                withItem.accept(this);
+            }
+        }
+
         // from 的表
         FromItem fromItem = plainSelect.getFromItem();
         if (fromItem != null) {
@@ -135,6 +146,14 @@ public class FieldParseParseTableSelectVisitor extends BaseFieldParseTable imple
      **/
     @Override
     public void visit(SetOperationList setOpList) {
+        // WITH 语句挂在 SetOperationList 上时，需要先解析 CTE 定义
+        List<WithItem> withItems = setOpList.getWithItemsList();
+        if (CollectionUtils.isNotEmpty(withItems)) {
+            for (WithItem withItem : withItems) {
+                withItem.accept(this);
+            }
+        }
+
         List<Select> selects = setOpList.getSelects();
         if (CollectionUtils.isEmpty(selects)) {
             return;
@@ -143,9 +162,48 @@ public class FieldParseParseTableSelectVisitor extends BaseFieldParseTable imple
         selectBody.accept(this);
     }
 
+    /**
+     * 解析CTE语法 栗如： WITH x AS (SELECT id,name FROM tb_user)
+     * 注意1：CTE的内部表达式是一个独立的sql，这里面不会访问外部作用域，所以解析的时候单独创建一个visitor进行解析
+     * 注意2：CTE的内部表达式的第一层作用域的字段结果集，就是这个CET表达式外部能访问的所有字段:栗子中x这个表这层拥有的全部字段就是id和name
+     *
+     * @author liutangqi
+     * @date 2026/9/4 13:10
+     * @Param [withItem]
+     **/
     @Override
     public void visit(WithItem withItem) {
+        //CTE 缺少内部表达式的错误语法，不处理
+        if (withItem.getSelect() == null) {
+            return;
+        }
 
+        //获取CTE的别名，正确语法下别名是必须有的
+        String aliasTable = Optional.ofNullable(withItem.getAlias()).map(Alias::getName).orElse(null);
+        if (aliasTable == null) {
+            return;
+        }
+
+        // 将CTE 内部语法属于单独的作用域,所以这里新建一个全新的visitor进行字段解析
+        FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
+        withItem.getSelect().accept(fieldParseTableSelectVisitor);
+
+        //上面解析完成后的第一层结果作为当前CTE的拥有字段
+        Map<String, List<FieldInfoDto>> selectTableFieldMap = fieldParseTableSelectVisitor.getLayerSelectTableFieldMap().getOrDefault(NumberConstant.ONE, CollectionUtils.EMPTY_MAP);
+        List<FieldInfoDto> fieldInfoSet = selectTableFieldMap.values()
+                .stream()
+                .flatMap(Collection::stream)
+                .map(m -> FieldInfoDto.builder()
+                        .fromSourceTable(false)
+                        .columnName(m.getColumnName())
+                        .sourceColumn(m.getSourceColumn())
+                        .sourceTableName(m.getSourceTableName())
+                        .rowNumber(m.isRowNumber())
+                        .build())
+                .collect(Collectors.toList());
+
+        //将上面解析的第一层结果集，放到当前sql这层作用域中
+        JsqlparserUtil.putFieldInfo(this.getLayerFieldTableMap(), this.getLayer(), aliasTable, fieldInfoSet);
     }
 
     @Override

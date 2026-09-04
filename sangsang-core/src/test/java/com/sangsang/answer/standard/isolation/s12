@@ -1,0 +1,1 @@
+SELECT * FROM tb_user tu WHERE (tu.id = coalesce((SELECT id FROM sys_user WHERE (sys_user.id = 333 OR sys_user.role_id = 1111111) AND tu.role_id = 1111111), 0)) AND tu.role_id = 1111111

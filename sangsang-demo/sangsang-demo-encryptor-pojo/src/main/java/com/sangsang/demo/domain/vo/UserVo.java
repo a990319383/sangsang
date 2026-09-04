@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
  * @date 2026/3/30 17:39
  */
 @Data
-public class UserVo {
+public class UserVo extends TestParentVo {
     /**
      * 主键
      */

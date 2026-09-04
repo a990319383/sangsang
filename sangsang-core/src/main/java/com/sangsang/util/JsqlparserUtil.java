@@ -663,7 +663,7 @@ public class JsqlparserUtil {
         //2.1.存储当前拼接的权限过滤条件(这里list存储的是不同的表的隔离字段)
         List<Expression> isolationExpressions = new ArrayList<>();
         //2.2.获取当前层字段信息
-        Map<String, List<FieldInfoDto>> fieldTableMap = fieldParseTable.getLayerFieldTableMap().get(fieldParseTable.getLayer());
+        Map<String, List<FieldInfoDto>> fieldTableMap = fieldParseTable.getLayerFieldTableMap().getOrDefault(fieldParseTable.getLayer(), CollectionUtils.EMPTY_MAP);
 
         //2.3.判断其中是否存在数据隔离的表
         for (Map.Entry<String, List<FieldInfoDto>> fieldTableEntry : fieldTableMap.entrySet()) {

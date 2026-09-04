@@ -1,0 +1,1 @@
+SELECT * FROM tb_user tu WHERE (EXISTS (SELECT id FROM sys_user WHERE (sys_user.id = 333 OR sys_user.role_id = 1111111) AND tu.role_id = 1111111) OR tu.phone = 'xxx') AND tu.role_id = 1111111

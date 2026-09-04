@@ -7,6 +7,7 @@ import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.domain.wrapper.FieldLinkedListWarpper;
+import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
 import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.schema.Table;
@@ -62,6 +63,7 @@ public class FieldParseParseTableFromItemVisitor extends BaseFieldParseTable imp
         String aliasTable = Optional.ofNullable(table.getAlias()).map(Alias::getName).orElse(tableName);
 
         //2.获取当前表的全部字段信息
+        //注意：这里是根据真实表名从本地缓存的表字段结构信息里面去拿该表的全部字段信息，如果遇到CTE语法的话，这里tableName是一个别名，拿不到，不过没关系，在WithItem维护的时候就已经维护进layerFieldTableMap中了
         List<FieldInfoDto> fieldInfoSet = Optional.ofNullable(TableCache.getTableFieldMap().get(tableName))
                 .orElse(new FieldLinkedListWarpper())
                 .stream()
@@ -130,11 +132,23 @@ public class FieldParseParseTableFromItemVisitor extends BaseFieldParseTable imp
      **/
     @Override
     public void visit(TableFunction tableFunction) {
-//        System.out.println("当前语法未适配");
     }
 
+    /**
+     * from的是一个括号包裹起来的join这种语法
+     * 栗如： select * from (tb_user tu join sys_user su on tu.id = su.id)的括号里面的部分
+     *
+     * @author liutangqi
+     * @date 2026/9/4 13:42
+     * @Param [aThis]
+     **/
     @Override
     public void visit(ParenthesedFromItem aThis) {
+        Optional.ofNullable(aThis.getFromItem()).ifPresent(p -> p.accept(this));
 
+        List<Join> joins = Optional.ofNullable(aThis.getJoins()).orElse(CollectionUtils.EMPTY_LIST);
+        for (Join join : joins) {
+            Optional.ofNullable(join.getRightItem()).ifPresent(p -> p.accept(this));
+        }
     }
 }

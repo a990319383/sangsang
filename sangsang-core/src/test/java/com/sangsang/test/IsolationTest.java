@@ -57,6 +57,26 @@ public class IsolationTest {
     //单表多策略，且单表不同策略之间关系是or
     String s8 = "select * from sys_user where login_name like 'xxx' or mobile = '18432154844'";
 
+    // 验证 AND 复合表达式左侧包含 IN 子查询时，子查询能够继续进行数据隔离
+    String s9 = "select * from tb_user tu where tu.id in (select id from sys_user) and tu.phone = 'xxx'";
+
+    // 验证 OR 复合表达式左侧包含 EXISTS 子查询时，子查询能够继续进行数据隔离
+    String s10 = "select * from tb_user tu where exists (select id from sys_user) or tu.phone = 'xxx'";
+
+    // 验证 NOT 包裹 EXISTS 子查询时，否定表达式不会阻断子查询的数据隔离
+    String s11 = "select * from tb_user tu where not exists (select id from sys_user)";
+
+    // 验证函数参数中包含标量子查询时，函数节点能够继续遍历并隔离子查询
+    String s12 = "select * from tb_user tu where tu.id = coalesce((select id from sys_user), 0)";
+
+    // 验证 WITH 公共表表达式内部引用真实隔离表时，CTE 查询能够追加隔离条件
+    String s13 = "with x as (select * from tb_user) select * from x";
+
+    // 验证 FROM 使用括号包裹多张真实表时，括号内的表仍能参与数据隔离
+    String s14 = "select * from (tb_user tu join sys_user su on tu.id = su.id)";
+
+    //where条件中有单独的查询
+    String s15 = "select * from tb_user ts  where (select max(id) from tb_user ts2) = ts.id";
 
     //普通的update语句
     String u1 = "update tb_user set  usert_name = ? where id = ?";
@@ -66,6 +86,9 @@ public class IsolationTest {
 
     //多表update,不带where条件
     String u3 = "update tb_user tu join sys_user su on tu.id = su.id set su.menu_name = su.name , tu.phone = su.password , tu.phone = su.name , tu.phone = ?";
+
+    // 验证 UPDATE ... FROM 语法中的 FROM 表能够参与数据隔离
+    String u4 = "update tb_user tu set tu.phone = su.mobile from sys_user su where tu.id = su.id";
 
     //普通删除
     String d1 = "delete from sys_user where id = ?";
@@ -82,8 +105,11 @@ public class IsolationTest {
     //普通的insert 语句
     String i2 = "insert into tb_user(user_name,phone) values(?,?)";
 
+    // 验证 INSERT ... SELECT 不使用括号时，来源表仍能追加数据隔离条件
+    String i3 = "insert into tb_user(user_name,phone) select login_name,mobile from sys_user";
+
     /**
-     * mysql转换为达梦的语法转换器测试
+     * 数据隔离测试
      *
      * @author liutangqi
      * @date 2025/5/22 11:01
@@ -97,7 +123,7 @@ public class IsolationTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要的sql
-        String sql = d3;
+        String sql = u2;
 
         //开始进行数据隔离
         Statement statement = JsqlparserUtil.parse(sql);
@@ -120,10 +146,10 @@ public class IsolationTest {
     //----------------------------------------校验当前程序是否正确分割线---------------------------------------------------------
     //需要测试的sql
     List<String> sqls = Arrays.asList(
-            s1, s2, s3, s4, s5, s6, s7, s8,
-            u1, u2, u3,
+            s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15,
+            u1, u2, u3, u4,
             d1, d2, d3,
-            i1, i2
+            i1, i2, i3
     );
 
 

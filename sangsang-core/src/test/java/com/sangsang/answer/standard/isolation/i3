@@ -1,0 +1,1 @@
+INSERT INTO tb_user (user_name, phone) SELECT login_name, mobile FROM sys_user WHERE (sys_user.id = 333 OR sys_user.role_id = 1111111)
