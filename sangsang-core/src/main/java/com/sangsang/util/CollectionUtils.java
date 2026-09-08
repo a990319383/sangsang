@@ -281,7 +281,7 @@ public class CollectionUtils {
     private static String fieldComparingRule(Object obj) {
         String comparingStr = obj.toString();
         if (!TableCache.getCurConfig().isCaseSensitive()) {
-            comparingStr = comparingStr.toLowerCase();
+            comparingStr = comparingStr.toLowerCase(Locale.ROOT);
         }
         for (String identifierQuote : TableCache.getCurConfig().getIdentifierQuote()) {
             comparingStr = comparingStr.replaceAll(identifierQuote, SymbolConstant.BLANK);

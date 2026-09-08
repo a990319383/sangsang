@@ -8,6 +8,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.io.Serializable;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -49,7 +50,7 @@ public class IgnoreCaseCacheKey implements Serializable {
     @Override
     public int hashCode() {
         //1.都转换为小写
-        String key = this.getCacheKey().toLowerCase();
+        String key = this.getCacheKey().toLowerCase(Locale.ROOT);
 
         //2.将处理好的key进行hashCode
         return Objects.hash(key);

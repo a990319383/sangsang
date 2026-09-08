@@ -149,7 +149,9 @@ public class StringUtils {
     }
 
     /**
-     * 判断sql中是否一定不存在 tableNames 中涉及的表
+     * 判断sql中是否一定不存在 tableNames 中涉及的关键字
+     * 注意1：这里是根据当前配置进行大小写敏感的判断
+     * 注意2：tableNames里面可能是存在标识符引用符的（比如@TableName中标注的表名含有``），所以这里判断的时候会将tableNames的标识符引用符给去除掉
      *
      * @return true:一定不存在  false: 可能存在
      * @author liutangqi
@@ -165,7 +167,7 @@ public class StringUtils {
         //2.当前大小写不敏感的话将此sql转换为小写
         String disposeSql = sql;
         if (!TableCache.getCurConfig().isCaseSensitive()) {
-            disposeSql = sql.toLowerCase();
+            disposeSql = sql.toLowerCase(Locale.ROOT);
         }
 
         //3.获取当前需要处理的表名，并根据当前项目配置进行大小写和关键符号的判断
@@ -173,7 +175,7 @@ public class StringUtils {
             //3.1 判断当前大小写不敏感的话，将表名转换为小写
             String disposeTableName = tableName;
             if (!TableCache.getCurConfig().isCaseSensitive()) {
-                disposeTableName = tableName.toLowerCase();
+                disposeTableName = tableName.toLowerCase(Locale.ROOT);
             }
             //3.2 去掉当前项目的标识符引用符
             for (String identifierQuote : TableCache.getCurConfig().getIdentifierQuote()) {
@@ -191,14 +193,18 @@ public class StringUtils {
     }
 
     /**
-     * 判断sql中是否一定不存在 keyword 中涉及的关键字
+     * 判断sql中是否一定不存在keyword关键字
+     * 注意1:这里判断时大小写不敏感
+     * 注意2：这里判断时不涉及标识符引用符的特殊判断
      *
      * @author liutangqi
-     * @date 2025/8/18 10:35
+     * @date 2026/9/7 10:16
      * @Param [sql, keyword]
      **/
-    public static boolean notExist(String sql, String keyword) {
-        return notExist(sql, CollUtil.newHashSet(keyword));
+    public static boolean notExistSimple(String sql, String keyword) {
+        String lowerCaseSql = sql.toLowerCase(Locale.ROOT);
+        String lowerCaseKeyword = keyword.toLowerCase(Locale.ROOT);
+        return lowerCaseSql.contains(lowerCaseKeyword);
     }
 
     /**
@@ -319,8 +325,8 @@ public class StringUtils {
         String compareA = a;
         String compareB = b;
         if (!TableCache.getCurConfig().isCaseSensitive()) {
-            compareA = a.toLowerCase();
-            compareB = b.toLowerCase();
+            compareA = a.toLowerCase(Locale.ROOT);
+            compareB = b.toLowerCase(Locale.ROOT);
         }
 
         //3.忽略当前项目的关键字符号，判断两个是否相等
@@ -432,8 +438,8 @@ public class StringUtils {
         String compare2 = sql2;
         //1.当前配置了大小写不敏感，则统一转换为小写
         if (!TableCache.getCurConfig().isCaseSensitive()) {
-            compare1 = sql1.toLowerCase();
-            compare2 = sql2.toLowerCase();
+            compare1 = sql1.toLowerCase(Locale.ROOT);
+            compare2 = sql2.toLowerCase(Locale.ROOT);
         }
 
         //2.获取当前项目的关键字，去除sql中全部的关键字标识符

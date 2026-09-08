@@ -7,6 +7,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.io.Serializable;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -52,7 +53,7 @@ public class FieldCacheKey implements Serializable {
         String key = this.getCacheKey();
         //1.如果当前大小写不敏感，则都转换为小写
         if (!TableCache.getCurConfig().isCaseSensitive()) {
-            key = key.toLowerCase();
+            key = key.toLowerCase(Locale.ROOT);
         }
 
         //2.去除关键字标识符
