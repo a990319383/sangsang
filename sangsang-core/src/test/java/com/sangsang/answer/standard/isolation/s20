@@ -1,0 +1,1 @@
+SELECT * FROM tb_user tu LEFT JOIN LATERAL(SELECT * FROM sys_user su WHERE (su.id = tu.id) AND (su.id = 333 OR su.role_id = 1111111) AND tu.role_id = 1111111 ORDER BY create_time DESC LIMIT 1) x ON TRUE WHERE tu.role_id = 1111111

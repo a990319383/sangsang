@@ -1,0 +1,1 @@
+WITH x AS (SELECT * FROM tb_user WHERE tb_user.role_id = 1111111) UPDATE sys_user SET mobile = (SELECT phone FROM x WHERE (sys_user.id = 333 OR sys_user.role_id = 1111111)) WHERE (sys_user.id = 333 OR sys_user.role_id = 1111111)

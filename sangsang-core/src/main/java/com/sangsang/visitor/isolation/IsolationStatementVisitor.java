@@ -2,6 +2,8 @@ package com.sangsang.visitor.isolation;
 
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.util.JsqlparserUtil;
+import com.sangsang.util.visitor.FieldParseVisitorUtil;
+import com.sangsang.util.visitor.IsolationVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import lombok.Getter;
@@ -28,8 +30,6 @@ import net.sf.jsqlparser.statement.grant.Grant;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.merge.Merge;
 import net.sf.jsqlparser.statement.refresh.RefreshMaterializedViewStatement;
-import net.sf.jsqlparser.statement.select.Join;
-import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.show.ShowIndexStatement;
 import net.sf.jsqlparser.statement.show.ShowTablesStatement;
@@ -89,20 +89,42 @@ public class IsolationStatementVisitor implements StatementVisitor {
 
         //2.解析涉及到的表拥有的全部字段信息
         FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        //update的表
+
+        //2.1 update的表
         Table table = delete.getTable();
-        table.accept(fieldParseTableFromItemVisitor);
-        //join的表
-        List<Join> joins = Optional.ofNullable(delete.getJoins()).orElse(new ArrayList<>());
-        for (Join join : joins) {
-            join.getRightItem().accept(fieldParseTableFromItemVisitor);
+        Optional.ofNullable(table).ifPresent(p -> p.accept(fieldParseTableFromItemVisitor));
+
+        //2.2 using中的表
+        List<Table> usingTables = Optional.ofNullable(delete.getUsingList()).orElse(new ArrayList<>());
+        for (Table usingTable : usingTables) {
+            Optional.ofNullable(usingTable).ifPresent(p -> p.accept(fieldParseTableFromItemVisitor));
         }
 
-        //3.处理where的条件
+        //2.3 DELETE目标表列表
+        List<Table> targetTables = Optional.ofNullable(delete.getTables()).orElse(new ArrayList<>());
+        for (Table targetTable : targetTables) {
+            Optional.ofNullable(targetTable).ifPresent(p -> p.accept(fieldParseTableFromItemVisitor));
+        }
+
+        //2.4 join的表
+        FieldParseVisitorUtil.joins(delete.getJoins(), fieldParseTableFromItemVisitor);
+
+        //3.特殊语法数据隔离处理
+        //3.1 joins 存在的子查询
+        IsolationVisitorUtil.joins(delete.getJoins(), IsolationFromItemVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor));
+
+        //3.2 CTE中的查询也需要进行数据隔离
+        IsolationSelectVisitor isolationSelectVisitor = IsolationSelectVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor);
+        IsolationVisitorUtil.cte(delete.getWithItemsList(), isolationSelectVisitor);
+
+        //3.3 Order by 中可能存在子查询
+        IsolationVisitorUtil.orderByElements(delete.getOrderByElements(), IsolationExpressionVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor));
+
+        //4.处理where的条件
         Optional.ofNullable(JsqlparserUtil.isolationWhere(delete.getWhere(), fieldParseTableFromItemVisitor))
                 .ifPresent(p -> delete.setWhere(p));
 
-        //4.处理结果赋值
+        //5.处理结果赋值
         this.resultSql = delete.toString();
     }
 
@@ -115,26 +137,47 @@ public class IsolationStatementVisitor implements StatementVisitor {
 
         //2.解析涉及到的表拥有的全部字段信息
         FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        //update的表
+
+        //2.1 update的表
         Table table = update.getTable();
         table.accept(fieldParseTableFromItemVisitor);
-        //from中的表 栗如：UPDATE tb_user tu SET tu.phone = su.mobile FROM sys_user su WHERE tu.id = su.id ，这里是可以接from的
-        Optional.ofNullable(update.getFromItem()).ifPresent(p -> p.accept(fieldParseTableFromItemVisitor));
-        //join的表 (不同数据库的join解析有些许差异，有的在startJoins中，有的在joins中)
-        List<Join> joins = Optional.ofNullable(update.getStartJoins()).orElse(new ArrayList<>());
-        for (Join join : joins) {
-            join.getRightItem().accept(fieldParseTableFromItemVisitor);
-        }
-        List<Join> fromJoins = Optional.ofNullable(update.getJoins()).orElse(new ArrayList<>());
-        for (Join join : fromJoins) {
-            join.getRightItem().accept(fieldParseTableFromItemVisitor);
+
+        //2.2 join的内容
+        FieldParseVisitorUtil.joins(update.getStartJoins(), fieldParseTableFromItemVisitor);
+        FieldParseVisitorUtil.joins(update.getJoins(), fieldParseTableFromItemVisitor);
+
+        //2.3 from中的表 栗如：UPDATE tb_user tu SET tu.phone = su.mobile FROM sys_user su WHERE tu.id = su.id ，这里是可以接from的
+        if (update.getFromItem() != null) {
+            update.getFromItem().accept(fieldParseTableFromItemVisitor);
         }
 
-        //3.处理where的条件
+        //3.处理特殊语法的数据权限隔离
+        //3.1 CTE中的查询进行数据隔离
+        IsolationSelectVisitor isolationSelectVisitor = IsolationSelectVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor);
+        IsolationVisitorUtil.cte(update.getWithItemsList(), isolationSelectVisitor);
+
+        //3.2 join的表 (不同数据库的join解析有些许差异，有的在startJoins中，有的在joins中)
+        IsolationFromItemVisitor isolationFromItemVisitor = IsolationFromItemVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor);
+        IsolationVisitorUtil.joins(update.getStartJoins(), isolationFromItemVisitor);
+        IsolationVisitorUtil.joins(update.getJoins(), isolationFromItemVisitor);
+
+        //3.3 from中的表 栗如：UPDATE tb_user tu SET tu.phone = su.mobile FROM sys_user su WHERE tu.id = su.id ，这里是可以接from的
+        if (update.getFromItem() != null) {
+            update.getFromItem().accept(isolationFromItemVisitor);
+        }
+
+        //3.4 SET表达式中的标量子查询、EXISTS等嵌套查询
+        IsolationExpressionVisitor isolationExpressionVisitor = IsolationExpressionVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor);
+        IsolationVisitorUtil.updateSets(update.getUpdateSets(), isolationExpressionVisitor);
+
+        //3.5 ORDER BY中的子查询
+        IsolationVisitorUtil.orderByElements(update.getOrderByElements(), isolationExpressionVisitor);
+
+        //4.处理where的条件
         Optional.ofNullable(JsqlparserUtil.isolationWhere(update.getWhere(), fieldParseTableFromItemVisitor))
                 .ifPresent(p -> update.setWhere(p));
 
-        //4.处理结果赋值
+        //5.处理结果赋值
         this.resultSql = update.toString();
     }
 

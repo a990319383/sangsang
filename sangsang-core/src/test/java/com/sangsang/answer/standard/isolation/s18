@@ -1,0 +1,1 @@
+SELECT tu.role_id, count(*) FROM tb_user tu WHERE tu.role_id = 1111111 GROUP BY tu.role_id HAVING EXISTS (SELECT 1 FROM sys_user su WHERE (su.id = 333 OR su.role_id = 1111111) AND tu.role_id = 1111111)

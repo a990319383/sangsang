@@ -1,0 +1,1 @@
+DELETE tu FROM tb_user tu JOIN (SELECT id FROM sys_user WHERE (sys_user.id = 333 OR sys_user.role_id = 1111111)) su ON tu.id = su.id WHERE tu.id IN (SELECT id FROM sys_user WHERE (sys_user.id = 333 OR sys_user.role_id = 1111111) AND tu.role_id = 1111111) AND (tu.role_id = 1111111)

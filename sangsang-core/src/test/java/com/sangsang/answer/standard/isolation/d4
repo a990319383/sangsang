@@ -1,0 +1,1 @@
+DELETE FROM tb_user USING sys_user su WHERE (tb_user.id = su.id) AND (su.id = 333 OR su.role_id = 1111111) AND tb_user.role_id = 1111111

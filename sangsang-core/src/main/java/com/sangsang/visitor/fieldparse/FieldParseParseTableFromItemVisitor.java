@@ -7,6 +7,7 @@ import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.domain.wrapper.FieldLinkedListWarpper;
+import com.sangsang.domain.wrapper.LayerHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
 import net.sf.jsqlparser.expression.Alias;
@@ -115,7 +116,36 @@ public class FieldParseParseTableFromItemVisitor extends BaseFieldParseTable imp
 
     @Override
     public void visit(LateralSubSelect lateralSubSelect) {
-        System.out.println("当前语法未适配");
+        //0.LATERAL子查询的别名，作为当前层字段的表名
+        String aliasTable = Optional.ofNullable(lateralSubSelect.getAlias()).map(Alias::getName).orElse(FieldConstant.LATERAL_TABLE_ALIAS + this.getLayer());
+
+        //1.LATERAL子查询可以访问外层字段，但是这个子查询结果独立，我们只需要子查询的最外层的结果集，所以我们使用newInstanceIndividualMap共用当前解析结果集，但是解析结果不影响当前的结果集
+        FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceIndividualMap(this);
+        Optional.ofNullable(lateralSubSelect.getSelect()).ifPresent(p -> p.accept(fieldParseTableSelectVisitor));
+
+        //2.将LATERAL子查询的最外侧解析结果维护到 LATERAL 别名的这张表中  注意：这里获取最外层时，如果能剥离出上游作用域的解析结果时是不要上游的解析结果的，所以使用getExclusiveUpstreamScope
+        Map<String, List<FieldInfoDto>> selectTableFieldMap = fieldParseTableSelectVisitor.getLayerSelectTableFieldMap().get(NumberConstant.ONE);
+        if (fieldParseTableSelectVisitor.getLayerSelectTableFieldMap() instanceof LayerHashMapWrapper) {
+            selectTableFieldMap = ((LayerHashMapWrapper) fieldParseTableSelectVisitor.getLayerSelectTableFieldMap()).getExclusiveUpstreamScope(NumberConstant.ONE);
+        }
+
+        //3.类型转换
+        List<FieldInfoDto> fieldInfoSet = Optional.ofNullable(selectTableFieldMap)
+                .orElse((Map<String, List<FieldInfoDto>>) CollectionUtils.EMPTY_MAP)
+                .values()
+                .stream()
+                .flatMap(Collection::stream)
+                .map(m -> FieldInfoDto.builder()
+                        .fromSourceTable(false)
+                        .columnName(m.getColumnName())
+                        .sourceColumn(m.getSourceColumn())
+                        .sourceTableName(m.getSourceTableName())
+                        .rowNumber(m.isRowNumber())
+                        .build())
+                .collect(Collectors.toList());
+
+        //4.将当前层的全部字段维护进 layerFieldTableMap 中
+        JsqlparserUtil.putFieldInfo(this.getLayerFieldTableMap(), this.getLayer(), aliasTable, fieldInfoSet);
     }
 
     /**

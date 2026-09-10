@@ -1,21 +1,11 @@
 package com.sangsang.visitor.isolation;
 
-import com.sangsang.cache.fieldparse.TableCache;
-import com.sangsang.cache.isolation.IsolationInstanceCache;
-import com.sangsang.domain.annos.isolation.DataIsolation;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
-import com.sangsang.domain.enums.IsolationConditionalRelationEnum;
-import com.sangsang.domain.strategy.isolation.DataIsolationStrategy;
-import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
-import com.sangsang.util.ExpressionsUtil;
 import com.sangsang.util.JsqlparserUtil;
-import com.sangsang.util.StringUtils;
+import com.sangsang.util.visitor.IsolationVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
-import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.Parenthesis;
-import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.statement.select.*;
 
 import java.util.*;
@@ -79,31 +69,47 @@ public class IsolationSelectVisitor extends BaseFieldParseTable implements Selec
      **/
     @Override
     public void visit(PlainSelect plainSelect) {
-        // CTE 定义挂在 PlainSelect 上时，先处理 CTE 内部的真实表
-        List<WithItem> withItems = plainSelect.getWithItemsList();
-        if (CollectionUtils.isNotEmpty(withItems)) {
-            for (WithItem withItem : withItems) {
-                withItem.accept(this);
-            }
-        }
+        //1.创建共有的visitor
+        IsolationFromItemVisitor isolationFromItemVisitor = IsolationFromItemVisitor.newInstanceCurLayer(this);
+        IsolationSelectItemVisitor isolationSelectItemVisitor = IsolationSelectItemVisitor.newInstanceCurLayer(this);
+        IsolationExpressionVisitor isolationExpressionVisitor = IsolationExpressionVisitor.newInstanceCurLayer(this);
 
-        //1.处理from的表（只处理嵌套查询）
-        FromItem fromItem = plainSelect.getFromItem();
-        if (fromItem != null) {
-            fromItem.accept(IsolationFromItemVisitor.newInstanceCurLayer(this));
-        }
+        //2.CTE 定义挂在 PlainSelect 上时，优先处理 CTE 内部的真实表
+        IsolationVisitorUtil.cte(plainSelect.getWithItemsList(), this);
 
-        //2.处理selectItem中属于子查询的字段
+        //3.处理from的表（主要针对嵌套查询）
+        Optional.ofNullable(plainSelect.getFromItem())
+                .ifPresent(p -> p.accept(isolationFromItemVisitor));
+
+        //4.处理join右表和on条件中的子查询 (LATERAL 语法 rightItem 中也会存在子查询)
+        IsolationVisitorUtil.joins(plainSelect.getJoins(), isolationFromItemVisitor);
+
+        //5.处理selectItem中属于子查询的字段
         List<SelectItem<?>> selectItems = plainSelect.getSelectItems();
         if (CollectionUtils.isNotEmpty(selectItems)) {
             for (SelectItem<?> selectItem : selectItems) {
-                selectItem.accept(IsolationSelectItemVisitor.newInstanceCurLayer(this));
+                selectItem.accept(isolationSelectItemVisitor);
             }
         }
 
-        //3.处理where条件
+        //6.处理where条件
         Optional.ofNullable(JsqlparserUtil.isolationWhere(plainSelect.getWhere(), this))
                 .ifPresent(p -> plainSelect.setWhere(p));
+
+        //7.处理having条件中的子查询
+        Optional.ofNullable(plainSelect.getHaving())
+                .ifPresent(p -> p.accept(isolationExpressionVisitor));
+
+        //8.处理qualify条件中的子查询
+        Optional.ofNullable(plainSelect.getQualify())
+                .ifPresent(p -> p.accept(isolationExpressionVisitor));
+
+        //9.处理group by表达式中的子查询
+        IsolationVisitorUtil.groupByElement(plainSelect.getGroupBy(), isolationExpressionVisitor);
+
+        //10.处理顶层order by表达式中的子查询
+        IsolationVisitorUtil.orderByElements(plainSelect.getOrderByElements(), isolationExpressionVisitor);
+
     }
 
     /**
@@ -116,12 +122,7 @@ public class IsolationSelectVisitor extends BaseFieldParseTable implements Selec
     @Override
     public void visit(SetOperationList setOpList) {
         // WITH 定义挂在 SetOperationList 上时，先处理 CTE 内部的真实表
-        List<WithItem> withItems = setOpList.getWithItemsList();
-        if (CollectionUtils.isNotEmpty(withItems)) {
-            for (WithItem withItem : withItems) {
-                withItem.accept(this);
-            }
-        }
+        IsolationVisitorUtil.cte(setOpList.getWithItemsList(), this);
 
         List<Select> selects = setOpList.getSelects();
         List<Select> resSelectBody = new ArrayList<>();
@@ -139,6 +140,9 @@ public class IsolationSelectVisitor extends BaseFieldParseTable implements Selec
             resSelectBody.add(select);
         }
         setOpList.setSelects(resSelectBody);
+
+        //处理UNION等集合查询最外层ORDER BY表达式中的子查询
+        IsolationVisitorUtil.orderByElements(setOpList.getOrderByElements(), IsolationExpressionVisitor.newInstanceCurLayer(this));
     }
 
     /**

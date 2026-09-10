@@ -193,21 +193,6 @@ public class StringUtils {
     }
 
     /**
-     * 判断sql中是否一定不存在keyword关键字
-     * 注意1:这里判断时大小写不敏感
-     * 注意2：这里判断时不涉及标识符引用符的特殊判断
-     *
-     * @author liutangqi
-     * @date 2026/9/7 10:16
-     * @Param [sql, keyword]
-     **/
-    public static boolean notExistSimple(String sql, String keyword) {
-        String lowerCaseSql = sql.toLowerCase(Locale.ROOT);
-        String lowerCaseKeyword = keyword.toLowerCase(Locale.ROOT);
-        return lowerCaseSql.contains(lowerCaseKeyword);
-    }
-
-    /**
      * 将字符串中的整行的空白去除
      *
      * @author liutangqi
@@ -478,5 +463,58 @@ public class StringUtils {
         return map.values().stream().filter(f -> f > 0).count() == 0;
     }
 
+
+    /**
+     * 判断一个字符串是否包含另一个字符串（全词匹配，忽略大小写）
+     * 例如：containsWholeWord("abcd", "bc") -> false
+     * containsWholeWord("a bc d", "bc") -> true
+     *
+     * @param text 原始文本
+     * @param word 要查找的单词
+     * @return 是否包含
+     * @author deepseek
+     */
+    public static boolean containsWholeWordIgnoreCase(String text, String word) {
+        // 1. 空值校验
+        if (text == null || word == null || word.isEmpty()) {
+            return false;
+        }
+
+        String lowerText = text.toLowerCase(Locale.ROOT);
+        String lowerWord = word.toLowerCase(Locale.ROOT);
+
+        // 如果单词长度大于文本，直接返回 false
+        if (lowerWord.length() > lowerText.length()) {
+            return false;
+        }
+
+        int index = lowerText.indexOf(lowerWord);
+        while (index != -1) {
+            int endIndex = index + lowerWord.length();
+
+            // 检查左侧边界：要么在开头，要么前一个字符不是单词字符
+            boolean leftBoundary = (index == 0) || !isWordChar(lowerText.charAt(index - 1));
+            // 检查右侧边界：要么在结尾，要么后一个字符不是单词字符
+            boolean rightBoundary = (endIndex == lowerText.length()) || !isWordChar(lowerText.charAt(endIndex));
+
+            if (leftBoundary && rightBoundary) {
+                return true;
+            }
+
+            // 没匹配上，从下一个位置继续找
+            index = lowerText.indexOf(lowerWord, index + 1);
+        }
+        return false;
+    }
+
+    /**
+     * 判断是否是单词字符（字母、数字、下划线）
+     * 对应正则中的 \w
+     *
+     * @author deepseek
+     */
+    private static boolean isWordChar(char c) {
+        return Character.isLetterOrDigit(c) || c == '_';
+    }
 
 }

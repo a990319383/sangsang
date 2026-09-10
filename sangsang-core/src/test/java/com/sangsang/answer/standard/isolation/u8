@@ -1,0 +1,1 @@
+UPDATE tb_user tu SET tu.phone = ? WHERE tu.id = ? AND tu.role_id = 1111111 ORDER BY (SELECT max(id) FROM sys_user WHERE (sys_user.id = 333 OR sys_user.role_id = 1111111) AND tu.role_id = 1111111) LIMIT 1

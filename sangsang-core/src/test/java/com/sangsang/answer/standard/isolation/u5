@@ -1,0 +1,1 @@
+UPDATE tb_user SET phone = (SELECT mobile FROM sys_user WHERE tb_user.role_id = 1111111 AND (sys_user.id = 333 OR sys_user.role_id = 1111111)) WHERE tb_user.role_id = 1111111

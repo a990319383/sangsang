@@ -6,6 +6,8 @@ import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.wrapper.FieldHashMapWrapper;
+import com.sangsang.domain.wrapper.LayerHashMapWrapper;
+import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.StringUtils;
 import net.sf.jsqlparser.expression.*;
@@ -570,8 +572,12 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
      **/
     @Override
     public void visit(AllColumns allColumns) {
-        //本层的全部字段
-        Map<String, List<FieldInfoDto>> fieldMap = Optional.ofNullable(this.getLayerFieldTableMap().get(this.getLayer())).orElse(new FieldHashMapWrapper<>());
+        //本层的全部字段，注意：sql语言中，如果内层子查询可以访问外层的作用域变量时，select * 是只包含内层表的，所以下面在能区分外层作用域字段的情况下，不要外层作用域的字段
+        Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap = this.getLayerFieldTableMap();
+        Map<String, List<FieldInfoDto>> fieldMap = Optional.ofNullable(layerFieldTableMap.get(this.getLayer())).orElse(CollectionUtils.EMPTY_MAP);
+        if (layerFieldTableMap instanceof LayerHashMapWrapper) {
+            fieldMap = Optional.ofNullable(((LayerHashMapWrapper) layerFieldTableMap).getExclusiveUpstreamScope(this.getLayer())).orElse(CollectionUtils.EMPTY_MAP);
+        }
 
         //将本层全部字段放到 select的map中
         for (Map.Entry<String, List<FieldInfoDto>> fieldInfoEntry : fieldMap.entrySet()) {

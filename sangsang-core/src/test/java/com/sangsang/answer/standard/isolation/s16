@@ -1,0 +1,1 @@
+SELECT * FROM ((SELECT * FROM tb_user WHERE tb_user.role_id = 1111111) tu JOIN sys_user su ON tu.id = su.id) WHERE (su.id = 333 OR su.role_id = 1111111)

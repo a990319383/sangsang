@@ -690,7 +690,7 @@ public class JsqlparserUtil {
                             isolationFieldMap.put(isolationField, strategies);
                         }
                     });
-            if (org.springframework.util.CollectionUtils.isEmpty(isolationFieldMap)) {
+            if (CollectionUtils.isEmpty(isolationFieldMap)) {
                 continue;
             }
 
@@ -758,11 +758,11 @@ public class JsqlparserUtil {
         //5.2 旧sql存在where， 旧的表达式的关系和现在肯定是and的关系，将旧表达用括号包起来，否则里面存在or的话会有语义错误
         {
             //5.2.1 旧的where 表达式中可能存在or的话，则使用括号包裹起来
-            if (!(curWhere instanceof Parenthesis) && !StringUtils.notExistSimple(curWhere.toString(), "or")) {
+            if (!(curWhere instanceof Parenthesis) && StringUtils.containsWholeWordIgnoreCase(curWhere.toString(), "or")) {
                 curWhere = ExpressionsUtil.buildParenthesis(curWhere);
             }
             //5.2.2 额外新增的隔离条件中可能存在or的话，使用括号包裹起来
-            if (!(whereIsolation instanceof Parenthesis) && !StringUtils.notExistSimple(whereIsolation.toString(), "or")) {
+            if (!(whereIsolation instanceof Parenthesis) && StringUtils.containsWholeWordIgnoreCase(whereIsolation.toString(), "or")) {
                 whereIsolation = ExpressionsUtil.buildParenthesis(whereIsolation);
             }
             //5.2.3 将旧的where表达式和额外增加的隔离表达式使用and拼接

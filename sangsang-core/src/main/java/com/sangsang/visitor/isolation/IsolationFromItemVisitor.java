@@ -2,6 +2,8 @@ package com.sangsang.visitor.isolation;
 
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
+import com.sangsang.util.visitor.IsolationVisitorUtil;
+import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.*;
 
@@ -51,9 +53,24 @@ public class IsolationFromItemVisitor extends BaseFieldParseTable implements Fro
                 .ifPresent(p -> p.accept(IsolationSelectVisitor.newInstanceNextLayer(this)));
     }
 
+    /**
+     * Lateral这种语法这个子查询时一个可以访问外部作用域的相对独立的子查询，这里单独解析处理
+     *
+     * @author liutangqi
+     * @date 2026/9/8 16:24
+     * @Param [lateralSubSelect]
+     **/
     @Override
     public void visit(LateralSubSelect lateralSubSelect) {
+        if (lateralSubSelect.getSelect() == null) {
+            return;
+        }
+        //因为可以访问外部作用域，并且相对独立，所以解析结果不能污染上级作用域的解析结果，故这里用newInstanceIndividualMap
+        FieldParseParseTableSelectVisitor fieldParseParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceIndividualMap(this);
+        lateralSubSelect.getSelect().accept(fieldParseParseTableSelectVisitor);
 
+        //利用单独的解析结果集，进行语法隔离处理
+        lateralSubSelect.getSelect().accept(IsolationSelectVisitor.newInstanceCurLayer(fieldParseParseTableSelectVisitor));
     }
 
     @Override
@@ -64,7 +81,7 @@ public class IsolationFromItemVisitor extends BaseFieldParseTable implements Fro
     /**
      * from的是一个括号包裹起来的join这种语法
      * 栗如： select * from (tb_user tu join sys_user su on tu.id = su.id)的括号里面的部分
-     * 这个语法和本功能无任何关联
+     * 测试用例的s16就会走这里
      *
      * @author liutangqi
      * @date 2026/9/4 13:42
@@ -72,6 +89,9 @@ public class IsolationFromItemVisitor extends BaseFieldParseTable implements Fro
      **/
     @Override
     public void visit(ParenthesedFromItem aThis) {
+        Optional.ofNullable(aThis.getFromItem()).ifPresent(p -> p.accept(this));
 
+        //处理joins
+        IsolationVisitorUtil.joins(aThis.getJoins(), this);
     }
 }

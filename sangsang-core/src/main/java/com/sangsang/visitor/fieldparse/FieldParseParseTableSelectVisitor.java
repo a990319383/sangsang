@@ -7,6 +7,7 @@ import com.sangsang.domain.wrapper.LayerHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.DeepCloneUtil;
 import com.sangsang.util.JsqlparserUtil;
+import com.sangsang.util.visitor.FieldParseVisitorUtil;
 import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.statement.select.*;
 
@@ -103,12 +104,7 @@ public class FieldParseParseTableSelectVisitor extends BaseFieldParseTable imple
     @Override
     public void visit(PlainSelect plainSelect) {
         //解析CTE语法 栗如： WITH x AS (SELECT * FROM tb_user)
-        List<WithItem> withItems = plainSelect.getWithItemsList();
-        if (CollectionUtils.isNotEmpty(withItems)) {
-            for (WithItem withItem : withItems) {
-                withItem.accept(this);
-            }
-        }
+        FieldParseVisitorUtil.cte(plainSelect.getWithItemsList(), this);
 
         // from 的表
         FromItem fromItem = plainSelect.getFromItem();
@@ -147,12 +143,7 @@ public class FieldParseParseTableSelectVisitor extends BaseFieldParseTable imple
     @Override
     public void visit(SetOperationList setOpList) {
         // WITH 语句挂在 SetOperationList 上时，需要先解析 CTE 定义
-        List<WithItem> withItems = setOpList.getWithItemsList();
-        if (CollectionUtils.isNotEmpty(withItems)) {
-            for (WithItem withItem : withItems) {
-                withItem.accept(this);
-            }
-        }
+        FieldParseVisitorUtil.cte(setOpList.getWithItemsList(), this);
 
         List<Select> selects = setOpList.getSelects();
         if (CollectionUtils.isEmpty(selects)) {

@@ -1,0 +1,1 @@
+DELETE FROM tb_user WHERE tb_user.role_id = 1111111 ORDER BY (SELECT max(id) FROM sys_user WHERE tb_user.role_id = 1111111 AND (sys_user.id = 333 OR sys_user.role_id = 1111111)) LIMIT 1

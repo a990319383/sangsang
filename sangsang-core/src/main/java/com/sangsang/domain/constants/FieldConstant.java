@@ -23,6 +23,10 @@ public interface FieldConstant {
     String VIRTUAL_TABLE_ALIAS = "VIRTUAL_TABLE_ALIAS_";
 
     /**
+     * 某些数据库的LATERAL语法支持没有别名，此时将这个前缀 + 层数作为表别名
+     */
+    String LATERAL_TABLE_ALIAS = "LATERAL_TABLE_ALIAS_";
+    /**
      * 对于？ 占位符的替换，后面拼接自增序号，从0开始
      */
     String PLACEHOLDER = "encryptor_placeholder_";
