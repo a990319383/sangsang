@@ -24,6 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -237,6 +238,8 @@ public class ExpressionsUtil {
 
     /**
      * 构建 if(condition,leftExp,rightExp) 函数
+     * 注意：if() 是 mysql 专有函数，oracle、postgresql、达梦等数据库不支持，
+     * 需要跨数据库兼容的场景请使用 {@link #buildCaseWhen}（标准sql的 case when 语法）
      *
      * @author liutangqi
      * @date 2025/7/21 9:47
@@ -251,17 +254,38 @@ public class ExpressionsUtil {
 
 
     /**
+     * 构建 case when condition then leftExp else rightExp end 表达式
+     * 注意：case when 是标准sql语法，mysql、oracle、postgresql、达梦等主流数据库均支持；
+     * 请勿改用 mysql 专有的 if() 函数（见 buildIf），非mysql方言的数据库执行会报错
+     *
+     * @author liutangqi
+     * @date 2026/9/11 9:30
+     * @Param [condition, leftExp, rightExp]
+     **/
+    public static CaseExpression buildCaseWhen(Expression condition, Expression leftExp, Expression rightExp) {
+        WhenClause whenClause = new WhenClause();
+        whenClause.setWhenExpression(condition);
+        whenClause.setThenExpression(leftExp);
+
+        CaseExpression caseExpression = new CaseExpression();
+        caseExpression.setWhenClauses(Collections.singletonList(whenClause));
+        caseExpression.setElseExpression(rightExp);
+        return caseExpression;
+    }
+
+
+    /**
      * 保留condition条件，构建出的结果值肯定是 exp
-     * if(condition is null ,exp,exp)
+     * case when condition is null then exp else exp end
      *
      * @author liutangqi
      * @date 2025/7/24 10:43
      * @Param [condition, exp]
      **/
-    public static Function buildAffirmativeIf(Expression condition, Expression exp) {
+    public static CaseExpression buildAffirmative(Expression condition, Expression exp) {
         IsNullExpression isNullExpression = new IsNullExpression();
         isNullExpression.setLeftExpression(condition);
-        return buildIf(isNullExpression, exp, exp);
+        return buildCaseWhen(isNullExpression, exp, exp);
     }
 
 

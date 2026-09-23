@@ -628,11 +628,11 @@ public class JsqlparserUtil {
      **/
     public static ExpressionList completeFiledDefaultValues(List<FieldDefault> upstreamFieldDefaultColumns, ExpressionList<Expression> expressions) {
         for (int i = 0; i < upstreamFieldDefaultColumns.size(); i++) {
-            //1.需要设置默认值的字段原sql就存在，并且开启了强制覆盖 则将默认值给原sql用if的方式给替换了
+            //1.需要设置默认值的字段原sql就存在，并且开启了强制覆盖 则将默认值给原sql用case when的方式给替换了（标准sql语法，兼容mysql、oracle、postgresql、达梦等数据库）
             if (i < expressions.size() && upstreamFieldDefaultColumns.get(i) != null && upstreamFieldDefaultColumns.get(i).mandatoryOverride()) {
                 Expression fieldDefaultExp = ExpressionsUtil.buildFieldDefaultExp(upstreamFieldDefaultColumns.get(i).value());
-                Function ifFunction = ExpressionsUtil.buildAffirmativeIf(expressions.get(i), fieldDefaultExp);
-                expressions.set(i, ifFunction);
+                Expression caseWhenExp = ExpressionsUtil.buildAffirmative(expressions.get(i), fieldDefaultExp);
+                expressions.set(i, caseWhenExp);
             }
 
             //2.需要设置默认值的字段原sql不存在，则新增

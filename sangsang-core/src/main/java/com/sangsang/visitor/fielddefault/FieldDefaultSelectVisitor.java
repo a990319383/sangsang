@@ -7,7 +7,6 @@ import com.sangsang.util.ExpressionsUtil;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.Function;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.statement.select.*;
 
@@ -98,12 +97,12 @@ public class FieldDefaultSelectVisitor extends BaseFieldParseTable implements Se
             if (i < selectItems.size()) {
                 itemRes.add(selectItems.get(i));
             }
-            //2.2 需要设置默认值的字段原sql就存在，并且开启了强制覆盖 则将默认值给原sql用if的方式给替换了
+            //2.2 需要设置默认值的字段原sql就存在，并且开启了强制覆盖 则将默认值给原sql用case when的方式给替换了（标准sql语法，兼容mysql、oracle、postgresql、达梦等数据库）
             if (i < selectItems.size() && upstreamFieldDefaultColumns.get(i) != null && upstreamFieldDefaultColumns.get(i).mandatoryOverride()) {
                 Expression fieldDefaultExp = ExpressionsUtil.buildFieldDefaultExp(upstreamFieldDefaultColumns.get(i).value());
-                Function ifFunction = ExpressionsUtil.buildAffirmativeIf(selectItems.get(i).getExpression(), fieldDefaultExp);
+                Expression caseWhenExp = ExpressionsUtil.buildAffirmative(selectItems.get(i).getExpression(), fieldDefaultExp);
                 //这里的场景应该不需要处理别名
-                itemRes.set(i, new SelectItem(ifFunction));
+                itemRes.set(i, new SelectItem(caseWhenExp));
             }
             //2.3 需要设置默认值的字段原sql不存在，则新增
             if (i >= selectItems.size() && upstreamFieldDefaultColumns.get(i) != null) {

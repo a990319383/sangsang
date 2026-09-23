@@ -1,1 +1,1 @@
-INSERT INTO tb_user (user_name, login_name, login_pwd, phone, role_id, id, create_time, update_time) VALUES (?, ?, ?, ?, ?, ?, ?, if(? IS NULL, '2025-11-14 10:07:13', '2025-11-14 10:07:13'))
+INSERT INTO tb_user (user_name, login_name, login_pwd, phone, role_id, id, create_time, update_time) VALUES (?, ?, ?, ?, ?, ?, ?, CASE WHEN ? IS NULL THEN '2025-11-14 10:07:13' ELSE '2025-11-14 10:07:13' END)

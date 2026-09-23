@@ -19,7 +19,6 @@ import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.Function;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
@@ -153,10 +152,11 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
             //3.2 标注了@FieldDefault 并且开启了强制覆盖，此时用策略的默认值替换掉原值
             //注意：这里不能单纯的直接覆盖，如果原sql是通过#{}传参的方式预编译设置的值的话，直接替换会导致参数个数对不上，执行报错。
             //如果修改参数个数的话会涉及到在拦截器层再做一次复杂的参数对应，而且容易影响到其它拦截器
-            //所以这里采用if语句给包一层， 将原先的  set xxx= ? 改为  set xxx= if(? is null,策略默认值,策略默认值) 达到不修改参数个数替换值的目的
+            //所以这里采用case when语句给包一层， 将原先的  set xxx= ? 改为  set xxx= case when ? is null then 策略默认值 else 策略默认值 end 达到不修改参数个数替换值的目的
+            //（case when是标准sql语法，兼容mysql、oracle、postgresql、达梦等数据库，不能使用mysql专有的if函数）
             Expression strategyExp = ExpressionsUtil.buildFieldDefaultExp(fieldDefault.value());
-            Function ifFunction = ExpressionsUtil.buildAffirmativeIf(updateSet.getValue(0), strategyExp);
-            updateSet.setValues(new ExpressionList(ifFunction));
+            Expression caseWhenExp = ExpressionsUtil.buildAffirmative(updateSet.getValue(0), strategyExp);
+            updateSet.setValues(new ExpressionList(caseWhenExp));
         }
 
         //4. 如果需要设置默认值的字段在原sql中不存在，则额外增加set的字段
@@ -244,14 +244,14 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
             Map<String, FieldDefault> updateFieldDefaultMap = stringFieldDefaultMap.entrySet().stream()
                     .filter(f -> f.getValue() != null && FieldDefaultInstanceCache.getInstance(f.getValue().value()).whetherToHandle(SqlCommandEnum.UPDATE))
                     .collect(FieldHashMapWrapper::new, (map, entry) -> map.put(entry.getKey(), entry.getValue()), (map1, map2) -> map1.putAll(map2));
-            //6.2 字段之前就存在，且开启了强制覆盖，则采用if的方式，覆盖掉原值
+            //6.2 字段之前就存在，且开启了强制覆盖，则采用case when的方式，覆盖掉原值（标准sql语法，兼容mysql、oracle、postgresql、达梦等数据库）
             for (int i = 0; i < duplicateUpdateSets.size(); i++) {
                 FieldDefault fieldDefault = CollectionUtils.getAndRemove(updateFieldDefaultMap, duplicateUpdateSets.get(i).getColumn(0).getColumnName());
                 if (fieldDefault != null && fieldDefault.mandatoryOverride()) {
                     Expression fieldDefaultExp = ExpressionsUtil.buildFieldDefaultExp(fieldDefault.value());
                     UpdateSet updateSet = duplicateUpdateSets.get(i);
-                    Function ifFun = ExpressionsUtil.buildAffirmativeIf(updateSet.getValue(0), fieldDefaultExp);
-                    updateSet.setValues(new ExpressionList(ifFun));
+                    Expression caseWhenExp = ExpressionsUtil.buildAffirmative(updateSet.getValue(0), fieldDefaultExp);
+                    updateSet.setValues(new ExpressionList(caseWhenExp));
                 }
             }
             //6.3 字段原来不存在，手动添加
