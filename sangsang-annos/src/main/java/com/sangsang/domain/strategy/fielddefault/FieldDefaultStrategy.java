@@ -23,7 +23,10 @@ public interface FieldDefaultStrategy<T> {
 
     /**
      * 获取当前的默认值
-     * 当返回值不为null，并且原sql语句中这个字段没有维护值，或者维护的值为null就会动态维护sql的值
+     * 会根据mandatoryOverride的配置和原sql语句中是否维护了对应字段，来决定是否用这个方法的返回值覆盖掉原sql语句中的字段值
+     * 原sql中没有维护这个字段或者维护的这个字段为null： 会用方法返回值去覆盖原sql语句的值
+     * 原sql中维护了这个字段，且不为null: mandatoryOverride为true：用方法返回值覆盖原sql语句的值， mandatoryOverride为false：不覆盖原sql语句的值
+     * 备注：如果set的值或者insert的值对应的是子查询，一律视为非null处理
      *
      * @author liutangqi
      * @date 2025/7/9 14:10

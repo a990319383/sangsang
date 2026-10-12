@@ -3,7 +3,9 @@ package com.sangsang.mockentity;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.sangsang.domain.annos.encryptor.FieldEncryptor;
+import com.sangsang.domain.annos.fielddefault.FieldDefault;
 import com.sangsang.domain.annos.isolation.DataIsolation;
+import com.sangsang.strategy.RoleIdUpdateFieldDefaultStrategy;
 
 /**
  * mock实体类，主要展示表结构，所以没有getter setter
@@ -42,6 +44,7 @@ public class UserEntity extends BaseEntity {
      * 角色id
      */
     @TableField(value = "role_id")
+    @FieldDefault(value = RoleIdUpdateFieldDefaultStrategy.class)
     private Long roleId;
 
 }

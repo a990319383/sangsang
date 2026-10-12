@@ -277,6 +277,11 @@ public class ExpressionsUtil {
     /**
      * 保留condition条件，构建出的结果值肯定是 exp
      * case when condition is null then exp else exp end
+     * * 注意：这里用于default功能覆盖旧值时使用，不能用于其他场景
+     * * 注意：这里不能单纯的直接覆盖，如果原sql是通过#{}传参的方式预编译设置的值的话，直接替换会导致参数个数对不上，执行报错。
+     * * 如果修改参数个数的话会涉及到在拦截器层再做一次复杂的参数对应，而且容易影响到其它拦截器
+     * * 所以这里采用case when语句给包一层， 将原先的  set xxx= ? 改为  set xxx= case when ? is null then 策略默认值 else 策略默认值 end 达到不修改参数个数替换值的目的
+     * * （case when是标准sql语法，兼容mysql、oracle、postgresql、达梦等数据库，不能使用mysql专有的if函数）
      *
      * @author liutangqi
      * @date 2025/7/24 10:43

@@ -493,7 +493,14 @@ public class JsqlparserUtil {
             String tableAliasName = fieldMapEntry.getKey();
             for (FieldInfoDto fieldInfoDto : fieldMapEntry.getValue()) {
                 //获取此字段上面标注的@FieldDefault，存在注解并且当前需要处理 就放结果集里面
-                Optional.ofNullable(tableFieldDefaultInfo.get(fieldInfoDto.getSourceTableName())).map(m -> m.get(fieldInfoDto.getSourceColumn())).filter(f -> FieldDefaultInstanceCache.getInstance(f.value()).whetherToHandle(sqlCommandEnum)).ifPresent(p -> res.put(ColumnUniqueDto.builder().tableAliasName(tableAliasName).sourceColumn(fieldInfoDto.getSourceColumn()).build(), p));
+                Optional.ofNullable(tableFieldDefaultInfo.get(fieldInfoDto.getSourceTableName()))
+                        .map(m -> m.get(fieldInfoDto.getSourceColumn()))
+                        .filter(f -> FieldDefaultInstanceCache.getInstance(f.value()).whetherToHandle(sqlCommandEnum))
+                        .ifPresent(p -> res.put(ColumnUniqueDto.builder()
+                                .tableAliasName(tableAliasName)
+                                .sourceTableName(fieldInfoDto.getSourceTableName())
+                                .sourceColumn(fieldInfoDto.getSourceColumn())
+                                .build(), p));
             }
         }
 
@@ -628,8 +635,8 @@ public class JsqlparserUtil {
      **/
     public static ExpressionList completeFiledDefaultValues(List<FieldDefault> upstreamFieldDefaultColumns, ExpressionList<Expression> expressions) {
         for (int i = 0; i < upstreamFieldDefaultColumns.size(); i++) {
-            //1.需要设置默认值的字段原sql就存在，并且开启了强制覆盖 则将默认值给原sql用case when的方式给替换了（标准sql语法，兼容mysql、oracle、postgresql、达梦等数据库）
-            if (i < expressions.size() && upstreamFieldDefaultColumns.get(i) != null && upstreamFieldDefaultColumns.get(i).mandatoryOverride()) {
+            //1.需要设置默认值的字段原sql就存在 && 标注了@FieldDefault && (这个值为null || 开启了强制覆盖) 则将默认值给原sql用case when的方式给替换了（标准sql语法，兼容mysql、oracle、postgresql、达梦等数据库）
+            if (i < expressions.size() && upstreamFieldDefaultColumns.get(i) != null && ((expressions.get(i) instanceof NullValue) || upstreamFieldDefaultColumns.get(i).mandatoryOverride())) {
                 Expression fieldDefaultExp = ExpressionsUtil.buildFieldDefaultExp(upstreamFieldDefaultColumns.get(i).value());
                 Expression caseWhenExp = ExpressionsUtil.buildAffirmative(expressions.get(i), fieldDefaultExp);
                 expressions.set(i, caseWhenExp);

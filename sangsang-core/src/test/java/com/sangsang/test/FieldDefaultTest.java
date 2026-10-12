@@ -48,6 +48,16 @@ public class FieldDefaultTest {
     //要兼容此种语法会浪费较多内存缓存整库的表结构，所以仅输出日志警告
     String i9 = "insert into tb_user(select * from tb_user where phone = 'xxx')";
 
+    //tb_user 表有3个字段 一个create_time 一个update_time ,一个role_id ，其中update_time insert 和update都会维护，create_time只有insert的时候才会维护,role_id只有update的时候才会维护
+    //还有一个特殊点，这里后面的values是带括号的，单个值（当前版本jsqlparser对括号后面单个值和多个值的解析有些许不同）
+    String i10 = "INSERT INTO tb_user(user_name) VALUES (?)";
+
+    //insert set 语法  (部分数据库的扩展写法，不属于标准sql语法)
+    String i11 = "INSERT INTO tb_user SET user_name=?";
+
+    //PostgreSQL ON CONFLICT UPDATE 语法
+    String i12 = "INSERT INTO tb_user (user_name, login_name, login_pwd, phone) VALUES (?, ?, ?, ?) ON CONFLICT (login_name) DO UPDATE SET user_name = EXCLUDED.user_name, login_pwd = EXCLUDED.login_pwd, phone = EXCLUDED.phone;";
+
     // --------------update 测试语句 ---------------
 
     //update 联表  set的时候存在 其它表的值，也存在常量值
@@ -58,6 +68,17 @@ public class FieldDefaultTest {
     //update 单表多个字段
     String u3 = "update tb_user  set phone = 'xxx',login_name='yyy',role_id=null where phone like 'zzz' ";
 
+    //测试null值强制覆盖的问题
+    String u4 = "UPDATE tb_user SET update_time = NULL";
+
+    //多字段赋值 (oracle中多值set右侧必须是一个子查询)
+    String u5 = "UPDATE tb_user SET (phone, update_time) = (SELECT ?, ? FROM dual ), user_name = ? where id = ?";
+
+    //多字段赋值 （PostgreSQL 中多值set右侧可以是多个单独的值）
+    String u6 = "UPDATE tb_user SET (phone, update_time) = (?, null), user_name = ? where id = ?";
+
+    //update中表存在别名，但是set的时候不存在别名
+    String u7 = "UPDATE tb_user tu SET update_time='old' WHERE tu.id=?";
 
     @Test
     public void fieldDefaultTest() throws Exception {
@@ -67,7 +88,7 @@ public class FieldDefaultTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要的sql
-        String sql = i9;
+        String sql = i12;
 
         //开始进行数据隔离
         Statement statement = JsqlparserUtil.parse(sql);
@@ -89,8 +110,8 @@ public class FieldDefaultTest {
 
     //----------------------------------------校验当前程序是否正确分割线---------------------------------------------------------
     //需要测试的sql
-    List<String> sqls = Arrays.asList(i1, i2, i3, i5, i6, i7, i8,//i4
-            u1, u2, u3);
+    List<String> sqls = Arrays.asList(i1, i2, i3, i5, i6, i7, i8, i10, i11, i12,//i4  i9
+            u1, u2, u3, u4, u5, u6, u7);
 
 
     /**

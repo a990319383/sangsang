@@ -7,7 +7,9 @@ import com.sangsang.util.ExpressionsUtil;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.Parenthesis;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
+import net.sf.jsqlparser.expression.operators.relational.ParenthesedExpressionList;
 import net.sf.jsqlparser.statement.select.*;
 
 import java.util.*;
@@ -169,8 +171,17 @@ public class FieldDefaultSelectVisitor extends BaseFieldParseTable implements Se
             }
         }
 
-        //2. insert 语句后面的值 (xxx,xxx) 这种单个的值
-        if (!(expressions.get(0) instanceof ExpressionList)) {
+        //2.insert 语句后面的值 (xxx)这种单个值并且用括号包裹起来的，将值添加到括号里面（注意：单值括号解析的时候是Parenthesis，但是拼凑成多值加括号，需要转换为ParenthesedExpressionList）
+        if (expressions.size() == 1 && expressions.get(0) instanceof Parenthesis) {
+            Expression expression = ((Parenthesis) expressions.get(0)).getExpression();
+            ParenthesedExpressionList<Expression> parenthesedExpressionList = new ParenthesedExpressionList<>();
+            parenthesedExpressionList.add(expression);
+            JsqlparserUtil.completeFiledDefaultValues(this.upstreamFieldDefaultColumns, parenthesedExpressionList);
+            aThis.setExpressions(parenthesedExpressionList);
+        }
+
+        //3. insert 语句后面的值 (xxx,xxx) 这种多个的值
+        else if (!(expressions.get(0) instanceof ExpressionList)) {
             ExpressionList eList = (ExpressionList) expressions;
             JsqlparserUtil.completeFiledDefaultValues(this.upstreamFieldDefaultColumns, eList);
         }

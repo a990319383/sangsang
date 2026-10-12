@@ -1,0 +1,1 @@
+INSERT INTO tb_user (user_name, login_name, login_pwd, phone, create_time, update_time) VALUES (?, ?, ?, ?, '2025-11-14 10:07:12', '2025-11-14 10:07:13') ON CONFLICT (  login_name )  DO UPDATE SET user_name = EXCLUDED.user_name, login_pwd = EXCLUDED.login_pwd, phone = EXCLUDED.phone, role_id = 11111, update_time = '2025-11-14 10:07:13'

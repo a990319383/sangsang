@@ -1,1 +1,1 @@
-UPDATE tb_user SET phone = 'xxx', login_name = 'yyy', role_id = NULL, tb_user.update_time = '2025-11-14 10:07:13' WHERE phone LIKE 'zzz'
+UPDATE tb_user SET phone = 'xxx', login_name = 'yyy', role_id = CASE WHEN NULL IS NULL THEN 11111 ELSE 11111 END, update_time = '2025-11-14 10:07:13' WHERE phone LIKE 'zzz'
