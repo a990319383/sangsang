@@ -1,0 +1,1 @@
+UPDATE tb_user tu JOIN tb_menu tm ON tu.id = tm.id SET role_id = CASE WHEN NULL IS NULL THEN 11111 ELSE 11111 END, tu.update_time = '2025-11-14 10:07:13'

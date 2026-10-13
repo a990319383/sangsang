@@ -1,0 +1,1 @@
+UPDATE tb_user a JOIN tb_user b ON a.id = b.id SET a.phone = '1', b.phone = '2', a.update_time = '2025-11-14 10:07:13', b.role_id = 11111, b.update_time = '2025-11-14 10:07:13', a.role_id = 11111

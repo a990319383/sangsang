@@ -135,49 +135,10 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
             log.warn("【sangsang】insert 存在*。此情况无法设置默认值!!!请规范语法!!!  原sql:{}", insert.toString());
             return;
         }
-        //3.3.获取insert的表字段顺序
-        ExpressionList<Column> columns = insert.getColumns();
-        //3.4.如果insert into 表名(字段...) 这种语法，且未开启自动获取表结构的话，我们是没办法获取到正确的字段顺序的，给用户警告日志，让用户自行调整
-        if (!TableCache.getCurConfig().isAutoFill() && CollectionUtils.isEmpty(columns)) {
-            log.warn("【sangsang】insert 语句未指定表字段顺序，且当前未开启自动读取表结构，无法获取表字段顺序。此情况无法设置默认值！！！请规范语法或开启 sangsang.autoFill=true  原sql:{}", insert.toString());
-            return;
-        }
 
         //4.处理insert into table(字段) 语法中的字段部分, (依次解析获取每个字段上面标注的@FieldDefault信息，如果设置了默认值的字段没有在insert into(字段) 中出现，则手动添加) 标准的insert语法才做处理 （备注：insert into set这种非标准的sql的话，insert.getSelect()是null ）
         //下标是字段的顺序，从0开始，存的值是对应字段头上的@FieldDefault
-        List<FieldDefault> insertFieldDefaultColumns = new ArrayList<>();
-        if (insert.getSelect() != null) {
-            //4.0 如果insert into 表名(字段...) 这种语法，但是开启自动获取表结构，这个时候我们进行手动补全
-            if (TableCache.getCurConfig().isAutoFill() && CollectionUtils.isEmpty(columns)) {
-                List<String> fieldLinkedList = TableCache.getTableFieldMap().get(table.getName());
-                columns = new ExpressionList(fieldLinkedList.stream().map(m -> ExpressionsUtil.buildColumn(m, table.getName())).collect(Collectors.toList()));
-                insert.setColumns(columns);
-            }
-
-            //把存储当前表的默认值设置信息深克隆一份，避免对缓存数据的影响
-            Map<String, FieldDefault> cloneFieldDefaultMap = ObjectUtil.cloneByStream(stringFieldDefaultMap);
-            //4.1 将现有的字段需要维护insert的标注信息维护到上面的list中
-            for (Column column : columns) {
-                FieldDefault fieldDefault = CollectionUtils.getAndRemove(cloneFieldDefaultMap, column.getColumnName());
-                FieldDefault currentFieldDefault = Optional.ofNullable(fieldDefault).filter(f -> FieldDefaultInstanceCache.getInstance(f.value()).whetherToHandle(SqlCommandEnum.INSERT)).orElse(null);
-                insertFieldDefaultColumns.add(currentFieldDefault);
-            }
-            //4.2 把缺的字段补上，只保留需要设置默认值的字段 （注意：这里只补insert时需要维护的字段，所以这里加了层过滤）
-            cloneFieldDefaultMap = cloneFieldDefaultMap
-                    .entrySet()
-                    .stream()
-                    .filter(f -> FieldDefaultInstanceCache.getInstance(f.getValue().value()).whetherToHandle(SqlCommandEnum.INSERT))
-                    .collect(FieldHashMapWrapper::new, (map, entry) -> map.put(entry.getKey(), entry.getValue()), (map1, map2) -> map1.putAll(map2));
-            if (CollectionUtil.isNotEmpty(cloneFieldDefaultMap)) {
-                for (Map.Entry<String, FieldDefault> entry : cloneFieldDefaultMap.entrySet()) {
-                    if (entry.getValue() != null) {
-                        Column column = ExpressionsUtil.buildColumn(entry.getKey(), null);
-                        columns.add(column);
-                        insertFieldDefaultColumns.add(entry.getValue());
-                    }
-                }
-            }
-        }
+        List<FieldDefault> insertFieldDefaultColumns = FieldDefaultVisitorUtil.insertFieldDefaultColumns(insert, stringFieldDefaultMap);
 
         //5.处理select的部分（insert into table(xxx) values (values值的部分)）
         Select select = insert.getSelect();

@@ -80,6 +80,12 @@ public class FieldDefaultTest {
     //update中表存在别名，但是set的时候不存在别名
     String u7 = "UPDATE tb_user tu SET update_time='old' WHERE tu.id=?";
 
+    //多表join时 set字段未指定别名
+    String u8 = "UPDATE tb_user tu JOIN tb_menu tm ON tu.id = tm.id SET role_id = NULL";
+
+    //自连接join
+    String u9 = "UPDATE tb_user a JOIN tb_user b ON a.id = b.id SET a.phone = '1', b.phone = '2'";
+
     @Test
     public void fieldDefaultTest() throws Exception {
         //设置测试配置
@@ -88,7 +94,7 @@ public class FieldDefaultTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要的sql
-        String sql = i12;
+        String sql = u9;
 
         //开始进行数据隔离
         Statement statement = JsqlparserUtil.parse(sql);
@@ -111,7 +117,7 @@ public class FieldDefaultTest {
     //----------------------------------------校验当前程序是否正确分割线---------------------------------------------------------
     //需要测试的sql
     List<String> sqls = Arrays.asList(i1, i2, i3, i5, i6, i7, i8, i10, i11, i12,//i4  i9
-            u1, u2, u3, u4, u5, u6, u7);
+            u1, u2, u3, u4, u5, u6, u7, u8, u9);
 
 
     /**

@@ -36,7 +36,7 @@ public class ColumnUniqueDto {
     private String sourceColumn;
 
     /**
-     * 只要 sourceColumn + sourceTableName 或者 sourceColumn + tableAliasName相同，就判定相同
+     * sourceColumn + tableAliasName相同，就判定相同
      * 关于相同的定义：会根据当前项目配置，判断是否进行大小写敏感，并不考虑关键字，判断两者是否相等
      *
      * @author liutangqi
@@ -55,29 +55,29 @@ public class ColumnUniqueDto {
             return false;
         }
 
-        // sourceColumn 字段名相同，所属表别名或者真实表名或者两者交叉相同，就是相同
-        return StringUtils.fieldEquals(this.tableAliasName, columnUniqueObj.tableAliasName)
-                || StringUtils.fieldEquals(this.sourceTableName, columnUniqueObj.sourceTableName)
-                || StringUtils.fieldEquals(this.tableAliasName, columnUniqueObj.sourceTableName)
-                || StringUtils.fieldEquals(this.sourceTableName, columnUniqueObj.tableAliasName);
+        // sourceColumn 字段名相同，所属表别名相同，就是同一个字段
+        return StringUtils.fieldEquals(this.tableAliasName, columnUniqueObj.tableAliasName);
     }
 
     @Override
     public int hashCode() {
-        //1.这里简单只处理字段名的hashCode即可，保证字段名一样，计算出来的hashCode是一致的，上面的equals方法里面有对表名的判断
-        String key = this.sourceColumn;
+        //1.获取表别名和字段名
+        String tableAliasKey = this.tableAliasName;
+        String sourceColumnKey = this.sourceColumn;
 
-        //2.如果当前大小写不敏感，则都转换为小写
+        //2.如果当前大小写不敏感，则统一转换为小写
         if (!TableCache.getCurConfig().isCaseSensitive()) {
-            key = key.toLowerCase(Locale.ROOT);
+            tableAliasKey = tableAliasKey.toLowerCase(Locale.ROOT);
+            sourceColumnKey = sourceColumnKey.toLowerCase(Locale.ROOT);
         }
 
         //3.去除关键字标识符
         for (String identifierQuote : TableCache.getCurConfig().getIdentifierQuote()) {
-            key = StringUtils.trimSymbol(key, identifierQuote);
+            tableAliasKey = StringUtils.trimSymbol(tableAliasKey, identifierQuote);
+            sourceColumnKey = StringUtils.trimSymbol(sourceColumnKey, identifierQuote);
         }
 
-        //4.将处理好的key进行hashCode
-        return Objects.hash(key);
+        //4.使用表别名和字段名计算hashCode
+        return Objects.hash(tableAliasKey, sourceColumnKey);
     }
 }
