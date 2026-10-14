@@ -31,7 +31,7 @@ public @interface FieldDefault {
      * 是否强制覆盖sql的值
      * 如果开启此选项，不论sql中的此字段是否有维护值，都会根据上面 FieldDefaultStrategy 策略的值进行覆盖
      * 如果未开启此项，只有当原sql中没有维护这个字段，或者维护的这个字段为null时，才会根据 FieldDefaultStrategy 策略的值进行覆盖
-     * 备注：涉及到子查询的，insert (select) 或者update set(xxx,xxx) = (select xxx,xxx from) 的，子查询的语句一律视为不是null的情况来决定是否覆盖
+     * 备注：涉及到子查询的，比如：insert (select) 或者update set(xxx,xxx) = (select xxx,xxx from) 的，子查询的语句一律视为不是null的情况来决定是否覆盖
      */
     boolean mandatoryOverride() default false;
 }
