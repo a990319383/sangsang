@@ -22,7 +22,7 @@ public class FieldDefaultSelectVisitor extends BaseFieldParseTable implements Se
 
 
     /**
-     * 上游insert的字段头上依次的@FieldDefault信息，并且是满足执行条件的
+     * 上游字段头上依次的@FieldDefault信息，并且是满足执行条件的
      */
     private List<FieldDefault> upstreamFieldDefaultColumns;
 

@@ -50,7 +50,6 @@ import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.statement.upsert.Upsert;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * @author liutangqi
