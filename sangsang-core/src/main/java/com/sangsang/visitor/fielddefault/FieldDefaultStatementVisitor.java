@@ -1,23 +1,16 @@
 package com.sangsang.visitor.fielddefault;
 
 import cn.hutool.core.collection.CollectionUtil;
-import cn.hutool.core.util.ObjectUtil;
-import com.sangsang.cache.fielddefault.FieldDefaultInstanceCache;
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.annos.fielddefault.FieldDefault;
 import com.sangsang.domain.constants.NumberConstant;
 import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.enums.SqlCommandEnum;
-import com.sangsang.domain.wrapper.FieldHashMapWrapper;
-import com.sangsang.util.CollectionUtils;
-import com.sangsang.util.ExpressionsUtil;
 import com.sangsang.util.visitor.FieldDefaultVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
-import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.*;
 import net.sf.jsqlparser.statement.alter.Alter;
@@ -146,7 +139,7 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
             FieldParseParseTableSelectVisitor fPSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
             select.accept(fPSelectVisitor);
             //5.2.处理默认值
-            FieldDefaultSelectVisitor fdSelectVisitor = FieldDefaultSelectVisitor.newInstanceCurLayer(fPSelectVisitor, insertFieldDefaultColumns);
+            FieldDefaultSelectVisitor fdSelectVisitor = FieldDefaultSelectVisitor.newInstanceCurLayer(fPSelectVisitor, insertFieldDefaultColumns, true);
             select.accept(fdSelectVisitor);
         }
 

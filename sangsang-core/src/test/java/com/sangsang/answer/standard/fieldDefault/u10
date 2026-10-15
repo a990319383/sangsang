@@ -1,0 +1,1 @@
+UPDATE tb_user SET update_time = CASE WHEN (SELECT ? FROM dual) IS NULL THEN '2025-11-14 10:07:13' ELSE '2025-11-14 10:07:13' END, role_id = 11111 WHERE id = ?

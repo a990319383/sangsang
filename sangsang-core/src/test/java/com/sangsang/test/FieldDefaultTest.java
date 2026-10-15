@@ -86,6 +86,15 @@ public class FieldDefaultTest {
     //自连接join
     String u9 = "UPDATE tb_user a JOIN tb_user b ON a.id = b.id SET a.phone = '1', b.phone = '2'";
 
+    //update子查询的时候只有一个字段，这个时候说明当前的写法初衷不是要写 多字段set，说明当前的语法是不一定适配多字段set的，所以这里我们改写的时候不能直接改成多字段set
+    String u10 = "UPDATE tb_user SET update_time = (SELECT ? FROM dual) WHERE id = ?";
+
+    //多字段赋值时，后续字段已经显式set，不能被前面的tuple子查询提前补充
+    String u11 = "UPDATE tb_user SET (phone, user_name) = (SELECT ?, ? FROM dual), update_time = ? WHERE id = ?";
+
+    //多字段赋值右侧存在select *时，右边的表结构可能是没有缓存表结构的，无法兼容这种情况，如果兼容这种情况需要缓存全库，代价太大，没必要兼容这种语法
+    String u12 = "UPDATE tb_user SET (phone, update_time) = (SELECT * FROM (SELECT ? AS phone, ? AS update_time) s) WHERE id = ?";
+
     @Test
     public void fieldDefaultTest() throws Exception {
         //设置测试配置
@@ -94,7 +103,7 @@ public class FieldDefaultTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要的sql
-        String sql = u9;
+        String sql = u11;
 
         //开始进行数据隔离
         Statement statement = JsqlparserUtil.parse(sql);
@@ -117,7 +126,8 @@ public class FieldDefaultTest {
     //----------------------------------------校验当前程序是否正确分割线---------------------------------------------------------
     //需要测试的sql
     List<String> sqls = Arrays.asList(i1, i2, i3, i5, i6, i7, i8, i10, i11, i12,//i4  i9
-            u1, u2, u3, u4, u5, u6, u7, u8, u9);
+            u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11 //, u12
+    );
 
 
     /**

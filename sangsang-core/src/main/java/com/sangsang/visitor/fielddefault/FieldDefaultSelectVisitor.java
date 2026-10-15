@@ -27,6 +27,13 @@ public class FieldDefaultSelectVisitor extends BaseFieldParseTable implements Se
     private List<FieldDefault> upstreamFieldDefaultColumns;
 
     /**
+     * 上游@FieldDefault的字段在当前查询中缺失的时候，是否在select的字段中进行填充补齐
+     * true:填充补齐
+     * false:不进行填充补齐
+     */
+    private boolean fillFillDefaultValue;
+
+    /**
      * 获取当前层解析实例
      *
      * @author liutangqi
@@ -34,19 +41,23 @@ public class FieldDefaultSelectVisitor extends BaseFieldParseTable implements Se
      * @Param [baseFieldParseTable, upstreamFieldDefaultColumns]
      **/
     public static FieldDefaultSelectVisitor newInstanceCurLayer(BaseFieldParseTable baseFieldParseTable,
-                                                                List<FieldDefault> upstreamFieldDefaultColumns) {
+                                                                List<FieldDefault> upstreamFieldDefaultColumns,
+                                                                boolean fillFillDefaultValue) {
         return new FieldDefaultSelectVisitor(upstreamFieldDefaultColumns,
+                fillFillDefaultValue,
                 baseFieldParseTable.getLayer(),
                 baseFieldParseTable.getLayerSelectTableFieldMap(),
                 baseFieldParseTable.getLayerFieldTableMap());
     }
 
     private FieldDefaultSelectVisitor(List<FieldDefault> upstreamFieldDefaultColumns,
+                                      boolean fillFillDefaultValue,
                                       int layer,
                                       Map<Integer, Map<String, List<FieldInfoDto>>> layerSelectTableFieldMap,
                                       Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap) {
         super(layer, layerSelectTableFieldMap, layerFieldTableMap);
         this.upstreamFieldDefaultColumns = upstreamFieldDefaultColumns;
+        this.fillFillDefaultValue = fillFillDefaultValue;
     }
 
 
@@ -106,8 +117,8 @@ public class FieldDefaultSelectVisitor extends BaseFieldParseTable implements Se
                 //这里的场景应该不需要处理别名
                 itemRes.set(i, new SelectItem(caseWhenExp));
             }
-            //2.3 需要设置默认值的字段原sql不存在，则新增
-            if (i >= selectItems.size() && upstreamFieldDefaultColumns.get(i) != null) {
+            //2.3 fillFillDefaultValue是开启的 && 需要设置默认值的字段原sql不存在，则新增
+            if (fillFillDefaultValue && i >= selectItems.size() && upstreamFieldDefaultColumns.get(i) != null) {
                 Expression fieldDefaultExp = ExpressionsUtil.buildFieldDefaultExp(upstreamFieldDefaultColumns.get(i).value());
                 //这里的场景应该不需要处理别名
                 itemRes.add(i, new SelectItem(fieldDefaultExp));
@@ -138,7 +149,7 @@ public class FieldDefaultSelectVisitor extends BaseFieldParseTable implements Se
             select.accept(fieldParseTableSelectVisitor);
 
             //依次维护默认值
-            FieldDefaultSelectVisitor fdSelectVisitor = FieldDefaultSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, this.upstreamFieldDefaultColumns);
+            FieldDefaultSelectVisitor fdSelectVisitor = FieldDefaultSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, this.upstreamFieldDefaultColumns, this.fillFillDefaultValue);
             select.accept(fdSelectVisitor);
 
             //维护加解密之后的语句

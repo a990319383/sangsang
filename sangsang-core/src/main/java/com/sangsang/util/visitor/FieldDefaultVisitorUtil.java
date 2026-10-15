@@ -71,7 +71,7 @@ public class FieldDefaultVisitorUtil {
         updateSets.stream()
                 .map(UpdateSet::getColumns)
                 .flatMap(Collection::stream)
-                .map(m -> getUpdateColumnTableName(m, fieldInfoDtoMap, defaultTableName.get()))
+                .map(m -> FieldDefaultVisitorUtil.getUpdateColumnTableName(m, fieldInfoDtoMap, defaultTableName.get()))
                 .filter(StringUtils::isNotBlank)
                 .distinct()
                 .forEach(f -> updateTableNames.add(f));
@@ -93,16 +93,14 @@ public class FieldDefaultVisitorUtil {
             ExpressionList<Column> columns = updateSet.getColumns();
             ExpressionList updateSetValues = updateSet.getValues();
 
-            //updateSet右侧是子查询时，记录左侧字段依次对应的@FieldDefault信息，交给FieldDefaultSelectVisitor统一处理，这个变量标识当前右边是否属于子查询
+            //updateSet右侧是子查询时：记录左侧字段依次对应的@FieldDefault信息，交给FieldDefaultSelectVisitor统一处理，这个变量标识当前右边是否属于子查询
             boolean selectValue = updateSetValues.size() == 1 && updateSetValues.get(0) instanceof ParenthesedSelect;
             List<FieldDefault> updateFieldDefaultColumns = new ArrayList<>();
-            Set<String> updateSetTableNames = new FieldHashSetWrapper();
 
             for (int j = 0; j < columns.size(); j++) {
                 Column column = columns.get(j);
                 //获取这个字段所属表别名
-                String tableName = getUpdateColumnTableName(column, fieldInfoDtoMap, defaultTableName.get());
-                updateSetTableNames.add(tableName);
+                String tableName = FieldDefaultVisitorUtil.getUpdateColumnTableName(column, fieldInfoDtoMap, defaultTableName.get());
                 String columnName = column.getColumnName();
                 //注意：这里的tableName统一为当前sql作用域中的表别名
                 FieldDefault fieldDefault = CollectionUtils.getAndRemove(columnFieldDefaultMap, ColumnUniqueDto.builder().sourceColumn(columnName).tableAliasName(tableName).build());
@@ -125,27 +123,16 @@ public class FieldDefaultVisitorUtil {
                 updateSetValues.set(j, caseWhenExp);
             }
 
-            //8. updateSet右侧是子查询，将当前updateSet涉及表中缺失的默认值字段补充到左侧字段列表和@FieldDefault列表中
+            //8. updateSet右侧是子查询，复用FieldDefaultSelectVisitor处理查询项中的强制覆盖
             if (selectValue) {
-                List<Map.Entry<ColumnUniqueDto, FieldDefault>> missingFieldDefaultList = columnFieldDefaultMap.entrySet()
-                        .stream()
-                        .filter(f -> updateSetTableNames.contains(f.getKey().getTableAliasName()))
-                        .collect(Collectors.toList());
-                for (Map.Entry<ColumnUniqueDto, FieldDefault> entry : missingFieldDefaultList) {
-                    //当前只有一张表的时候（也就是defaultTableName默认表名不为null），增加的set字段不设置所属表名  （PS:在某些数据库比如oracle中，这种场景以表名作为别名.字段名会解析错误）
-                    String tableName = defaultTableName.get() != null ? null : entry.getKey().getTableAliasName();
-                    Column column = ExpressionsUtil.buildColumn(entry.getKey().getSourceColumn(), tableName);
-                    columns.add(column);
-                    updateFieldDefaultColumns.add(entry.getValue());
-                    columnFieldDefaultMap.remove(entry.getKey());
-                }
-
                 //复用FieldDefaultSelectVisitor处理子查询查询项，确保updateSet左右两侧字段顺序一致
                 ParenthesedSelect parenthesedSelect = (ParenthesedSelect) updateSetValues.get(0);
                 Select select = parenthesedSelect.getSelect();
                 FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
                 select.accept(fieldParseTableSelectVisitor);
-                FieldDefaultSelectVisitor fieldDefaultSelectVisitor = FieldDefaultSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, updateFieldDefaultColumns);
+                //updateSet 这里注入传入的构造方法的 fillFillDefaultValue 是false，表示如果缺字段的话，不会在select的查询结果中补，而是通过下一步，在updateSet中补齐
+                //这样处理主要是部分数据库是不支持多值set的，语法不支持在select中进行补齐
+                FieldDefaultSelectVisitor fieldDefaultSelectVisitor = FieldDefaultSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, updateFieldDefaultColumns, false);
                 select.accept(fieldDefaultSelectVisitor);
             }
         }
