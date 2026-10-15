@@ -1,0 +1,8 @@
+<assembly>
+    <id>{project.version}-bin</id><formats><format>tar.gz</format></formats><includeBaseDirectory>true</includeBaseDirectory>
+    <fileSets>
+        <fileSet><directory>src/main/assembly/script</directory><outputDirectory>bin</outputDirectory><fileMode>0755</fileMode></fileSet>
+        <fileSet><directory>src/main/resources</directory><outputDirectory>conf</outputDirectory></fileSet>
+    </fileSets>
+    <dependencySets><dependencySet><outputDirectory>lib</outputDirectory></dependencySet></dependencySets>
+</assembly>

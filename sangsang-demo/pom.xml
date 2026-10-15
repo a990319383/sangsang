@@ -19,6 +19,7 @@
         <module>sangsang-demo-encryptor-pojo</module>
         <module>sangsang-demo-isolation</module>
         <module>sangsang-demo-transformation</module>
+        <module>sangsang-demo-fielddefault</module>
     </modules>
 
     <properties>
