@@ -30,11 +30,10 @@ public class SangSangConfig {
      **/
     @Bean
     public TableCache initTableCache(@Autowired(required = false) List<DataSource> dataSources,
-                                     @Autowired(required = false) SqlSessionFactory sqlSessionFactory,
                                      SangSangProperties sangSangProperties
     ) {
         //1.初始化表结构字段信息到本地缓存
-        TableCache.init(dataSources, sqlSessionFactory, sangSangProperties);
+        TableCache.init(dataSources, sangSangProperties);
 
         //2.初始化jsqlparser解析缓存
         SqlParseCache.init(sangSangProperties);

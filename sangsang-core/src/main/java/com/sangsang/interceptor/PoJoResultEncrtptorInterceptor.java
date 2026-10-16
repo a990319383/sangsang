@@ -25,6 +25,7 @@ import org.apache.ibatis.mapping.ResultMap;
 import org.apache.ibatis.mapping.ResultMapping;
 import org.apache.ibatis.plugin.*;
 import org.apache.ibatis.reflection.MetaObject;
+import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -46,7 +47,7 @@ import java.util.stream.Collectors;
 public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProcessor {
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
-        //1.通过反射获取 获取核心对象
+        //1.通过反射获取 获取核心对象，缓存部分信息
         Pair<BoundSql, MappedStatement> parseCore = parseCore(invocation);
 
         //2.当前sql如果肯定不需要加解密，则不解析sql，直接返回
@@ -85,8 +86,26 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
         //4.获取目标对象 (MappedStatement)
         MappedStatement mappedStatement = (MappedStatement) metaObject.getValue("mappedStatement");
 
-        //5.返回结果
+        //5.如果当前没有配置mapUnderscoreToCamelCase 信息，则从Configuration对象中进行解析 并缓存下来
+        cacheConfiguration(metaObject);
+
+        //6.返回结果
         return new Pair<>(boundSql, mappedStatement);
+    }
+
+    /**
+     * 如果当前没有配置mapUnderscoreToCamelCase 信息，则从Configuration对象中进行解析
+     * @author liutangqi
+     * @date 2026/10/16 14:37
+     * @Param [metaObject]
+     **/
+    private void cacheConfiguration(MetaObject metaObject) {
+        //有配置或者之前缓存过了，则不处理
+        if (TableCache.getCurConfig().getEncryptor().getMapUnderscoreToCamelCase() != null) {
+            return;
+        }
+        Configuration configuration = (Configuration) metaObject.getValue("configuration");
+        TableCache.getCurConfig().getEncryptor().setMapUnderscoreToCamelCase(configuration.isMapUnderscoreToCamelCase());
     }
 
     /**

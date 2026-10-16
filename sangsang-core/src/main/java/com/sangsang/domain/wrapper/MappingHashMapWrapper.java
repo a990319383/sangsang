@@ -98,7 +98,7 @@ public class MappingHashMapWrapper<T> implements Map<String, T>, Serializable {
         }
 
         //查询当前mybatis配置是否开启了下换线自动转驼峰，开启的话，就两个map中有一个有这个key就算有
-        if (TableCache.getSqlSessionFactoryConfig().getMapUnderscoreToCamelCase()) {
+        if (Optional.ofNullable(TableCache.getCurConfig().getEncryptor().getMapUnderscoreToCamelCase()).orElse(Boolean.TRUE)) {
             return this.humpMap.containsKey(ignoreCaseCacheKey) || this.originalMap.containsKey(ignoreCaseCacheKey);
         }
 
@@ -134,7 +134,7 @@ public class MappingHashMapWrapper<T> implements Map<String, T>, Serializable {
         IgnoreCaseCacheKey ignoreCaseCacheKey = IgnoreCaseCacheKey.buildKey(genuineKey);
 
         //开启了下划线自动转驼峰的话，优先从原始map中取，取不到就从驼峰map中取
-        if (TableCache.getSqlSessionFactoryConfig().getMapUnderscoreToCamelCase()) {
+        if (Optional.ofNullable(TableCache.getCurConfig().getEncryptor().getMapUnderscoreToCamelCase()).orElse(Boolean.TRUE)) {
             return Optional.ofNullable(this.originalMap.get(ignoreCaseCacheKey))
                     .orElseGet(() -> this.humpMap.get(ignoreCaseCacheKey));
         }
@@ -221,7 +221,7 @@ public class MappingHashMapWrapper<T> implements Map<String, T>, Serializable {
     @Override
     public Set<String> keySet() {
         Set<String> originalMapKeySet = this.originalMap.keySet().stream().map(IgnoreCaseCacheKey::getCacheKey).collect(Collectors.toSet());
-        if (!TableCache.getSqlSessionFactoryConfig().getMapUnderscoreToCamelCase()) {
+        if (!Optional.ofNullable(TableCache.getCurConfig().getEncryptor().getMapUnderscoreToCamelCase()).orElse(Boolean.TRUE)) {
             return originalMapKeySet;
         }
         Set<String> humpMapKeySet = this.humpMap.keySet().stream().map(IgnoreCaseCacheKey::getCacheKey).collect(Collectors.toSet());
@@ -250,7 +250,7 @@ public class MappingHashMapWrapper<T> implements Map<String, T>, Serializable {
     @Override
     public Set<Entry<String, T>> entrySet() {
         Set<Entry<String, T>> originalMapEntrySet = this.originalMap.entrySet().stream().map(entry -> new AbstractMap.SimpleEntry<>(entry.getKey().getCacheKey(), entry.getValue())).collect(Collectors.toSet());
-        if (!TableCache.getSqlSessionFactoryConfig().getMapUnderscoreToCamelCase()) {
+        if (!Optional.ofNullable(TableCache.getCurConfig().getEncryptor().getMapUnderscoreToCamelCase()).orElse(Boolean.TRUE)) {
             return originalMapEntrySet;
         }
         Set<Entry<String, T>> humpMapEntrySet = this.humpMap.entrySet().stream().map(entry -> new AbstractMap.SimpleEntry<>(entry.getKey().getCacheKey(), entry.getValue())).collect(Collectors.toSet());
