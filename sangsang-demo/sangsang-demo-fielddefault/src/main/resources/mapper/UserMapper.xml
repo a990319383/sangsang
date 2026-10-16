@@ -34,7 +34,6 @@
             <if test="loginPwd != null and loginPwd != ''">login_pwd = #{loginPwd},</if>
             <if test="phone != null">phone = #{phone},</if>
             <if test="orgSeq != null">org_seq = #{orgSeq},</if>
-            update_time = null
         </set>
         where id = #{id}
     </update>
