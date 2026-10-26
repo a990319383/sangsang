@@ -89,18 +89,17 @@ public class CacheTestHelper {
 
 
     /**
-     * 进行语法转换测试的时候，将?替换为FieldConstant.PLACEHOLDER+自增序列
-     * 并且给TfParameterMappingHolder中mock好入参的值
+     * 进行语法转换测试的时候
+     * 给TfParameterMappingHolder中mock好入参的值
+     * 注意：仅供测试时mock数据使用
      *
      * @author liutangqi
      * @date 2026/1/9 14:34
      * @Param [sql]
      **/
-    public static String tfHolderMock(String sql) {
-        String resSql = StringUtils.question2Placeholder(sql);
+    public static void tfHolderMock() {
         //这里假定sql的第一个?值是2 第二个?的值是5
         TfParameterMappingHolder.setParameterMapping(FieldConstant.PLACEHOLDER + 0, 2);
         TfParameterMappingHolder.setParameterMapping(FieldConstant.PLACEHOLDER + 1, 5);
-        return resSql;
     }
 }

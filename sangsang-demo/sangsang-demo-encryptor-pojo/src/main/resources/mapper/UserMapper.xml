@@ -126,4 +126,14 @@
         from demo_pojo_user
         order by create_time desc limit 10
     </select>
+    <select id="getPlaceholderPhoneList"
+            resultType="java.lang.String">
+        select
+            phone -- ? 这里存在一些占位符 #
+        from demo_pojo_user
+        <if test="userName != null and userName != ''">
+            and user_name like concat('%', #{userName}, '%')
+        </if>
+        order by create_time desc limit 10
+    </select>
 </mapper>

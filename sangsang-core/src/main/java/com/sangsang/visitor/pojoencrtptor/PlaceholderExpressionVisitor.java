@@ -106,7 +106,13 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
 
     @Override
     public void visit(JdbcParameter jdbcParameter) {
-
+        //当存在上游对应字段时，解析jdbc占位符
+        if (upstreamExpression != null) {
+            JsqlparserUtil.parseWhereColumTable(this,
+                    this.upstreamExpression,
+                    jdbcParameter,
+                    this.getPlaceholderColumnTableMap());
+        }
     }
 
     @Override
@@ -457,9 +463,11 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(WhenClause whenClause) {
         //对应case when的情况1： case 表字段  when ?占位符 then xxx
-        if (this.upstreamExpression instanceof Column && whenClause.getWhenExpression().toString().contains(FieldConstant.PLACEHOLDER)) {
-            ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn((Column) this.upstreamExpression, this);
-            this.getPlaceholderColumnTableMap().put(whenClause.getWhenExpression().toString(), columnTableDto);
+        if (this.upstreamExpression != null) {
+            JsqlparserUtil.parseWhereColumTable(this,
+                    this.upstreamExpression,
+                    whenClause.getWhenExpression(),
+                    this.getPlaceholderColumnTableMap());
         }
 
         //对应case when 的情况2： case  when 表字段=?占位符 then

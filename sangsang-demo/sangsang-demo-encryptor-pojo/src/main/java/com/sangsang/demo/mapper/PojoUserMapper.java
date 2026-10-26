@@ -93,4 +93,14 @@ public interface PojoUserMapper {
      * @Param []
      **/
     List<String> getUserPhoneList();
+
+    /**
+     * 测试sql中存在注释，注释中存在占位符
+     *
+     * @author liutangqi
+     * @date 2026/10/16 16:48
+     * @Param []
+     **/
+    List<String> getPlaceholderPhoneList(@Param("userName") String userName);
+
 }

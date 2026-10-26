@@ -488,7 +488,7 @@ public class SqlTest {
     String s51 = "SELECT a.* FROM(SELECT * FROM tb_user tu WHERE tu.phone IN (SELECT role_name FROM tb_role tr))a JOIN tb_menu tm ON a.id = tm.id";
 
     //临时测试sql
-    String s_test_tmp = "select phone ph ,id as iii from tb_user";
+    String s_test_tmp = "select phone ph ,id as iii,'?' from tb_user where phone = ?";
 
     // -----------------insert 测试语句---------------------
     String i1 = "insert into tb_user(id, user_name ,phone) \n" +
@@ -650,16 +650,13 @@ public class SqlTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = s5;
+        String sql = s_test_tmp;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
 
-        //将原sql ？ 替换为自定义的占位符
-        String placeholderSql = StringUtils.question2Placeholder(sql);
-
         //开始解析sql
-        Statement statement = JsqlparserUtil.parse(placeholderSql);
+        Statement statement = JsqlparserUtil.parse(sql);
         PoJoEncrtptorStatementVisitor poJoEncrtptorStatementVisitor = new PoJoEncrtptorStatementVisitor();
         statement.accept(poJoEncrtptorStatementVisitor);
         System.out.println(JSONUtil.toJsonStr(poJoEncrtptorStatementVisitor.getFieldEncryptorInfos()));
@@ -741,11 +738,9 @@ public class SqlTest {
 
         for (int i = 0; i < sqls.size(); i++) {
             String sql = sqls.get(i);
-            //将原sql ？ 替换为自定义的占位符
-            String placeholderSql = StringUtils.question2Placeholder(sql);
 
             //开始解析sql
-            Statement statement = JsqlparserUtil.parse(placeholderSql);
+            Statement statement = JsqlparserUtil.parse(sql);
             PoJoEncrtptorStatementVisitor poJoEncrtptorStatementVisitor = new PoJoEncrtptorStatementVisitor();
             statement.accept(poJoEncrtptorStatementVisitor);
             List<FieldEncryptorInfoDto> fieldEncryptorInfos = poJoEncrtptorStatementVisitor.getFieldEncryptorInfos();
@@ -826,11 +821,8 @@ public class SqlTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         for (String sql : sqls) {
-            //将原sql ？ 替换为自定义的占位符
-            String placeholderSql = StringUtils.question2Placeholder(sql);
-
             //开始解析sql
-            Statement statement = JsqlparserUtil.parse(placeholderSql);
+            Statement statement = JsqlparserUtil.parse(sql);
             PoJoEncrtptorStatementVisitor poJoEncrtptorStatementVisitor = new PoJoEncrtptorStatementVisitor();
             statement.accept(poJoEncrtptorStatementVisitor);
             List<FieldEncryptorInfoDto> fieldEncryptorInfos = poJoEncrtptorStatementVisitor.getFieldEncryptorInfos();

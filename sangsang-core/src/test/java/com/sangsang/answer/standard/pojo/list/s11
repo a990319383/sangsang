@@ -1,1 +1,1 @@
-[{"columnName":"`concat(encryptor_placeholder_0, tu.phone)`"}]
+[{"columnName":"`concat(?, tu.phone)`"}]

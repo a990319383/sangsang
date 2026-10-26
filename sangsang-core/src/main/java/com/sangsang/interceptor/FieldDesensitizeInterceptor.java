@@ -1,19 +1,13 @@
 package com.sangsang.interceptor;
 
-import cn.hutool.core.lang.Pair;
 import com.sangsang.cache.desensitize.DesensitizeInstanceCache;
 import com.sangsang.domain.annos.FieldInterceptorOrder;
 import com.sangsang.domain.annos.desensitize.FieldDesensitize;
 import com.sangsang.domain.annos.desensitize.MapperDesensitize;
 import com.sangsang.domain.constants.FieldConstant;
 import com.sangsang.domain.constants.InterceptorOrderConstant;
-import com.sangsang.domain.dto.ColumnTableDto;
-import com.sangsang.domain.dto.FieldEncryptorInfoDto;
 import com.sangsang.util.*;
-import com.sangsang.visitor.pojoencrtptor.PoJoEncrtptorStatementVisitor;
 import lombok.extern.slf4j.Slf4j;
-import net.sf.jsqlparser.JSQLParserException;
-import net.sf.jsqlparser.statement.Statement;
 import org.apache.ibatis.executor.resultset.ResultSetHandler;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.plugin.*;
@@ -94,28 +88,6 @@ public class FieldDesensitizeInterceptor implements Interceptor, BeanPostProcess
         }
 
         return mapperDesensitize;
-    }
-
-    /**
-     * 解析sql,获取入参和响应对应的表字段关系
-     *
-     * @author liutangqi
-     * @date 2025/4/8 9:52
-     * @Param [sql]
-     **/
-    private Pair<Map<String, ColumnTableDto>, List<FieldEncryptorInfoDto>> parseSql(String sql) throws JSQLParserException {
-        //1.将sql中的 ? 占位符替换成我们自定义的特殊符号
-        String placeholderSql = StringUtils.question2Placeholder(sql);
-
-        //2.解析sql的响应结果，和占位符对应的表字段关系
-        Statement statement = JsqlparserUtil.parse(placeholderSql);
-        PoJoEncrtptorStatementVisitor poJoEncrtptorStatementVisitor = new PoJoEncrtptorStatementVisitor();
-        statement.accept(poJoEncrtptorStatementVisitor);
-
-        //3.获取解析结果
-        Map<String, ColumnTableDto> placeholderColumnTableMap = poJoEncrtptorStatementVisitor.getPlaceholderColumnTableMap();
-        List<FieldEncryptorInfoDto> fieldEncryptorInfos = poJoEncrtptorStatementVisitor.getFieldEncryptorInfos();
-        return Pair.of(placeholderColumnTableMap, fieldEncryptorInfos);
     }
 
 

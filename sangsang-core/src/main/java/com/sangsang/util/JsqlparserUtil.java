@@ -461,17 +461,31 @@ public class JsqlparserUtil {
      * @Param [layer 当前层数, layerFieldTableMap 当前层所有的字段信息,leftExpression 左表达式,rightExpression右表达式, placeholderColumnTableMap 存放结果集的map]
      **/
     public static void parseWhereColumTable(BaseFieldParseTable baseFieldParseTable, Expression leftExpression, Expression rightExpression, Map<String, ColumnTableDto> placeholderColumnTableMap) {
-        //左边是列，右边是我们的占位符
-        if (leftExpression instanceof Column && rightExpression != null && rightExpression.toString().contains(FieldConstant.PLACEHOLDER)) {
+        if (leftExpression instanceof Column && rightExpression instanceof JdbcParameter) {
             ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn((Column) leftExpression, baseFieldParseTable);
-            placeholderColumnTableMap.put(rightExpression.toString(), columnTableDto);
+            placeholderColumnTableMap.put(buildPlaceholder((JdbcParameter) rightExpression), columnTableDto);
         }
 
         //左边是我们的占位符 右边是列
-        if (rightExpression instanceof Column && leftExpression != null && leftExpression.toString().contains(FieldConstant.PLACEHOLDER)) {
+        if (rightExpression instanceof Column && leftExpression instanceof JdbcParameter) {
             ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn((Column) rightExpression, baseFieldParseTable);
-            placeholderColumnTableMap.put(leftExpression.toString(), columnTableDto);
+            placeholderColumnTableMap.put(buildPlaceholder((JdbcParameter) leftExpression), columnTableDto);
         }
+    }
+
+    /**
+     * 构建出pojo模式?占位符
+     * 备注：
+     * --- JdbcParameter 的index是从1开始的
+     * ---占位符FieldConstant.PLACEHOLDER后面的序号是从0开始的
+     * ---boundSql.getParameterMappings()下标也是从0开始的
+     *
+     * @author liutangqi
+     * @date 2026/10/23 17:12
+     * @Param [index]
+     **/
+    public static String buildPlaceholder(JdbcParameter jdbcParameter) {
+        return FieldConstant.PLACEHOLDER + (jdbcParameter.getIndex() - 1);
     }
 
     /**
@@ -806,14 +820,17 @@ public class JsqlparserUtil {
             return ((LongValue) exp).getValue();
         }
 
-        //2.当前表达式是Column类型的，并且是占位符开头的，则尝试从当前存储sql入参的ThreadLocal中获取
-        if ((exp instanceof Column) && ((Column) exp).getColumnName().startsWith(FieldConstant.PLACEHOLDER)) {
-            String columnName = ((Column) exp).getColumnName();
-            Object paramObject = TfParameterMappingHolder.getParameterMapping(columnName);
+        //2.当前表达式是 JdbcParameter，则则尝试从当前存储sql入参的ThreadLocal中获取
+        if (exp instanceof JdbcParameter) {
+            JdbcParameter jdbcParameter = (JdbcParameter) exp;
+            //2.1 获取当前占位符对应threadLocal中缓存值的key
+            String placeholderKey = JsqlparserUtil.buildPlaceholder(jdbcParameter);
+            //2.2 从当前记录mapper入参的threadlocal中获取入参值
+            Object paramObject = TfParameterMappingHolder.getParameterMapping(placeholderKey);
             if ((paramObject instanceof Long) || (paramObject instanceof Integer)) {
-                //2.1.记录当前占位符，表示当前占位符需要进行移除
-                TfParameterMappingHolder.recordRemoveParameterMapping(columnName);
-                //2.2 返回结果
+                //2.3.记录当前占位符，表示当前占位符需要进行移除
+                TfParameterMappingHolder.recordRemoveParameterMapping(placeholderKey);
+                //2.4 返回结果
                 return Long.valueOf(paramObject.toString());
             }
         }

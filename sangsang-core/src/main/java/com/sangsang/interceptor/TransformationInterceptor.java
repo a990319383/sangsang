@@ -56,33 +56,29 @@ public class TransformationInterceptor implements Interceptor, BeanPostProcessor
         List<ParameterMapping> parameterMapping = null;
         try {
             log.debug("【sangsang】<transformation>旧sql：{}", oldSql);
-            //4. 将所有的 ? 占位符替换为 SymbolConstant.PLACEHOLDER+自增序列的格式，方便语法解析器中获取具体值
-            String placeholderSql = StringUtils.question2Placeholder(oldSql);
-
-            //5. 将当前每个参数对应的入参值维护到 TfParameterMappingHolder中
+            //4. 将当前每个参数对应的入参值维护到 TfParameterMappingHolder中
             recordParameterMapping(boundSql);
 
-            //6. 走语法转换的逻辑
-            Statement statement = JsqlparserUtil.parse(placeholderSql);
+            //5. 走语法转换的逻辑
+            Statement statement = JsqlparserUtil.parse(oldSql);
             TransformationStatementVisitor transformationStatementVisitor = new TransformationStatementVisitor();
             statement.accept(transformationStatementVisitor);
             if (StringUtils.isNotBlank(transformationStatementVisitor.getResultSql())) {
-                //7. 将占位符 SymbolConstant.PLACEHOLDER+自增序列 替换为 ?
-                newSql = StringUtils.placeholder2Question(transformationStatementVisitor.getResultSql());
+                newSql = transformationStatementVisitor.getResultSql();
                 log.debug("【sangsang】<transformation>新sql：{}", newSql);
             }
 
-            //8. 根据当前sql解析器是否移除了#{}参数值，获取当前最新的参数映射值
+            //6. 根据当前sql解析器是否移除了#{}参数值，获取当前最新的参数映射值
             parameterMapping = curParameterMapping(boundSql);
 
-            //9. 如果当前sql语句未发生了语法转换，则将当前sql放入缓存中，避免下次重复处理
+            //7. 如果当前sql语句未发生了语法转换，则将当前sql放入缓存中，避免下次重复处理
             if (!TransformationHolder.isTransformation()) {
                 TransformationSqlCache.addNeedlessTransformationSql(oldSql);
             }
         } catch (Exception e) {
             log.error("【sangsang】<transformation>语法转换 sql异常 原sql:{}", oldSql, e);
         } finally {
-            //10. 移除掉此逻辑中会使用到的ThreadLocal
+            //8. 移除掉此逻辑中会使用到的ThreadLocal
             clearThreadLocal(oldSql);
         }
 

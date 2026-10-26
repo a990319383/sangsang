@@ -132,4 +132,17 @@ public class UserController {
     public List<String> getUserPhoneList() {
         return userMapper.getUserPhoneList();
     }
+
+
+    /**
+     * 测试sql中存在注释，注释中存在占位符
+     *
+     * @author liutangqi
+     * @date 2026/10/16 16:48
+     * @Param []
+     **/
+    @GetMapping("/getPlaceholderPhoneList")
+    public List<String> getPlaceholderPhoneList(@RequestParam(value = "userName", required = false) String userName) {
+        return userMapper.getPlaceholderPhoneList(userName);
+    }
 }

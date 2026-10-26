@@ -116,15 +116,12 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
      * @Param [sql]
      **/
     private Pair<Map<String, ColumnTableDto>, List<FieldEncryptorInfoDto>> parseSql(String sql) throws JSQLParserException {
-        //1.将sql中的 ? 占位符替换成我们自定义的特殊符号
-        String placeholderSql = StringUtils.question2Placeholder(sql);
-
-        //2.解析sql的响应结果，和占位符对应的表字段关系
-        Statement statement = JsqlparserUtil.parse(placeholderSql);
+        //1.解析sql的响应结果，和占位符对应的表字段关系
+        Statement statement = JsqlparserUtil.parse(sql);
         PoJoEncrtptorStatementVisitor poJoEncrtptorStatementVisitor = new PoJoEncrtptorStatementVisitor();
         statement.accept(poJoEncrtptorStatementVisitor);
 
-        //3.获取解析结果
+        //2.获取解析结果
         Map<String, ColumnTableDto> placeholderColumnTableMap = poJoEncrtptorStatementVisitor.getPlaceholderColumnTableMap();
         List<FieldEncryptorInfoDto> fieldEncryptorInfos = poJoEncrtptorStatementVisitor.getFieldEncryptorInfos();
         return Pair.of(placeholderColumnTableMap, fieldEncryptorInfos);

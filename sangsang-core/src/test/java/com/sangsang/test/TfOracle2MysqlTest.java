@@ -209,8 +209,8 @@ public class TfOracle2MysqlTest {
         System.out.println("----------------------原始sql-----------------------");
         System.out.println(sql);
 
-        //语法转换时，对当前sql的进行占位符替换，并且mocksql入参值
-        sql = CacheTestHelper.tfHolderMock(sql);
+        //语法转换时，mocksql入参值
+        CacheTestHelper.tfHolderMock();
 
         //开始进行语法转换
         Statement statement = JsqlparserUtil.parse(sql);
@@ -218,9 +218,7 @@ public class TfOracle2MysqlTest {
         statement.accept(transformationStatementVisitor);
 
         System.out.println("----------------------语法转换后sql-----------------------");
-        //原始sql的占位符还原
         String resultSql = transformationStatementVisitor.getResultSql();
-        resultSql = StringUtils.placeholder2Question(resultSql);
         System.out.println(resultSql);
         System.out.println("---------------------------------------------");
     }
@@ -264,17 +262,14 @@ public class TfOracle2MysqlTest {
 
         for (int i = 0; i < sqls.size(); i++) {
             String sql = sqls.get(i);
-            //语法转换时，对当前sql的进行占位符替换，并且mocksql入参值
-            sql = CacheTestHelper.tfHolderMock(sql);
+            //语法转换时，mocksql入参值
+            CacheTestHelper.tfHolderMock();
 
             //开始解析sql
             Statement statement = JsqlparserUtil.parse(sql);
             TransformationStatementVisitor transformationStatementVisitor = new TransformationStatementVisitor();
             statement.accept(transformationStatementVisitor);
             String resultSql = transformationStatementVisitor.getResultSql();
-
-            //原始sql的占位符还原
-            sql = StringUtils.placeholder2Question(sql);
 
             //找答案
             String answer = AnswerUtil.readTfAnswerToFile(this, TransformationPatternTypeConstant.ORACLE_2_MYSQL, sql);
@@ -324,16 +319,14 @@ public class TfOracle2MysqlTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         for (String sql : sqls) {
-            //语法转换时，对当前sql的进行占位符替换，并且mocksql入参值
-            String testSql = CacheTestHelper.tfHolderMock(sql);
+            //语法转换时，mocksql入参值
+            CacheTestHelper.tfHolderMock();
             //开始解析sql
             //开始进行语法转换
-            Statement statement = JsqlparserUtil.parse(testSql);
+            Statement statement = JsqlparserUtil.parse(sql);
             TransformationStatementVisitor transformationStatementVisitor = new TransformationStatementVisitor();
             statement.accept(transformationStatementVisitor);
             String resultSql = transformationStatementVisitor.getResultSql();
-            //原始sql的占位符还原
-            sql = StringUtils.placeholder2Question(sql);
             AnswerUtil.writeTfAnswerToFile(this, TransformationPatternTypeConstant.ORACLE_2_MYSQL, sql, resultSql);
         }
     }
