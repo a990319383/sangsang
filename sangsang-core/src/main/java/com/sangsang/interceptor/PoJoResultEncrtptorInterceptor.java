@@ -86,26 +86,8 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
         //4.获取目标对象 (MappedStatement)
         MappedStatement mappedStatement = (MappedStatement) metaObject.getValue("mappedStatement");
 
-        //5.如果当前没有配置mapUnderscoreToCamelCase 信息，则从Configuration对象中进行解析 并缓存下来
-        cacheConfiguration(metaObject);
-
-        //6.返回结果
+        //5.返回结果
         return new Pair<>(boundSql, mappedStatement);
-    }
-
-    /**
-     * 如果当前没有配置mapUnderscoreToCamelCase 信息，则从Configuration对象中进行解析
-     * @author liutangqi
-     * @date 2026/10/16 14:37
-     * @Param [metaObject]
-     **/
-    private void cacheConfiguration(MetaObject metaObject) {
-        //有配置或者之前缓存过了，则不处理
-        if (TableCache.getCurConfig().getEncryptor().getMapUnderscoreToCamelCase() != null) {
-            return;
-        }
-        Configuration configuration = (Configuration) metaObject.getValue("configuration");
-        TableCache.getCurConfig().getEncryptor().setMapUnderscoreToCamelCase(configuration.isMapUnderscoreToCamelCase());
     }
 
     /**

@@ -13,8 +13,11 @@ public class FieldException extends RuntimeException {
         super(message);
     }
 
-    public FieldException(Throwable cause){
+    public FieldException(Throwable cause) {
         super(cause);
     }
 
+    public FieldException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

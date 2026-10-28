@@ -55,6 +55,13 @@
         where id = #{id}
     </update>
 
+    <update id="updatePhoneByCiphertextTranslation" parameterType="com.sangsang.demo.domain.dto.UserUpdateDto">
+        update demo_pojo_user
+        set phone = #{phone,typeHandler=com.sangsang.demo.typehandler.CiphertextTranslationTypeHandler},
+            update_time = now()
+        where id = #{id}
+    </update>
+
     <delete id="deleteUserById">
         delete
         from demo_pojo_user
@@ -137,5 +144,13 @@
             </if>
         </where>
         order by create_time desc limit 10
+    </select>
+    <select id="getMultipleMappingsUserList"
+            resultType="com.sangsang.demo.domain.vo.UserVo">
+        select *
+        from demo_pojo_user
+        where phone != #{phone}
+          and user_name != #{phone}
+          and id != #{id}
     </select>
 </mapper>

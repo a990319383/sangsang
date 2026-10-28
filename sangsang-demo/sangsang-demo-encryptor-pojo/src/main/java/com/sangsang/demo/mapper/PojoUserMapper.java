@@ -43,6 +43,11 @@ public interface PojoUserMapper {
     int updateUser(UserUpdateDto dto);
 
     /**
+     * 使用业务TypeHandler翻译加密后的电话密文
+     */
+    int updatePhoneByCiphertextTranslation(UserUpdateDto dto);
+
+    /**
      * 删除用户
      */
     int deleteUserById(@Param("id") Long id);
@@ -103,4 +108,14 @@ public interface PojoUserMapper {
      **/
     List<String> getPlaceholderPhoneList(@Param("userName") String userName);
 
+
+    /**
+     * 测试同一个 参数映射多个值，对应不同的加密情况
+     *
+     * @author liutangqi
+     * @date 2026/10/28 15:04
+     * @Param [phone, id]
+     **/
+    List<UserVo> getMultipleMappingsUserList(@Param("phone") String phone,
+                                             @Param("id") Long id);
 }

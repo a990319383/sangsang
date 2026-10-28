@@ -5,7 +5,7 @@ import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.constants.SymbolConstant;
-import com.sangsang.domain.wrapper.FieldHashSetWrapper;
+import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 
 import java.util.*;
 
@@ -20,6 +20,7 @@ public class CollectionUtils {
     public static final List EMPTY_LIST = Collections.emptyList();
     public static final Set EMPTY_SET = Collections.emptySet();
     public static final Map EMPTY_MAP = Collections.emptyMap();
+    public static final FieldHashMapWrapper EMPTY_FIELD_HASH_MAP = new FieldHashMapWrapper<>();
 
     /**
      * 校验集合是否为空

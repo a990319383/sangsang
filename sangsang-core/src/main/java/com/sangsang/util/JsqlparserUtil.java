@@ -434,7 +434,7 @@ public class JsqlparserUtil {
      * @Param [dto]
      **/
     public static FieldEncryptor parseFieldEncryptor(ColumnTableDto dto) {
-        Map<String, FieldEncryptor> stringFieldEncryptorMap = Optional.ofNullable(TableCache.getTableFieldEncryptInfo().get(dto.getSourceTableName())).orElse(new FieldHashMapWrapper<>());
+        Map<String, FieldEncryptor> stringFieldEncryptorMap = Optional.ofNullable(TableCache.getTableFieldEncryptInfo().get(dto.getSourceTableName())).orElse(CollectionUtils.EMPTY_FIELD_HASH_MAP);
         return stringFieldEncryptorMap.get(dto.getSourceColumn());
     }
 

@@ -9,9 +9,11 @@ import com.sangsang.domain.constants.FieldConstant;
 import com.sangsang.domain.constants.InterceptorOrderConstant;
 import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.domain.dto.FieldEncryptorInfoDto;
+import com.sangsang.domain.exception.FieldException;
+import com.sangsang.domain.strategy.encryptor.FieldEncryptorStrategy;
+import com.sangsang.typehandler.PoJoParamEncryptorTypeHandler;
 import com.sangsang.util.InterceptorUtil;
 import com.sangsang.util.JsqlparserUtil;
-import com.sangsang.util.ReflectUtils;
 import com.sangsang.util.StringUtils;
 import com.sangsang.visitor.pojoencrtptor.PoJoEncrtptorStatementVisitor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,11 +23,13 @@ import org.apache.ibatis.executor.statement.StatementHandler;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.ParameterMapping;
 import org.apache.ibatis.plugin.*;
+import org.apache.ibatis.reflection.MetaObject;
+import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.SqlSessionFactory;
+import org.apache.ibatis.type.TypeHandler;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 
-import java.sql.Connection;
 import java.util.*;
 
 /**
@@ -36,7 +40,7 @@ import java.util.*;
  * @date 2024/7/9 14:06
  */
 @FieldInterceptorOrder(InterceptorOrderConstant.ENCRYPTOR)
-@Intercepts({@Signature(type = StatementHandler.class, method = "prepare", args = {Connection.class, Integer.class})})
+@Intercepts({@Signature(type = StatementHandler.class, method = "parameterize", args = {java.sql.Statement.class})})
 @Slf4j
 public class PoJoParamEncrtptorInterceptor implements Interceptor, BeanPostProcessor {
 
@@ -63,7 +67,7 @@ public class PoJoParamEncrtptorInterceptor implements Interceptor, BeanPostProce
         Pair<Map<String, ColumnTableDto>, List<FieldEncryptorInfoDto>> pair = parseSql(originalSql);
 
         //4.处理入参
-        disposeParam(boundSql, pair);
+        disposeParam(statementHandler, boundSql, pair);
 
         //5.执行sql
         Object proceed = invocation.proceed();
@@ -71,29 +75,6 @@ public class PoJoParamEncrtptorInterceptor implements Interceptor, BeanPostProce
         //6.返回结果
         return proceed;
     }
-
-    /**
-     * 将反射修改了property的给改回去，避免一级缓存导致找不到getter方法报错
-     *
-     * @author liutangqi
-     * @date 2024/9/23 19:30
-     * @Param [propertyMap, boundSql]
-     **/
-    private void revivificationParam(Map<String, String> propertyMap, BoundSql boundSql) {
-        if (propertyMap == null || propertyMap.isEmpty()) {
-            return;
-        }
-
-        for (ParameterMapping parameterMapping : boundSql.getParameterMappings()) {
-            String originalValue = propertyMap.get(parameterMapping.getProperty());
-            if (StringUtils.isNotBlank(originalValue)) {
-                //反射修改property为原值
-                ReflectUtils.setFieldValue(parameterMapping, "property", originalValue);
-            }
-        }
-
-    }
-
 
     /**
      * 解析sql,获取入参和响应对应的表字段关系
@@ -119,36 +100,111 @@ public class PoJoParamEncrtptorInterceptor implements Interceptor, BeanPostProce
      *
      * @author liutangqi
      * @date 2024/7/18 15:18
-     * @Param [parameterObject, pair]
+     * @Param [statementHandler, boundSql, pair]
      **/
-    private void disposeParam(BoundSql boundSql, Pair<Map<String, ColumnTableDto>, List<FieldEncryptorInfoDto>> pair) {
+    private void disposeParam(StatementHandler statementHandler, BoundSql boundSql, Pair<Map<String, ColumnTableDto>, List<FieldEncryptorInfoDto>> pair) {
         //1.获取所有入参（这个的顺序和占位符顺序一致）
         List<ParameterMapping> parameterMappings = boundSql.getParameterMappings();
 
-        //2.将其中需要加密的字段进行加密(注意：这里只返回key value对应关系，不能现在就boundSql.setAdditionalParameter ，否则会导致 parseObj()方法中 hasAdditionalParameter()结果出错 aaa.bbb.ccc 这种方法只判断里面是否有aaa)
-        Map<Integer, Object> parameterValue = new HashMap<>();
+        //2.为需要加密的参数构建独立的ParameterMapping，避免相同property的参数互相覆盖
+        List<ParameterMapping> encryptorParameterMappings = new ArrayList<>(parameterMappings.size());
+        Configuration configuration = null;
+        boolean changed = false;
         for (int i = 0; i < parameterMappings.size(); i++) {
             ParameterMapping parameterMapping = parameterMappings.get(i);
-            //sql关系中，占位符对应的映射结果集的key规则是这个
+            //2.1 sql关系中，占位符对应的映射结果集的key规则是这个
             String placeholderKey = FieldConstant.PLACEHOLDER + i;
-            //获取当前映射字段的入参值
-            Object propertyValue = InterceptorUtil.parseObj(boundSql, parameterMapping);
-
-            //如果需要加密的话，将加密后的值，替换原有入参
+            //2.2 获取当前参数对应字段的加解密策略
             FieldEncryptor fieldEncryptor = parseFieldEncryptor(placeholderKey, pair.getKey());
-            if (propertyValue instanceof String && fieldEncryptor != null) {
-                String ciphertext = EncryptorInstanceCache.<String>getInstance(fieldEncryptor.value()).encryption((String) propertyValue);
-                parameterValue.put(i, ciphertext);
-            } else {
-                //不需要加密的话，则入参还是使用旧值
-                parameterValue.put(i, propertyValue);
+            //2.3 当前参数不需要加密，则直接添加到新的ParameterMappings中
+            if (fieldEncryptor == null || parameterMapping.getTypeHandler() instanceof PoJoParamEncryptorTypeHandler) {
+                encryptorParameterMappings.add(parameterMapping);
+                continue;
+            }
+            //2.4 当前未初始化过configuration，反射获取，并缓存部分配置
+            if (configuration == null) {
+                //2.4.1 反射获取
+                configuration = parseConfiguration(statementHandler, parameterMapping);
+                //2.4.2 缓存当前配置
+                cacheConfiguration(configuration);
+            }
+            //2.5 使用新的TypeHandler，构建新的ParameterMapping
+            FieldEncryptorStrategy<String> strategy = EncryptorInstanceCache.<String>getInstance(fieldEncryptor.value());
+            TypeHandler<?> typeHandler = new PoJoParamEncryptorTypeHandler(parameterMapping.getTypeHandler(), strategy, i, parameterMapping.getProperty());
+            encryptorParameterMappings.add(copyParameterMapping(configuration, parameterMapping, typeHandler));
+            //2.6 标记当前修改过ParameterMappings
+            changed = true;
+        }
+
+        //3.只修改当前BoundSql的ParameterMapping集合，不修改原始入参对象和缓存key
+        if (changed) {
+            InterceptorUtil.forObject(boundSql).setValue("parameterMappings", encryptorParameterMappings);
+        }
+    }
+
+    /**
+     * 获取当前StatementHandler所属的Configuration
+     * 兼容Mybatis默认的RoutingStatementHandler和直接实现StatementHandler的场景
+     *
+     * @author liutangqi
+     * @date 2026/10/28 10:45
+     * @Param [statementHandler, parameterMapping]
+     **/
+    private Configuration parseConfiguration(StatementHandler statementHandler, ParameterMapping parameterMapping) {
+        MetaObject parameterMappingMetaObject = InterceptorUtil.forObject(parameterMapping);
+        if (parameterMappingMetaObject.hasGetter("configuration")) {
+            try {
+                Object configuration = parameterMappingMetaObject.getValue("configuration");
+                if (configuration instanceof Configuration) {
+                    return (Configuration) configuration;
+                }
+            } catch (Exception e) {
+                log.debug("【sangsang】从ParameterMapping获取Configuration失败 class:{}", parameterMapping.getClass().getName(), e);
             }
         }
 
-        //3.将处理好的结果集进行设置值
-        for (int i = 0; i < parameterMappings.size(); i++) {
-            boundSql.setAdditionalParameter(parameterMappings.get(i).getProperty(), parameterValue.get(i));
+        MetaObject statementHandlerMetaObject = InterceptorUtil.forObject(statementHandler);
+        String[] mappedStatementPaths = {"delegate.mappedStatement.configuration", "mappedStatement.configuration"};
+        for (String mappedStatementPath : mappedStatementPaths) {
+            if (statementHandlerMetaObject.hasGetter(mappedStatementPath)) {
+                try {
+                    Object value = statementHandlerMetaObject.getValue(mappedStatementPath);
+                    if (value instanceof Configuration) {
+                        return (Configuration) value;
+                    }
+                } catch (Exception e) {
+                    log.debug("【sangsang】从StatementHandler获取Configuration失败 class:{} path:{}", statementHandler.getClass().getName(), mappedStatementPath, e);
+                }
+            }
         }
+
+        throw new FieldException(String.format("无法获取Mybatis Configuration statementHandler:%s", statementHandler.getClass().getName()));
+    }
+
+    /**
+     * 复制ParameterMapping，并使用入参加密TypeHandler包装原TypeHandler
+     *
+     * @author liutangqi
+     * @date 2026/10/28 10:50
+     * @Param [configuration, source, typeHandler]
+     **/
+    private ParameterMapping copyParameterMapping(Configuration configuration, ParameterMapping source, TypeHandler<?> typeHandler) {
+        return new ParameterMapping.Builder(configuration, source.getProperty(), typeHandler).mode(source.getMode()).javaType(source.getJavaType()).jdbcType(source.getJdbcType()).numericScale(source.getNumericScale()).resultMapId(source.getResultMapId()).jdbcTypeName(source.getJdbcTypeName()).expression(source.getExpression()).build();
+    }
+
+    /**
+     * 如果当前没有配置mapUnderscoreToCamelCase 信息，则从Configuration对象中进行解析并缓存
+     *
+     * @author liutangqi
+     * @date 2026/10/16 14:37
+     * @Param [metaObject]
+     **/
+    private void cacheConfiguration(Configuration configuration) {
+        //有配置或者之前缓存过了，则不处理
+        if (TableCache.getCurConfig().getEncryptor().getMapUnderscoreToCamelCase() != null) {
+            return;
+        }
+        TableCache.getCurConfig().getEncryptor().setMapUnderscoreToCamelCase(configuration.isMapUnderscoreToCamelCase());
     }
 
     /**
@@ -159,7 +215,7 @@ public class PoJoParamEncrtptorInterceptor implements Interceptor, BeanPostProce
      * @Param [placeholderKey, placeholderColumnTableMap]
      **/
     private FieldEncryptor parseFieldEncryptor(String placeholderKey, Map<String, ColumnTableDto> placeholderColumnTableMap) {
-        ColumnTableDto columnTableDto = placeholderColumnTableMap.getOrDefault(placeholderKey, new ColumnTableDto());
+        ColumnTableDto columnTableDto = placeholderColumnTableMap.getOrDefault(placeholderKey, ColumnTableDto.DEAFAULT);
         return JsqlparserUtil.parseFieldEncryptor(columnTableDto);
     }
 
