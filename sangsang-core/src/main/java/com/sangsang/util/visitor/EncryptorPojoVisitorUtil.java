@@ -1,14 +1,15 @@
 package com.sangsang.util.visitor;
 
+import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.ColumnTableDto;
+import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
-import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
+import com.sangsang.visitor.pojoencrtptor.PlaceholderExpressionVisitor;
 import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.update.UpdateSet;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -29,17 +30,72 @@ public class EncryptorPojoVisitorUtil {
      * @Param [updateSets, fieldParseTable]
      **/
     public static void updateSets(List<UpdateSet> updateSets,
-                                       FieldParseParseTableFromItemVisitor fieldParseTable,
-                                       Map<String, ColumnTableDto> placeholderColumnTableMap
-    ) {
-        for (UpdateSet updateSet : Optional.ofNullable(updateSets).orElse(new ArrayList<>())) {
-            List<Column> columns = updateSet.getColumns();
-            ExpressionList<Expression> expressions = (ExpressionList<Expression>) updateSet.getValues();
-            for (int i = 0; i < columns.size(); i++) {
-                JsqlparserUtil.parseWhereColumTable(fieldParseTable,
-                        columns.get(i),
-                        expressions.get(i),
-                        placeholderColumnTableMap);
+                                  BaseFieldParseTable baseFieldParseTable,
+                                  Map<String, ColumnTableDto> placeholderColumnTableMap) {
+        if (CollectionUtils.isEmpty(updateSets)) {
+            return;
+        }
+        for (UpdateSet updateSet : updateSets) {
+            EncryptorPojoVisitorUtil.columnsAndValues(updateSet.getColumns(), updateSet.getValues(), baseFieldParseTable, placeholderColumnTableMap);
+        }
+    }
+
+    /**
+     * 解析字段列表和值列表中字段和占位符的对应关系
+     *
+     * @author liutangqi
+     * @date 2026/10/29 11:15
+     * @Param [columns, expressions, fieldParseTable, placeholderColumnTableMap]
+     **/
+    public static void columnsAndValues(List<? extends Column> columns,
+                                        List<? extends Expression> expressions,
+                                        BaseFieldParseTable baseFieldParseTable,
+                                        Map<String, ColumnTableDto> placeholderColumnTableMap) {
+        //字段列表和值列表长度必须对应
+        if (CollectionUtils.isEmpty(columns) || CollectionUtils.isEmpty(expressions) || columns.size() != expressions.size()) {
+            return;
+        }
+        for (int i = 0; i < columns.size(); i++) {
+            JsqlparserUtil.parseWhereColumTable(baseFieldParseTable,
+                    columns.get(i),
+                    expressions.get(i),
+                    placeholderColumnTableMap);
+        }
+    }
+
+    /**
+     * 解析条件表达式中的占位符
+     *
+     * @author liutangqi
+     * @date 2026/10/29 11:20
+     * @Param [expression, fieldParseTable, placeholderColumnTableMap]
+     **/
+    public static void expression(Expression expression,
+                                  BaseFieldParseTable baseFieldParseTable,
+                                  Map<String, ColumnTableDto> placeholderColumnTableMap) {
+        if (expression == null) {
+            return;
+        }
+        PlaceholderExpressionVisitor expressionVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(baseFieldParseTable, placeholderColumnTableMap);
+        expression.accept(expressionVisitor);
+    }
+
+    /**
+     * 解析join涉及的表及on条件中的占位符
+     *
+     * @author liutangqi
+     * @date 2026/10/29 11:25
+     * @Param [joins, fieldParseTable, placeholderColumnTableMap]
+     **/
+    public static void joins(List<Join> joins,
+                             BaseFieldParseTable baseFieldParseTable,
+                             Map<String, ColumnTableDto> placeholderColumnTableMap) {
+        if (CollectionUtils.isEmpty(joins)) {
+            return;
+        }
+        for (Join join : joins) {
+            for (Expression onExpression : Optional.ofNullable(join.getOnExpressions()).orElse((List<Expression>) CollectionUtils.EMPTY_LIST)) {
+                EncryptorPojoVisitorUtil.expression(onExpression, baseFieldParseTable, placeholderColumnTableMap);
             }
         }
     }

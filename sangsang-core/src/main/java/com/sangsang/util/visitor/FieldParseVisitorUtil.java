@@ -3,6 +3,7 @@ package com.sangsang.util.visitor;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
+import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.WithItem;
 
@@ -50,6 +51,22 @@ public class FieldParseVisitorUtil {
             }
             join.getRightItem().accept(fieldParseParseTableFromItemVisitor);
         }
+    }
 
+
+    /**
+     * 解析using语法中涉及的表结构信息
+     *
+     * @author liutangqi
+     * @date 2026/10/29 13:39
+     * @Param [usingList, fieldParseTableFromItemVisitor]
+     **/
+    public static void usingList(List<Table> usingList, FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor) {
+        if (CollectionUtils.isEmpty(usingList)) {
+            return;
+        }
+        for (Table usingTable : usingList) {
+            usingTable.accept(fieldParseTableFromItemVisitor);
+        }
     }
 }

@@ -9,10 +9,11 @@ import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.domain.wrapper.LayerHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.ExpressionsUtil;
-import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.visitor.EncryptorPojoVisitorUtil;
+import com.sangsang.util.visitor.FieldParseVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
@@ -40,15 +41,17 @@ import net.sf.jsqlparser.statement.grant.Grant;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.insert.InsertConflictAction;
 import net.sf.jsqlparser.statement.merge.Merge;
+import net.sf.jsqlparser.statement.merge.MergeDelete;
+import net.sf.jsqlparser.statement.merge.MergeInsert;
+import net.sf.jsqlparser.statement.merge.MergeOperation;
+import net.sf.jsqlparser.statement.merge.MergeUpdate;
 import net.sf.jsqlparser.statement.refresh.RefreshMaterializedViewStatement;
 import net.sf.jsqlparser.statement.select.FromItem;
-import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.show.ShowIndexStatement;
 import net.sf.jsqlparser.statement.show.ShowTablesStatement;
 import net.sf.jsqlparser.statement.truncate.Truncate;
 import net.sf.jsqlparser.statement.update.Update;
-import net.sf.jsqlparser.statement.update.UpdateSet;
 import net.sf.jsqlparser.statement.upsert.Upsert;
 
 import java.util.*;
@@ -68,6 +71,7 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
     /**
      * 当前sql涉及到的字段以及字段的所属表结构信息
      **/
+    @Getter
     private List<FieldEncryptorInfoDto> fieldEncryptorInfos = new ArrayList<>();
 
     /**
@@ -75,15 +79,8 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
      * key: 占位符FieldConstant.PLACEHOLDER + 0开始的自增序号  （这个在解析前，我们会将？的占位符统一替换成这个格式的占位符）
      * value: 这个字段所属的表字段
      */
+    @Getter
     private Map<String, ColumnTableDto> placeholderColumnTableMap;
-
-    public List<FieldEncryptorInfoDto> getFieldEncryptorInfos() {
-        return fieldEncryptorInfos;
-    }
-
-    public Map<String, ColumnTableDto> getPlaceholderColumnTableMap() {
-        return placeholderColumnTableMap;
-    }
 
     @Override
     public void visit(Analyze analyze) {
@@ -112,74 +109,63 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Delete delete) {
-        //1.where 条件 不存在，则不进行加密处理（delete语句主要对delete的条件进行加密）
-        Expression where = delete.getWhere();
-        if (where == null) {
-            return;
-        }
+        //1.初始化占位符解析的结果集
+        this.placeholderColumnTableMap = new HashMap<>();
 
         //2.解析涉及到的表拥有的全部字段信息
         FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        // from 后的表
+        //2.1 from 后的表
         Table table = delete.getTable();
         table.accept(fieldParseTableFromItemVisitor);
 
-        //join 的表
-        List<Join> joins = Optional.ofNullable(delete.getJoins()).orElse(new ArrayList<>());
-        for (Join join : joins) {
-            FromItem rightItem = join.getRightItem();
-            rightItem.accept(fieldParseTableFromItemVisitor);
-        }
+        //2.2 using 后的表
+        FieldParseVisitorUtil.usingList(delete.getUsingList(), fieldParseTableFromItemVisitor);
 
-        //3.将where 条件进行加密
-        PlaceholderExpressionVisitor placeholderWhereExpressionVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor, this.placeholderColumnTableMap);
-        where.accept(placeholderWhereExpressionVisitor);
+        //2.3 join的表
+        FieldParseVisitorUtil.joins(delete.getJoins(), fieldParseTableFromItemVisitor);
 
-        //4.结果赋值
-        this.placeholderColumnTableMap = placeholderWhereExpressionVisitor.getPlaceholderColumnTableMap();
+        //3.处理join占位符
+        EncryptorPojoVisitorUtil.joins(delete.getJoins(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
+
+        //4.处理where条件中的占位符
+        EncryptorPojoVisitorUtil.expression(delete.getWhere(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
     }
 
     @Override
     public void visit(Update update) {
-        //1.解析涉及到的表拥有的全部字段信息
+        //1.初始化占位符解析的结果集
+        this.placeholderColumnTableMap = new HashMap<>();
+
+        //2.解析涉及到的表拥有的全部字段信息
         FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
 
-        //update的表
+        //2.1 update的表
         Table table = update.getTable();
         table.accept(fieldParseTableFromItemVisitor);
 
-        //join的表
-        List<Join> joins = Optional.ofNullable(update.getStartJoins()).orElse(new ArrayList<>());
-        for (Join join : joins) {
-            join.getRightItem().accept(fieldParseTableFromItemVisitor);
+        //2.2 直接jjoin的表
+        FieldParseVisitorUtil.joins(update.getStartJoins(), fieldParseTableFromItemVisitor);
+
+        //2.3 join的表
+        FieldParseVisitorUtil.joins(update.getJoins(), fieldParseTableFromItemVisitor);
+
+        //2.4 from后的表
+        FromItem fromItem = update.getFromItem();
+        if (fromItem != null) {
+            fromItem.accept(fieldParseTableFromItemVisitor);
         }
 
-        //2.初始化占位符解析的结果集
-        this.placeholderColumnTableMap = new HashMap<>();
+        //3.解析update后直接join的表及on条件的加密情况
+        EncryptorPojoVisitorUtil.joins(update.getStartJoins(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
 
-        //3.加密where 条件的数据
-        Expression where = update.getWhere();
-        if (where != null) {
-            PlaceholderExpressionVisitor dencryptWhereFieldVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
-            where.accept(dencryptWhereFieldVisitor);
-        }
+        //4.解析from后join的表及on条件的加密情况
+        EncryptorPojoVisitorUtil.joins(update.getJoins(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
 
-        //4.加密处理set的数据
-        List<UpdateSet> updateSets = update.getUpdateSets();
-        for (UpdateSet updateSet : updateSets) {
-            List<Column> columns = updateSet.getColumns();
-            ExpressionList<Expression> expressions = (ExpressionList<Expression>) updateSet.getValues();
-            for (int i = 0; i < columns.size(); i++) {
-                Column column = columns.get(i);
-                Expression expression = expressions.get(i);
+        //5.解析where条件的加密情况
+        EncryptorPojoVisitorUtil.expression(update.getWhere(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
 
-                //处理左右两边表达式的占位符信息
-                JsqlparserUtil.parseWhereColumTable(fieldParseTableFromItemVisitor,
-                        column,
-                        expression,
-                        this.getPlaceholderColumnTableMap());
-            }
-        }
+        //6.解析set的加密情况
+        EncryptorPojoVisitorUtil.updateSets(update.getUpdateSets(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
     }
 
     @Override
@@ -327,6 +313,45 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Merge merge) {
+        //1.初始化占位符解析的结果集
+        this.placeholderColumnTableMap = new HashMap<>();
+
+        //2.解析目标表和using来源表拥有的全部字段信息
+        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        merge.getTable().accept(fieldParseTable);
+        FromItem fromItem = merge.getFromItem();
+        if (fromItem != null) {
+            fromItem.accept(fieldParseTable);
+        }
+
+        //3.解析on条件中的占位符
+        EncryptorPojoVisitorUtil.expression(merge.getOnCondition(), fieldParseTable, this.getPlaceholderColumnTableMap());
+
+        //4.单独解析目标表，用于处理not matched insert分支中没有表别名的目标字段
+        FieldParseParseTableFromItemVisitor targetFieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        merge.getTable().accept(targetFieldParseTable);
+
+        //5.处理matched/not matched的全部分支
+        List<MergeOperation> operations = Optional.ofNullable(merge.getOperations()).orElse(new ArrayList<>());
+        for (MergeOperation operation : operations) {
+            if (operation instanceof MergeUpdate) {
+                MergeUpdate mergeUpdate = (MergeUpdate) operation;
+                EncryptorPojoVisitorUtil.updateSets(mergeUpdate.getUpdateSets(), fieldParseTable, this.getPlaceholderColumnTableMap());
+                EncryptorPojoVisitorUtil.expression(mergeUpdate.getAndPredicate(), fieldParseTable, this.getPlaceholderColumnTableMap());
+                EncryptorPojoVisitorUtil.expression(mergeUpdate.getWhereCondition(), fieldParseTable, this.getPlaceholderColumnTableMap());
+                EncryptorPojoVisitorUtil.expression(mergeUpdate.getDeleteWhereCondition(), fieldParseTable, this.getPlaceholderColumnTableMap());
+            }
+            if (operation instanceof MergeInsert) {
+                MergeInsert mergeInsert = (MergeInsert) operation;
+                EncryptorPojoVisitorUtil.columnsAndValues(mergeInsert.getColumns(), mergeInsert.getValues(), targetFieldParseTable, this.getPlaceholderColumnTableMap());
+                EncryptorPojoVisitorUtil.expression(mergeInsert.getAndPredicate(), fieldParseTable, this.getPlaceholderColumnTableMap());
+                EncryptorPojoVisitorUtil.expression(mergeInsert.getWhereCondition(), fieldParseTable, this.getPlaceholderColumnTableMap());
+            }
+            if (operation instanceof MergeDelete) {
+                MergeDelete mergeDelete = (MergeDelete) operation;
+                EncryptorPojoVisitorUtil.expression(mergeDelete.getAndPredicate(), fieldParseTable, this.getPlaceholderColumnTableMap());
+            }
+        }
 
     }
 
