@@ -10,6 +10,7 @@ import com.sangsang.domain.wrapper.LayerHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.ExpressionsUtil;
 import com.sangsang.util.JsqlparserUtil;
+import com.sangsang.util.visitor.EncryptorPojoVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,7 @@ import net.sf.jsqlparser.statement.drop.Drop;
 import net.sf.jsqlparser.statement.execute.Execute;
 import net.sf.jsqlparser.statement.grant.Grant;
 import net.sf.jsqlparser.statement.insert.Insert;
+import net.sf.jsqlparser.statement.insert.InsertConflictAction;
 import net.sf.jsqlparser.statement.merge.Merge;
 import net.sf.jsqlparser.statement.refresh.RefreshMaterializedViewStatement;
 import net.sf.jsqlparser.statement.select.FromItem;
@@ -220,9 +222,26 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
         PlaceholderSelectVisitor selectVisitor = PlaceholderSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, this.getPlaceholderColumnTableMap(), columns);
         select.accept(selectVisitor);
 
-        //6.ON DUPLICATE KEY UPDATE 语法 此语法不用单独处理，即可兼容
-//        List<Column> duplicateUpdateColumns = insert.getDuplicateUpdateColumns();
-//        List<Expression> duplicateUpdateExpressionList = insert.getDuplicateUpdateExpressionList();
+        //6.解析insert目标表拥有的全部字段信息
+        FieldParseParseTableFromItemVisitor insertFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        table.accept(insertFromItemVisitor);
+
+        //7.处理MySQL ON DUPLICATE KEY UPDATE分支中的占位符
+        EncryptorPojoVisitorUtil.updateSets(insert.getDuplicateUpdateSets(), insertFromItemVisitor, this.getPlaceholderColumnTableMap());
+
+        //8.处理PostgreSQL ON CONFLICT DO UPDATE分支中的占位符
+        InsertConflictAction conflictAction = insert.getConflictAction();
+        if (conflictAction != null) {
+            //8.1 处理 DO UPDATE分支
+            EncryptorPojoVisitorUtil.updateSets(conflictAction.getUpdateSets(), insertFromItemVisitor, this.getPlaceholderColumnTableMap());
+
+            //8.2 DO UPDATE分支可以继续携带where条件，该条件中的占位符同样需要解析
+            Expression conflictWhere = conflictAction.getWhereExpression();
+            if (conflictWhere != null) {
+                PlaceholderExpressionVisitor conflictWhereVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(insertFromItemVisitor, this.getPlaceholderColumnTableMap());
+                conflictWhere.accept(conflictWhereVisitor);
+            }
+        }
     }
 
 

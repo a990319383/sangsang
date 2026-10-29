@@ -215,7 +215,15 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
 
     @Override
     public void visit(Between between) {
-
+        //between 前面的字段分别和范围的开始、结束表达式进行匹配
+        JsqlparserUtil.parseWhereColumTable(this,
+                between.getLeftExpression(),
+                between.getBetweenExpressionStart(),
+                this.getPlaceholderColumnTableMap());
+        JsqlparserUtil.parseWhereColumTable(this,
+                between.getLeftExpression(),
+                between.getBetweenExpressionEnd(),
+                this.getPlaceholderColumnTableMap());
     }
 
     @Override
@@ -240,12 +248,18 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
 
     @Override
     public void visit(GreaterThan greaterThan) {
-
+        //如果有一边表达式是特殊的占位符，则维护占位符对应的表字段信息
+        JsqlparserUtil.parseWhereColumTable(this,
+                greaterThan,
+                this.getPlaceholderColumnTableMap());
     }
 
     @Override
     public void visit(GreaterThanEquals greaterThanEquals) {
-
+        //如果有一边表达式是特殊的占位符，则维护占位符对应的表字段信息
+        JsqlparserUtil.parseWhereColumTable(this,
+                greaterThanEquals,
+                this.getPlaceholderColumnTableMap());
     }
 
 
@@ -355,12 +369,18 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
 
     @Override
     public void visit(MinorThan minorThan) {
-
+        //如果有一边表达式是特殊的占位符，则维护占位符对应的表字段信息
+        JsqlparserUtil.parseWhereColumTable(this,
+                minorThan,
+                this.getPlaceholderColumnTableMap());
     }
 
     @Override
     public void visit(MinorThanEquals minorThanEquals) {
-
+        //如果有一边表达式是特殊的占位符，则维护占位符对应的表字段信息
+        JsqlparserUtil.parseWhereColumTable(this,
+                minorThanEquals,
+                this.getPlaceholderColumnTableMap());
     }
 
     @Override

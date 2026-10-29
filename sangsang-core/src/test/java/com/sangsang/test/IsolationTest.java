@@ -18,41 +18,20 @@ public class IsolationTest {
     String s1 = "select * from tb_user tu";
 
     //带条件的查询，且条件里面有or
-    String s2 = "select \n" +
-            "*\n" +
-            "from tb_user \n" +
-            "WHERE phone like 'xxx'\n" +
-            "and user_name = 'xxx'\n" +
-            "or phone = 'xxx'";
+    String s2 = "select * from tb_user WHERE phone like 'xxx' and user_name = 'xxx' or phone = 'xxx'";
     //多层嵌套查询
-    String s3 = "select a.*,\n" +
-            "(select tu.phone from tb_user tu) as ppp\n" +
-            "from \n" +
-            "(\n" +
-            "select *\n" +
-            "from tb_user \n" +
-            "WHERE phone = 'xxx')a";
+    String s3 = "select a.*, (select tu.phone from tb_user tu) as ppp from ( select * from tb_user WHERE phone = 'xxx')a";
     //联表查询 + EXISTS（注意：EXISTS中拥有了外部上游的字段访问权限，当前处理是，内层也增加了外层的数据隔离）
-    String s4 = "SELECT *\n" +
-            "\t\tfrom tb_user t1 \n" +
-            "\t\tleft join tb_user t2\n" +
-            "\t\ton t1.id = t2.id \n" +
-            "\t\tWHERE EXISTS (SELECT count(1) from tb_user )";
+    String s4 = "SELECT * from tb_user t1 left join tb_user t2 on t1.id = t2.id WHERE EXISTS (SELECT count(1) from tb_user )";
 
     // in select
-    String s5 = "\tSELECT *\n" +
-            "\tfrom tb_user tu \n" +
-            "\tWHERE tu.id in (select id from tb_user)";
+    String s5 = "SELECT * from tb_user tu WHERE tu.id in (select id from tb_user)";
 
     //union all
     String s6 = "select * from tb_user where id = 2 union all select * from tb_user where id = 3";
 
     // select from (union all)
-    String s7 = "\tselect \n" +
-            "\t\t*\n" +
-            "\t\tfrom (\n" +
-            "\t\tselect * from tb_user where id = 2 union all select * from tb_user where id = 3\n" +
-            "\t\t)a";
+    String s7 = "select * from ( select * from tb_user where id = 2 union all select * from tb_user where id = 3 )a";
 
     //单表多策略，且单表不同策略之间关系是or
     String s8 = "select * from sys_user where login_name like 'xxx' or mobile = '18432154844'";
@@ -88,7 +67,7 @@ public class IsolationTest {
     String s19 = "select * from tb_user tu order by (select max(id) from sys_user)";
 
     // 验证 LATERAL 子查询中的真实表能够进行数据隔离 (这个sql的语义是 用tb_user去关联查sys_user的处理后的结果集，其中sys_user是id和tb_user id一样最新的一条，left join是保证如果sys_user结果集不存在也要查出来，on true是保证一定能满足on)
-    String s20 = "select * from tb_user tu LEFT JOIN  lateral (select * from sys_user su where su.id = tu.id order by create_time desc limit 1) x ON TRUE";
+    String s20 = "select * from tb_user tu LEFT JOIN lateral (select * from sys_user su where su.id = tu.id order by create_time desc limit 1) x ON TRUE";
 
     // 验证 GROUP BY 表达式中的标量子查询能够进行数据隔离
     String s21 = "select count(*) from tb_user tu group by (select max(id) from sys_user)";
@@ -97,10 +76,10 @@ public class IsolationTest {
     String s22 = "select row_number() over (order by tu.id) as rn from tb_user tu qualify rn in (select id from sys_user)";
 
     //where条件中有单独的查询
-    String s15 = "select * from tb_user ts  where (select max(id) from tb_user ts2) = ts.id";
+    String s15 = "select * from tb_user ts where (select max(id) from tb_user ts2) = ts.id";
 
     //普通的update语句
-    String u1 = "update tb_user set  usert_name = ? where id = ?";
+    String u1 = "update tb_user set usert_name = ? where id = ?";
 
     //多表update，且两个表都需要进行数据隔离
     String u2 = "update tb_user tu join sys_user su on tu.id = su.id set su.menu_name = su.name , tu.phone = su.password , tu.phone = su.name , tu.phone = ? where tu.phone like ?";

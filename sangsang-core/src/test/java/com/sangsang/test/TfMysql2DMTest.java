@@ -21,156 +21,71 @@ public class TfMysql2DMTest {
 
 
     //DATE_SUB 函数转换
-    String s1 = "SELECT\n" +
-            "\tDATE_SUB(DATE_FORMAT(NOW(),'%Y-%m-%d'),INTERVAL 30 DAY) AS f1,\n" +
-            "\tDATE_SUB(DATE_FORMAT(CREATE_TIME ,'%Y-%m-%d %H:%i:%s'),INTERVAL 30 DAY) AS f2,\n" +
-            "\tDATEADD(DAY, -30, DATE_FORMAT(CREATE_TIME, \"%Y-%m-%d\")) AS f3,\n" +
-            "\t`USER_NAME` AS f4\n" +
-            "FROM\n" +
-            "\t`TB_USER`";
+    String s1 = "SELECT DATE_SUB(DATE_FORMAT(NOW(),'%Y-%m-%d'),INTERVAL 30 DAY) AS f1, DATE_SUB(DATE_FORMAT(CREATE_TIME ,'%Y-%m-%d %H:%i:%s'),INTERVAL 30 DAY) AS f2, DATEADD(DAY, -30, DATE_FORMAT(CREATE_TIME, \"%Y-%m-%d\")) AS f3, `USER_NAME` AS f4 FROM `TB_USER`";
 
     //Date()函数
-    String s2 = "\tselect \n" +
-            "\tdate(now()) AS f1,\n" +
-            "\tdate(CREATE_TIME)\n" +
-            "\tFROM TB_USER ";
+    String s2 = "select date(now()) AS f1, date(CREATE_TIME) FROM TB_USER";
 
     // where 条件后面的字符串是双引号
-    String s3 = "\t SELECT \n" +
-            "\t USER_NAME ,\n" +
-            "\t `PHONE`\n" +
-            "\t FROM TB_USER \n" +
-            "\t WHERE USER_NAME = \"西瓜皮\"";
+    String s3 = "SELECT USER_NAME , `PHONE` FROM TB_USER WHERE USER_NAME = \"西瓜皮\"";
 
     //like
-    String s4 = "SELECT *\n" +
-            "\t FROM TB_USER \n" +
-            "\t WHERE `USER_NAME` LIKE \"瓜\"\n" +
-            "\t AND `USER_NAME` LIKE CONCAT(\"%\",\"西\",\"%\")";
+    String s4 = "SELECT * FROM TB_USER WHERE `USER_NAME` LIKE \"瓜\" AND `USER_NAME` LIKE CONCAT(\"%\",\"西\",\"%\")";
 
     // 常量和字段嵌套查询
-    String s5 = "select\n" +
-            "\ta.`un`,\n" +
-            "\ta.`tmpName`,\n" +
-            "\t`tmpName` as en\n" +
-            "from \n" +
-            "(select\n" +
-            "\t`USER_NAME` as un,\n" +
-            "\t'中文' as tmpName\n" +
-            "from `TB_USER` )a";
+    String s5 = "select a.`un`, a.`tmpName`, `tmpName` as en from (select `USER_NAME` as un, '中文' as tmpName from `TB_USER` )a";
 
     //多层嵌套查询，包含常量字段
-    String s6 = "select \n" +
-            "b.`un`,\n" +
-            "b.`tmpName`,\n" +
-            "b.`en`\n" +
-            "from \n" +
-            "(select\n" +
-            "\ta.`un`,\n" +
-            "\ta.`tmpName`,\n" +
-            "\t`tmpName` as en\n" +
-            "from \n" +
-            "(select\n" +
-            "\t`USER_NAME` as un,\n" +
-            "\t\"中文\" as tmpName\n" +
-            "from TB_USER )a)b";
+    String s6 = "select b.`un`, b.`tmpName`, b.`en` from (select a.`un`, a.`tmpName`, `tmpName` as en from (select `USER_NAME` as un, \"中文\" as tmpName from TB_USER )a)b";
 
     // union
-    String s7 = "SELECT DATE_FORMAT(now(), \"%Y-%m-%d\") USER_NAME, `PHONE` FROM TB_USER WHERE USER_NAME != \"西瓜皮\"\n" +
-            "UNION ALL \n" +
-            "SELECT USER_NAME, `PHONE` FROM TB_USER WHERE USER_NAME != \"西瓜皮\"";
+    String s7 = "SELECT DATE_FORMAT(now(), \"%Y-%m-%d\") USER_NAME, `PHONE` FROM TB_USER WHERE USER_NAME != \"西瓜皮\" UNION ALL SELECT USER_NAME, `PHONE` FROM TB_USER WHERE USER_NAME != \"西瓜皮\"";
 
     // case when
-    String s8 = "SELECT \n" +
-            "\tCASE\n" +
-            "\t\t`USER_NAME` \n" +
-            "\t\tWHEN \"西瓜\" THEN 1\n" +
-            "\t\tWHEN \"南瓜\" THEN 2\n" +
-            "\t\tELSE `PHONE` \n" +
-            "\tEND AS F1,\n" +
-            "\tCASE \n" +
-            "\t\tWHEN `USER_NAME` = \"西瓜2\" THEN 1\n" +
-            "\t\tWHEN `USER_NAME` = \"南瓜2\" THEN 2\n" +
-            "\t\tELSE `PHONE` \n" +
-            "\tEND AS F2,\n" +
-            "\tCASE \n" +
-            "\t\tWHEN concat(`USER_NAME`,\"瓜\") = \"西瓜\" THEN DATE_FORMAT(`CREATE_TIME` , \"%Y-%m-%d\")\n" +
-            "\t\tWHEN `USER_NAME` = \"南瓜\" THEN `PHONE`\n" +
-            "\t\tELSE 3\n" +
-            "\tEND AS F3\n" +
-            "FROM\n" +
-            "\tTB_USER";
+    String s8 = "SELECT CASE `USER_NAME` WHEN \"西瓜\" THEN 1 WHEN \"南瓜\" THEN 2 ELSE `PHONE` END AS F1, CASE WHEN `USER_NAME` = \"西瓜2\" THEN 1 WHEN `USER_NAME` = \"南瓜2\" THEN 2 ELSE `PHONE` END AS F2, CASE WHEN concat(`USER_NAME`,\"瓜\") = \"西瓜\" THEN DATE_FORMAT(`CREATE_TIME` , \"%Y-%m-%d\") WHEN `USER_NAME` = \"南瓜\" THEN `PHONE` ELSE 3 END AS F3 FROM TB_USER";
 
     //exist
-    String s9 = "select \n" +
-            "* \n" +
-            "from \n" +
-            "`tb_user` tu \n" +
-            "where\n" +
-            "exists ( select count(1) from `tb_user` tu where tu.`phone` = \"14874542121\")\n" +
-            "and tu.`user_name` like \"%xxx%\" ";
+    String s9 = "select * from `tb_user` tu where exists ( select count(1) from `tb_user` tu where tu.`phone` = \"14874542121\") and tu.`user_name` like \"%xxx%\"";
 
     // md5
-    String s10 = "select \n" +
-            "md5(`user_name`)\n" +
-            "from tb_user";
+    String s10 = "select md5(`user_name`) from tb_user";
 
     //date_add
-    String s11 = "select date_add(`create_time` ,INTERVAL 7 DAY)\n" +
-            "from tb_user";
+    String s11 = "select date_add(`create_time` ,INTERVAL 7 DAY) from tb_user";
 
     //group_concat
-    String s12 = "select \n" +
-            "group_concat(user_name,phone) as f1,\n" +
-            "group_concat(user_name order by id desc) as f2 ,\n" +
-            "group_concat(user_name separator ';') as f3,\n" +
-            "group_concat(user_name,'-',phone order by id desc separator ';') as f4\n" +
-            "from tb_user ";
+    String s12 = "select group_concat(user_name,phone) as f1, group_concat(user_name order by id desc) as f2 , group_concat(user_name separator ';') as f3, group_concat(user_name,'-',phone order by id desc separator ';') as f4 from tb_user";
 
     //LISTAGG
-    String s13 = "\tselect \t\n" +
-            "\t\tLISTAGG(USER_NAME , ',') WITHIN GROUP (ORDER BY id DESC) AS f1,\n" +
-            "\t\tLISTAGG(USER_NAME , ',') AS f2\n" +
-            "\tFROM TB_USER ";
+    String s13 = "select LISTAGG(USER_NAME , ',') WITHIN GROUP (ORDER BY id DESC) AS f1, LISTAGG(USER_NAME , ',') AS f2 FROM TB_USER";
     // 多字段in
-    String s14 = "select * from tb_user tu \n" +
-            "where (`user_name`,`phone`)in ((\"冬瓜\",\"18555555555\"))";
+    String s14 = "select * from tb_user tu where (`user_name`,`phone`)in ((\"冬瓜\",\"18555555555\"))";
 
     //convert 这个函数没有对标的转换函数，仅做警告日志输出
     String s15 = "SELECT convert(tu.phone using utf8mb4) from tb_user tu";
 
     // in (select)
-    String s16 = "select * from tb_user\n" +
-            "where `phone` in (select `phone` from tb_user where `phone` like concat(\"%\",\"xxx\",\"%\"))";
+    String s16 = "select * from tb_user where `phone` in (select `phone` from tb_user where `phone` like concat(\"%\",\"xxx\",\"%\"))";
 
     // 多字段 (f1,f2) in (select)
-    String s17 = "select \n" +
-            "* \n" +
-            "from tb_user\n" +
-            "where (`phone`,`user_name`) in (select `phone`,`user_name` from tb_user where `phone` like concat(\"%\",\"xxx\",\"%\"))";
+    String s17 = "select * from tb_user where (`phone`,`user_name`) in (select `phone`,`user_name` from tb_user where `phone` like concat(\"%\",\"xxx\",\"%\"))";
 
     //多字段 in
-    String s18 = "select \n" +
-            "* \n" +
-            "from tb_user\n" +
-            "where (`phone`,`user_name`) in ((\"18555555555\",\"西\"),(\"18777777777\",\"瓜\"))";
+    String s18 = "select * from tb_user where (`phone`,`user_name`) in ((\"18555555555\",\"西\"),(\"18777777777\",\"瓜\"))";
     //函数(列) in
-    String s19 = "select \n" +
-            "* \n" +
-            "from tb_user\n" +
-            "where concat(`phone`,\"^\",`user_name`) in (\"18555555555^西\",\"18777777777^瓜\")";
+    String s19 = "select * from tb_user where concat(`phone`,\"^\",`user_name`) in (\"18555555555^西\",\"18777777777^瓜\")";
 
     // STR_TO_DATE
-    String s20 = "select STR_TO_DATE(create_time, '%Y-%m-%d %H:%i:%s') from tb_user ";
+    String s20 = "select STR_TO_DATE(create_time, '%Y-%m-%d %H:%i:%s') from tb_user";
 
     //子查询没有别名
     String s21 = "SELECT * FROM( SELECT TMP.*, ROWNUM ROW_ID FROM ( SELECT * FROM tb_user a WHERE a.create_time > \"2021-01-02 15:12:01\" ORDER BY a.`create_time` DESC) TMP WHERE ROWNUM <= 1) WHERE ROW_ID > 10";
 
     // SUBSTRING_INDEX
-    String s22 = "SELECT SUBSTRING_INDEX(\"www.example.com\", \".\", 2) ";
+    String s22 = "SELECT SUBSTRING_INDEX(\"www.example.com\", \".\", 2)";
 
     // SUBSTRING_INDEX + GROUP_CONCAT
-    String s23 = "select SUBSTRING_INDEX(GROUP_CONCAT( `user_name`),\",\",2) from tb_user ";
+    String s23 = "select SUBSTRING_INDEX(GROUP_CONCAT( `user_name`),\",\",2) from tb_user";
 
     //DATEDIFF
     String s24 = "SELECT DATEDIFF('2025-06-23','2025-07-25')";
@@ -182,63 +97,28 @@ public class TfMysql2DMTest {
     String s26 = "select * from tb_user where role_id BETWEEN 1 and 100 group by id,user_name";
 
     //select (select) from
-    String s27 = "select\n" +
-            "\ttu.`phone` as ph ,\n" +
-            "\t`menu_name` as mName,\n" +
-            "\t(select tm2.`menu_name` from `tb_menu` tm2 where tm2.id = tm.id and tm2.id = ? and tu.phone = ? ) as m2Name\n" +
-            "from\n" +
-            "\t`tb_user` tu\n" +
-            "left join `tb_menu` tm \n" +
-            "on tu.id = tm.`id`";
+    String s27 = "select tu.`phone` as ph , `menu_name` as mName, (select tm2.`menu_name` from `tb_menu` tm2 where tm2.id = tm.id and tm2.id = ? and tu.phone = ? ) as m2Name from `tb_user` tu left join `tb_menu` tm on tu.id = tm.`id`";
 
     //带有case when
-    String u1 = "update tb_user \n" +
-            "set `phone` = (CASE `phone` WHEN \"1\" THEN \"18111111111\" ELSE `phone` end )\n" +
-            "where `id` = 5";
+    String u1 = "update tb_user set `phone` = (CASE `phone` WHEN \"1\" THEN \"18111111111\" ELSE `phone` end ) where `id` = 5";
 
     //where 里面有函数
-    String d1 = "DELETE FROM \n" +
-            "tb_user \n" +
-            "WHERE `phone` LIKE concat(\"%\",`user_name`,\"%\")";
+    String d1 = "DELETE FROM tb_user WHERE `phone` LIKE concat(\"%\",`user_name`,\"%\")";
 
     //同时插入多条数据
     String i1 = "insert into tb_user(`id`,`user_name`,`phone`) values(7,\"名字1\",\"18777777777\"),(9,\"名字2\",\"18999999999\")";
 
     //insert select
-    String i2 = "insert into tb_user(`user_name`,`phone`)\n" +
-            "select `user_name`,`phone` from tb_user where `id` > 5";
+    String i2 = "insert into tb_user(`user_name`,`phone`) select `user_name`,`phone` from tb_user where `id` > 5";
 
     //占位符
-    String i3 = "INSERT INTO xxl_job_log (\n" +
-            "        `job_group`,\n" +
-            "        `job_id`,\n" +
-            "        `trigger_time`,\n" +
-            "        `trigger_code`,\n" +
-            "        `handle_code`\n" +
-            "        ) VALUES (\n" +
-            "        ?,\n" +
-            "        ?,\n" +
-            "        ?,\n" +
-            "        ?,\n" +
-            "        ?\n" +
-            "        );";
+    String i3 = "INSERT INTO xxl_job_log ( `job_group`, `job_id`, `trigger_time`, `trigger_code`, `handle_code` ) VALUES ( ?, ?, ?, ?, ? );";
 
     // value ===> values  (jsqlparser语法解析的时候会自动把value 转换为values)
     String i4 = "INSERT INTO tb_user (id,USER_NAME,PHONE) value (7,'名字3',18777777777),(9,'名字5',18999999999)";
 
     //测试的sql
-    String testSql = "SELECT \n" +
-            " count(1) as transportSum, -- 运单总数数量\n" +
-            "sum(IF(status = 0, 1, 0)) as orderSum, -- 已接单数量\n" +
-            "sum(IF(status = 1, 1, 0)) as inGoodsSum, -- 装货中数量\n" +
-            "sum(IF(status = 2, 1, 0)) as transportationSum, -- 运输中数量\n" +
-            "sum(IF(status = 3, 1, 0)) as deliveredSum -- 已交货数量\n" +
-            "FROM tms_transport\n" +
-            "WHERE status in (0,1,2,3)\n" +
-            "and del_flag = 0\n" +
-            "AND create_date >= \"2021-01-01\"\n" +
-            "AND \"2026-01-01\" >= create_date\n" +
-            "AND org_id = 11111";
+    String testSql = "SELECT count(1) as transportSum, /* 运单总数数量 */ sum(IF(status = 0, 1, 0)) as orderSum, /* 已接单数量 */ sum(IF(status = 1, 1, 0)) as inGoodsSum, /* 装货中数量 */ sum(IF(status = 2, 1, 0)) as transportationSum, /* 运输中数量 */ sum(IF(status = 3, 1, 0)) as deliveredSum /* 已交货数量 */ FROM tms_transport WHERE status in (0,1,2,3) and del_flag = 0 AND create_date >= \"2021-01-01\" AND \"2026-01-01\" >= create_date AND org_id = 11111";
 
     /**
      * mysql转换为达梦的语法转换器测试
