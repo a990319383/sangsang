@@ -11,8 +11,10 @@ import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
+import net.sf.jsqlparser.statement.select.WithItem;
 import net.sf.jsqlparser.statement.update.UpdateSet;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -112,6 +114,22 @@ public class EncryptorPojoVisitorUtil {
             for (Expression onExpression : Optional.ofNullable(join.getOnExpressions()).orElse((List<Expression>) CollectionUtils.EMPTY_LIST)) {
                 EncryptorPojoVisitorUtil.expression(onExpression, baseFieldParseTable, placeholderColumnTableMap);
             }
+        }
+    }
+
+    /**
+     * 处理 CTE 语法里面的占位符信息
+     *
+     * @author liutangqi
+     * @date 2026/10/29 17:52
+     * @Param [withItemsList, placeholderSelectVisitor]
+     **/
+    public static void cte(List<WithItem> withItemsList, PlaceholderSelectVisitor placeholderSelectVisitor) {
+        if (CollectionUtils.isEmpty(withItemsList)) {
+            return;
+        }
+        for (WithItem withItem : withItemsList) {
+            withItem.accept(placeholderSelectVisitor);
         }
     }
 }

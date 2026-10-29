@@ -185,6 +185,12 @@ public class EncryptorPojoTest {
     //比较运算符和between范围条件中的占位符能够关联到对应字段
     String s52 = "select * from tb_user where phone > ? and phone >= ? and phone < ? and phone <= ? and phone between ? and ?";
 
+    //测试CTE（WITH）内部查询条件中的占位符能够关联到对应字段
+    String s53 = "with u as (select phone from tb_user where phone = ?) select phone from u";
+
+    //测试HAVING条件中的占位符能够关联到对应字段
+    String s54 = "select phone,count(*) from tb_user group by phone having phone = ?";
+
     //临时测试sql
     String s_test_tmp = "select phone ph ,id as iii,'?' from tb_user where phone = ?";
 
@@ -291,7 +297,7 @@ public class EncryptorPojoTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = u7;
+        String sql = s54;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -309,10 +315,11 @@ public class EncryptorPojoTest {
 
     //需要测试的sql
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19,
-            s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42, s43, s44, s45, s46, s47, s48, s49, s50, s51, s52,
+            s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42,
+            s43, s44, s45, s46, s47, s48, s49, s50, s51, s52, s53, s54,
             i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15,
             d1, d2, d3,
-            u1, u2, u3, u4, u5, u6,
+            u1, u2, u3, u4, u5, u6, u7,
             m1
     );
 
