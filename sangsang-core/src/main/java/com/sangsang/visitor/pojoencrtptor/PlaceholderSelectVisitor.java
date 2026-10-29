@@ -6,6 +6,7 @@ import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.dto.PlaceholderFieldParseTable;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
+import com.sangsang.util.visitor.EncryptorPojoVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
@@ -149,9 +150,12 @@ public class PlaceholderSelectVisitor extends PlaceholderFieldParseTable impleme
 
     @Override
     public void visit(PlainSelect plainSelect) {
-        //1.获取select的每一项，将其中 select (select a from xxx) from 这种语法的#{}占位符进行解析
+        //1.解析CTE语法内部的占位符
+        EncryptorPojoVisitorUtil.cte(plainSelect.getWithItemsList(), this);
+
+        //2.获取select的每一项，将其中 select (select a from xxx) from 这种语法的#{}占位符进行解析
         PlaceholderExpressionVisitor placeholderWhereExpressionVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(this);
-        //1.1 上游字段和当前查询字段有对应关系的时候，查的字段的数量一定是相同的
+        //2.1 上游字段和当前查询字段有对应关系的时候，查的字段的数量一定是相同的
         if (this.upstreamExpressionList.size() == plainSelect.getSelectItems().size()) {
             for (int i = 0; i < plainSelect.getSelectItems().size(); i++) {
                 PlaceholderExpressionVisitor placeholderExpressionVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(this,
@@ -159,7 +163,7 @@ public class PlaceholderSelectVisitor extends PlaceholderFieldParseTable impleme
                 plainSelect.getSelectItems().get(i).getExpression().accept(placeholderExpressionVisitor);
             }
         }
-        //1.2 上游字段和当前没对应关系时，使用同一个visitor即可
+        //2.2 上游字段和当前没对应关系时，使用同一个visitor即可
         else {
             plainSelect.getSelectItems()
                     .stream()
@@ -167,32 +171,38 @@ public class PlaceholderSelectVisitor extends PlaceholderFieldParseTable impleme
         }
 
 
-        //2.解析from 后面的 #{}占位符
+        //3.解析from 后面的 #{}占位符
         FromItem fromItem = plainSelect.getFromItem();
         if (fromItem != null) {
             PlaceholderSelectFromItemVisitor placeholderSelectFromItemVisitor = PlaceholderSelectFromItemVisitor.newInstanceCurLayer(this, this.upstreamExpressionList);
             fromItem.accept(placeholderSelectFromItemVisitor);
         }
 
-        //3.将where 条件中的#{} 占位符进行解析
+        //4.将where 条件中的#{} 占位符进行解析
         Expression where = plainSelect.getWhere();
         if (where != null) {
             where.accept(placeholderWhereExpressionVisitor);
         }
 
-        //4.解析join
+        //5.解析join
         List<Join> joins = plainSelect.getJoins();
         if (CollectionUtils.isNotEmpty(joins)) {
             PlaceholderSelectFromItemVisitor phFromItemVisitor = PlaceholderSelectFromItemVisitor.newInstanceCurLayer(this);
             for (Join join : joins) {
-                //4.1解析join的表
+                //5.1解析join的表
                 FromItem joinRightItem = join.getRightItem();
                 joinRightItem.accept(phFromItemVisitor);
-                //4.2解析on
+                //5.2解析on
                 for (Expression expression : join.getOnExpressions()) {
                     expression.accept(PlaceholderExpressionVisitor.newInstanceCurLayer(this));
                 }
             }
+        }
+
+        //6.解析having条件中的#{}占位符
+        Expression having = plainSelect.getHaving();
+        if (having != null) {
+            having.accept(placeholderWhereExpressionVisitor);
         }
     }
 
@@ -205,6 +215,10 @@ public class PlaceholderSelectVisitor extends PlaceholderFieldParseTable impleme
      **/
     @Override
     public void visit(SetOperationList setOperationList) {
+        //1.解析挂在union语句上的CTE定义
+        EncryptorPojoVisitorUtil.cte(setOperationList.getWithItemsList(), this);
+
+        //2.依次解析union中的每条sql
         List<Select> selects = setOperationList.getSelects();
         for (Select select : selects) {
             //单独解析这条sql
@@ -220,6 +234,19 @@ public class PlaceholderSelectVisitor extends PlaceholderFieldParseTable impleme
 
     @Override
     public void visit(WithItem withItem) {
+        //1.CTE缺少内部查询的错误语法，不处理
+        Select select = withItem.getSelect();
+        if (select == null) {
+            return;
+        }
+
+        //2.CTE内部是独立的查询作用域，单独解析其字段信息
+        FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
+        select.accept(fieldParseTableSelectVisitor);
+
+        //3.使用CTE内部字段信息解析占位符，并和当前查询共用占位符结果集
+        PlaceholderSelectVisitor placeholderSelectVisitor = PlaceholderSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, this.getPlaceholderColumnTableMap());
+        select.accept(placeholderSelectVisitor);
 
     }
 
