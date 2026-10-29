@@ -7,6 +7,7 @@ import com.sangsang.domain.dto.PlaceholderFieldParseTable;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
+import lombok.Getter;
 import net.sf.jsqlparser.expression.*;
 import net.sf.jsqlparser.expression.operators.arithmetic.*;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
@@ -35,6 +36,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
      * 当此表达式和上游表达式相关联时，这个是传的上游的表达式
      * 例如：  case 字段 when xxx    的when语句的时候，需要知道这个when语句所属的case后面的字段，这个变量是存储这种情况的case字段的
      */
+    @Getter
     private Expression upstreamExpression;
 
     /**
@@ -75,9 +77,6 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
         this.upstreamExpression = upstreamExpression;
     }
 
-    public Expression getUpstreamExpression() {
-        return upstreamExpression;
-    }
 
     @Override
     public void visit(BitwiseRightShift bitwiseRightShift) {
@@ -408,7 +407,6 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
 
     @Override
     public void visit(ParenthesedSelect selectBody) {
-
     }
 
     @Override

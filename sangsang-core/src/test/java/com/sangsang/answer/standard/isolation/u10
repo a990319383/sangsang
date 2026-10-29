@@ -1,0 +1,1 @@
+UPDATE tb_user tu SET (phone, update_time) = (SELECT ?, ? FROM tb_user tu2 WHERE tu2.role_id = 1111111 AND tu.role_id = 1111111 LIMIT 1), tu.user_name = ? WHERE tu.id = ? AND tu.role_id = 1111111

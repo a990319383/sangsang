@@ -5,9 +5,12 @@ import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.visitor.pojoencrtptor.PlaceholderExpressionVisitor;
+import com.sangsang.visitor.pojoencrtptor.PlaceholderSelectVisitor;
 import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.Join;
+import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.update.UpdateSet;
 
 import java.util.List;
@@ -36,7 +39,19 @@ public class EncryptorPojoVisitorUtil {
             return;
         }
         for (UpdateSet updateSet : updateSets) {
-            EncryptorPojoVisitorUtil.columnsAndValues(updateSet.getColumns(), updateSet.getValues(), baseFieldParseTable, placeholderColumnTableMap);
+            if (CollectionUtils.isEmpty(updateSet.getValues())) {
+                continue;
+            }
+            //处理 update set(xxx,xxx) = (select xxx,xxx from) 这种子查询
+            if (updateSet.getValues().size() == 1 && updateSet.getValues().get(0) instanceof ParenthesedSelect) {
+                ParenthesedSelect parenthesedSelect = (ParenthesedSelect) updateSet.getValues().get(0);
+                PlaceholderSelectVisitor placeholderSelectVisitor = PlaceholderSelectVisitor.newInstanceCurLayer(baseFieldParseTable, placeholderColumnTableMap, updateSet.getColumns());
+                parenthesedSelect.accept(placeholderSelectVisitor);
+            }
+            //其它普通语法，一次将 Column和Value做对应即可
+            else {
+                EncryptorPojoVisitorUtil.columnsAndValues(updateSet.getColumns(), updateSet.getValues(), baseFieldParseTable, placeholderColumnTableMap);
+            }
         }
     }
 

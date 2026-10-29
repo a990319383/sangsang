@@ -200,17 +200,22 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
 
         //4.处理select
         Select select = insert.getSelect();
-        //解析当前查询语句的每层表的全部字段(注意：将insert的表的字段解析结果和select的表字段合并在一起，这样下游根据上游字段进行对比时，才知道占位符对应的具体的字段所属表信息)
-        FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer(null, layerFieldTableMap);
-        select.accept(fieldParseTableSelectVisitor);
+        if (select != null) {
+            //4.1 解析当前查询语句的每层表的全部字段(注意：将insert的表的字段解析结果和select的表字段合并在一起，这样下游根据上游字段进行对比时，才知道占位符对应的具体的字段所属表信息)
+            FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer(null, layerFieldTableMap);
+            select.accept(fieldParseTableSelectVisitor);
 
-        //5.解析占位符（注意：insert 语句的前后字段有对应关系，所以这里把insert前面的字段传递给后面的visitor）
-        PlaceholderSelectVisitor selectVisitor = PlaceholderSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, this.getPlaceholderColumnTableMap(), columns);
-        select.accept(selectVisitor);
+            //4.2 处理占位符信息（注意：insert 语句的前后字段有对应关系，所以这里把insert前面的字段传递给后面的visitor）
+            PlaceholderSelectVisitor selectVisitor = PlaceholderSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, this.getPlaceholderColumnTableMap(), columns);
+            select.accept(selectVisitor);
+        }
 
-        //6.解析insert目标表拥有的全部字段信息
+        //5.解析insert目标表拥有的全部字段信息
         FieldParseParseTableFromItemVisitor insertFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
         table.accept(insertFromItemVisitor);
+
+        //6.处理 insert into set
+        EncryptorPojoVisitorUtil.updateSets(insert.getSetUpdateSets(), insertFromItemVisitor, this.getPlaceholderColumnTableMap());
 
         //7.处理MySQL ON DUPLICATE KEY UPDATE分支中的占位符
         EncryptorPojoVisitorUtil.updateSets(insert.getDuplicateUpdateSets(), insertFromItemVisitor, this.getPlaceholderColumnTableMap());
@@ -324,7 +329,7 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
             fromItem.accept(fieldParseTable);
         }
 
-        //3.解析on条件中的占位符
+        //3.处理on条件中的占位符
         EncryptorPojoVisitorUtil.expression(merge.getOnCondition(), fieldParseTable, this.getPlaceholderColumnTableMap());
 
         //4.单独解析目标表，用于处理not matched insert分支中没有表别名的目标字段

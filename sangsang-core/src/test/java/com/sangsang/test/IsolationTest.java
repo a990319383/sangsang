@@ -105,6 +105,9 @@ public class IsolationTest {
     // 验证 UPDATE ... FROM 使用派生表时，派生表内部的来源表能够进行数据隔离
     String u9 = "update tb_user tu set tu.phone = su.mobile from (select id, mobile from sys_user) su where tu.id = su.id";
 
+    //多字段赋值 (oracle中多值set右侧必须是一个子查询)
+    String u10 = "UPDATE tb_user tu SET (phone, update_time) = (SELECT ?, ? FROM tb_user tu2 limit 1), tu.user_name = ? where tu.id = ?";
+
     //普通删除
     String d1 = "delete from sys_user where id = ?";
 
@@ -159,7 +162,7 @@ public class IsolationTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要的sql
-        String sql = d9;
+        String sql = u10;
 
         //开始进行数据隔离
         Statement statement = JsqlparserUtil.parse(sql);
@@ -184,7 +187,7 @@ public class IsolationTest {
     List<String> sqls = Arrays.asList(
             s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19, s20, s21, s22,
             u1, u2, u3, u4,
-            u5, u6, u7, u8, u9,
+            u5, u6, u7, u8, u9, u10,
             d1, d2, d3, d4, d5, d6, d7, d8, d9,
             i1, i2, i3
     );

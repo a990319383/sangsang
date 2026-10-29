@@ -230,6 +230,8 @@ public class EncryptorPojoTest {
     // PostgreSQL ON CONFLICT DO UPDATE分支及其where条件中的占位符能够关联到对应字段
     String i14 = "insert into tb_user(id, phone) values (?, ?) on conflict (id) do update set phone = ? where tb_user.phone > ?";
 
+    // insert into set
+    String i15 = "insert into tb_user set phone = ?, user_name = ?";
     // --------------delete 测试语句 ---------------
 
     // delet join
@@ -260,8 +262,11 @@ public class EncryptorPojoTest {
     //联表update，且存在对应字段加解密算法不一致的情况
     String u5 = "update tb_role tr join tb_user tu on tr.id = tu.id set tr.role_name = tu.phone, tr.role_desc = tu.phone , tr.role_name = tu.user_name where tr.id = 1";
 
-    //P0问题6：测试UPDATE FROM来源表条件中的占位符能够关联到对应字段
+    //测试UPDATE FROM来源表条件中的占位符能够关联到对应字段
     String u6 = "update tb_user u set user_name = s.user_name from tb_user s where s.phone = ? and u.id = s.id";
+
+    //多值update
+    String u7 = "UPDATE tb_user SET(phone, user_name) = (SELECT ?, ? FROM tb_role) WHERE id = ?";
 
     // --------------merge 测试语句 ---------------
 
@@ -286,7 +291,7 @@ public class EncryptorPojoTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = m1;
+        String sql = u7;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -304,8 +309,8 @@ public class EncryptorPojoTest {
 
     //需要测试的sql
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19,
-            s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42, s43, s44, s45, s46, s47, s48, s49, s50, s51,s52,
-            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14,
+            s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42, s43, s44, s45, s46, s47, s48, s49, s50, s51, s52,
+            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15,
             d1, d2, d3,
             u1, u2, u3, u4, u5, u6,
             m1
