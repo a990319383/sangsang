@@ -153,4 +153,10 @@
           and user_name != #{phone}
           and id != #{id}
     </select>
+    <select id="getLongPhone"
+            resultType="com.sangsang.demo.domain.vo.UserLongPhoneVo">
+        select *
+        from demo_pojo_user
+        where phone != #{phone}
+    </select>
 </mapper>

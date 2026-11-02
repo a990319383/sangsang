@@ -9,6 +9,7 @@ import java.sql.CallableStatement;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Optional;
 
 /**
  * pojo模式入参加密TypeHandler
@@ -53,12 +54,11 @@ public class PoJoParamEncryptorTypeHandler implements TypeHandler<Object> {
     @Override
     public void setParameter(PreparedStatement ps, int i, Object parameter, JdbcType jdbcType) throws SQLException {
         Object jdbcParameter = parameter;
-        if (parameter instanceof String) {
-            try {
-                jdbcParameter = fieldEncryptorStrategy.encryption((String) parameter);
-            } catch (Exception e) {
-                throw new FieldException(String.format("pojo模式入参加密失败 parameterIndex:%s property:%s", parameterIndex, property), e);
-            }
+        try {
+            String cleartext = Optional.ofNullable(parameter).map(Object::toString).orElse(null);
+            jdbcParameter = fieldEncryptorStrategy.encryption(cleartext);
+        } catch (Exception e) {
+            throw new FieldException(String.format("pojo模式入参加密失败 parameterIndex:%s property:%s", parameterIndex, property), e);
         }
 
         //继续使用原TypeHandler进行参数设置，兼容业务自定义TypeHandler

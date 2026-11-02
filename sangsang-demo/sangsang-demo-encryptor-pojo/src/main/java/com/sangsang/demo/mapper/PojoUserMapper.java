@@ -3,10 +3,7 @@ package com.sangsang.demo.mapper;
 import com.sangsang.demo.domain.dto.UserQueryDto;
 import com.sangsang.demo.domain.dto.UserSaveDto;
 import com.sangsang.demo.domain.dto.UserUpdateDto;
-import com.sangsang.demo.domain.vo.UserResultMapVo;
-import com.sangsang.demo.domain.vo.UserResultTypeVo;
-import com.sangsang.demo.domain.vo.UserUnderLineVo;
-import com.sangsang.demo.domain.vo.UserVo;
+import com.sangsang.demo.domain.vo.*;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
@@ -118,4 +115,14 @@ public interface PojoUserMapper {
      **/
     List<UserVo> getMultipleMappingsUserList(@Param("phone") String phone,
                                              @Param("id") Long id);
+
+
+    /**
+     * 这里密文存储的字段是Long类型，不是字符串类型
+     *
+     * @author liutangqi
+     * @date 2026/10/30 17:00
+     * @Param [phone]
+     **/
+    List<UserLongPhoneVo> getLongPhone(@Param("phone") Long phone);
 }

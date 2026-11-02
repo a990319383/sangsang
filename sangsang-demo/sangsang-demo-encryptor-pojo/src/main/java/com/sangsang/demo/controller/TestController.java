@@ -1,10 +1,7 @@
 package com.sangsang.demo.controller;
 
 import com.sangsang.demo.domain.dto.UserUpdateDto;
-import com.sangsang.demo.domain.vo.UserResultMapVo;
-import com.sangsang.demo.domain.vo.UserResultTypeVo;
-import com.sangsang.demo.domain.vo.UserUnderLineVo;
-import com.sangsang.demo.domain.vo.UserVo;
+import com.sangsang.demo.domain.vo.*;
 import com.sangsang.demo.mapper.PojoUserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -118,4 +115,19 @@ public class TestController {
     public List<UserVo> getMultipleMappingsUserList() {
         return userMapper.getMultipleMappingsUserList("不存在的电话号码", 999999L);
     }
+
+
+    /**
+     * 测试入参和响应密文存储的都是Long类型，不是字符串类型
+     * todo-ltq 当前版本3.7.1 暂不支持这种写法，待后续版本看是否有必要兼容这个场景。当前版本入参不会报错，响应映射的时候会报错
+     *
+     * @author liutangqi
+     * @date 2026/10/30 17:03
+     * @Param []
+     **/
+    @GetMapping("/getLongPhone")
+    public List<UserLongPhoneVo> getLongPhone() {
+        return userMapper.getLongPhone(999999999999L);
+    }
+
 }
