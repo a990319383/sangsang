@@ -130,4 +130,14 @@ public class TestController {
         return userMapper.getLongPhone(999999999999L);
     }
 
+    /**
+     * 不同加解密策略处理相同密文时，批量解密结果相互覆盖的问题。
+     * 正确结果应分别为 strategy-a-plaintext 和 strategy-b-plaintext，
+     * 当前实现会因为批量解密结果只以密文为key，导致两个字段返回相同值。
+     */
+    @GetMapping("/getFieldEncryptorStrategyCollision")
+    public List<FieldEncryptorStrategyCollisionVo> getFieldEncryptorStrategyCollision() {
+        return userMapper.getFieldEncryptorStrategyCollision();
+    }
+
 }

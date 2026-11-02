@@ -125,4 +125,9 @@ public interface PojoUserMapper {
      * @Param [phone]
      **/
     List<UserLongPhoneVo> getLongPhone(@Param("phone") Long phone);
+
+    /**
+     * 复现不同加解密策略处理相同密文时，批量解密结果相互覆盖的问题
+     */
+    List<FieldEncryptorStrategyCollisionVo> getFieldEncryptorStrategyCollision();
 }

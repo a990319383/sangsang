@@ -159,4 +159,10 @@
         from demo_pojo_user
         where phone != #{phone}
     </select>
+    <select id="getFieldEncryptorStrategyCollision"
+            resultType="com.sangsang.demo.domain.vo.FieldEncryptorStrategyCollisionVo">
+        select 'same-ciphertext' as first_strategy_value,
+               'same-ciphertext' as second_strategy_value
+        from demo_pojo_user limit 1
+    </select>
 </mapper>

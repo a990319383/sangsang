@@ -6,6 +6,8 @@ import com.sangsang.config.properties.SangSangProperties;
 import com.sangsang.domain.strategy.encryptor.FieldEncryptorStrategy;
 import lombok.extern.slf4j.Slf4j;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * java pojo 加密方式下的默认加解密算法
  * 默认采用DES算法
@@ -34,9 +36,9 @@ public class DefaultPoJoFieldEncryptorPattern implements FieldEncryptorStrategy<
         String ciphertext = cleartext;
         try {
             if (des == null) {
-                des = new DES(sangSangProperties.getEncryptor().getSecretKey().getBytes());
+                des = new DES(sangSangProperties.getEncryptor().getSecretKey().getBytes(StandardCharsets.UTF_8));
             }
-            byte[] encryptBytes = des.encrypt(cleartext.getBytes());
+            byte[] encryptBytes = des.encrypt(cleartext.getBytes(StandardCharsets.UTF_8));
             ciphertext = HexUtil.encodeHexStr(encryptBytes);
         } catch (Exception e) {
             log.error("【sangsang】pojo模式加密失败 cleartext:{}", cleartext, e);
@@ -54,11 +56,11 @@ public class DefaultPoJoFieldEncryptorPattern implements FieldEncryptorStrategy<
         String cleartext = ciphertext;
         try {
             if (des == null) {
-                des = new DES(sangSangProperties.getEncryptor().getSecretKey().getBytes());
+                des = new DES(sangSangProperties.getEncryptor().getSecretKey().getBytes(StandardCharsets.UTF_8));
             }
 
             byte[] decryptBytes = des.decrypt(HexUtil.decodeHex(ciphertext));
-            return new String(decryptBytes);
+            return new String(decryptBytes, StandardCharsets.UTF_8);
         } catch (Exception e) {
             log.error("【sangsang】pojo模式解密失败 ciphertext:{}", ciphertext, e);
         }

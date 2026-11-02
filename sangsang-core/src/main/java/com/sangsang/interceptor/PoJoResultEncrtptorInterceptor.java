@@ -8,6 +8,7 @@ import com.sangsang.domain.annos.encryptor.FieldEncryptor;
 import com.sangsang.domain.annos.encryptor.PoJoResultEncryptor;
 import com.sangsang.domain.constants.FieldConstant;
 import com.sangsang.domain.constants.InterceptorOrderConstant;
+import com.sangsang.domain.dto.ClassCacheKey;
 import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.domain.dto.FieldEncryptorInfoDto;
 import com.sangsang.domain.strategy.encryptor.FieldEncryptorStrategy;
@@ -153,7 +154,7 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
         }
 
         //5.批量解密
-        Map<String, String> cleartextMap = batchDecryption(fieldEncryptorStrategyMap);
+        Map<ClassCacheKey, Map<String, String>> cleartextMap = batchDecryption(fieldEncryptorStrategyMap);
 
         //6.如果所有字段都不需要解密，则直接返回
         if (CollectionUtils.isEmpty(cleartextMap)) {
@@ -255,14 +256,15 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
                     Class<? extends FieldEncryptorStrategy> fieldEncryptorCls = Optional.ofNullable(getFieldEncryptorByFieldName(field.getName(), fieldEncryptorMap)).map(FieldEncryptor::value).orElse(null);
                     Class<? extends FieldEncryptorStrategy> encryptorStrategyCls = poJoResultEncryptorCls != null ? poJoResultEncryptorCls : fieldEncryptorCls;
                     if (encryptorStrategyCls != null) {
+                        FieldEncryptorStrategy fieldEncryptorStrategy = EncryptorInstanceCache.<FieldEncryptorStrategy>getInstance(encryptorStrategyCls);
                         //3.1.3 缓存当前字段对应策略
-                        currentFieldStrategyMap.put(field.toGenericString(), EncryptorInstanceCache.<FieldEncryptorStrategy>getInstance(encryptorStrategyCls));
+                        currentFieldStrategyMap.put(field.toGenericString(), fieldEncryptorStrategy);
 
                         //记录当前字段的策略和实际值，用于后续批量解密
                         field.setAccessible(true);
                         String fieldValue = Optional.ofNullable(field.get(res)).map(Object::toString).orElse(null);
                         //3.1.4 缓存当前需要解密的明文值，后于后续批量解密
-                        CollectionUtils.putList(fieldEncryptorStrategyMap, EncryptorInstanceCache.<String>getInstance(encryptorStrategyCls), fieldValue, new HashSet<>());
+                        CollectionUtils.putList(fieldEncryptorStrategyMap, fieldEncryptorStrategy, fieldValue, new HashSet<>());
                     }
                 }
                 clsFieldStrategyMap.put(res.getClass(), currentFieldStrategyMap);
@@ -285,7 +287,7 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
     /**
      * 使用明文替换结果集中的密文
      *
-     * @param cleartextMap        批量解密后的结果集 key:密文 value:明文
+     * @param cleartextMap        批量解密后的结果集 key:加解密策略ClassCacheKey value:(key:密文 value:明文)
      * @param clsFieldStrategyMap 用于缓存每个类需要解密的字段策略信息(key:class value(key:field的toGenericString() value:加解密策略实例)
      * @param clsFieldMap         缓存映射java类的每个字段 （key:class value(key:field的toGenericString() value:field对象)）
      * @param fieldEncryptorMap   解析sql的结果集
@@ -293,7 +295,7 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
      * @author liutangqi
      * @date 2026/8/14 13:49
      **/
-    private Object replaceCiphertext(Map<String, String> cleartextMap,
+    private Object replaceCiphertext(Map<ClassCacheKey, Map<String, String>> cleartextMap,
                                      Map<Class, Map<String, FieldEncryptorStrategy>> clsFieldStrategyMap,
                                      Map<Class, Map<String, Field>> clsFieldMap,
                                      Map<String, FieldEncryptorInfoDto> fieldEncryptorMap,
@@ -312,7 +314,9 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
             if (res instanceof String && fieldEncryptorMap.size() == 1) {
                 FieldEncryptor fieldEncryptor = fieldEncryptorMap.values().stream().findAny().get().getFieldEncryptor();
                 if (fieldEncryptor != null) {
-                    return cleartextMap.get((String) res);
+                    //PS:这里作为缓存key的时候，先使用class从缓存中取了一次实例，再通过实例获取class看似多绕了一层，但是是保证缓存key存取值一致，避免某些情况子类不同导致错误
+                    FieldEncryptorStrategy fieldEncryptorStrategy = EncryptorInstanceCache.<String>getInstance(fieldEncryptor.value());
+                    return cleartextMap.get(ClassCacheKey.buildKey(fieldEncryptorStrategy.getClass())).get((String) res);
                 }
             }
         }
@@ -320,9 +324,11 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
         else if (res instanceof Map) {
             Map resMap = (Map) res;
             for (Map.Entry<String, Object> entry : (Set<Map.Entry<String, Object>>) resMap.entrySet()) {
+                //PS:这里作为缓存key的时候，先使用class从缓存中取了一次实例，再通过实例获取class看似多绕了一层，但是是保证缓存key存取值一致，避免某些情况子类不同导致错误
                 FieldEncryptor fieldEncryptor = getFieldEncryptorByFieldName(entry.getKey(), fieldEncryptorMap);
                 if (fieldEncryptor != null) {
-                    resMap.put(entry.getKey(), cleartextMap.get((String) entry.getValue()));
+                    FieldEncryptorStrategy fieldEncryptorStrategy = EncryptorInstanceCache.<String>getInstance(fieldEncryptor.value());
+                    resMap.put(entry.getKey(), cleartextMap.get(ClassCacheKey.buildKey(fieldEncryptorStrategy.getClass())).get((String) entry.getValue()));
                 }
             }
             return resMap;
@@ -337,7 +343,7 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
                 field.setAccessible(true);
                 String fieldValue = Optional.ofNullable(field.get(res)).map(Object::toString).orElse(null);
                 //3.3 从批量解密的结果集中拿到对应明文，替换对象的字段值
-                field.set(res, cleartextMap.getOrDefault(fieldValue, fieldValue));
+                field.set(res, cleartextMap.get(ClassCacheKey.buildKey(entry.getValue().getClass())).getOrDefault(fieldValue, fieldValue));
             }
             return res;
         }
@@ -351,10 +357,11 @@ public class PoJoResultEncrtptorInterceptor implements Interceptor, BeanPostProc
      * @date 2026/8/14 13:36
      * @Param [fieldEncryptorStrategyMap]
      **/
-    private Map<String, String> batchDecryption(Map<FieldEncryptorStrategy, Set<String>> fieldEncryptorStrategyMap) {
-        Map<String, String> resMap = new HashMap<>();
+    private Map<ClassCacheKey, Map<String, String>> batchDecryption(Map<FieldEncryptorStrategy, Set<String>> fieldEncryptorStrategyMap) {
+        Map<ClassCacheKey, Map<String, String>> resMap = new HashMap<>();
         for (Map.Entry<FieldEncryptorStrategy, Set<String>> strategySetEntry : fieldEncryptorStrategyMap.entrySet()) {
-            resMap.putAll(strategySetEntry.getKey().batchDecryption(strategySetEntry.getValue().stream().collect(Collectors.toList())));
+            ClassCacheKey classCacheKey = ClassCacheKey.buildKey(strategySetEntry.getKey().getClass());
+            resMap.put(classCacheKey, strategySetEntry.getKey().batchDecryption(strategySetEntry.getValue().stream().collect(Collectors.toList())));
         }
         return resMap;
     }
