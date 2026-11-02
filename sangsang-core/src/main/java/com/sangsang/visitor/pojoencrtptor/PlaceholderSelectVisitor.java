@@ -9,6 +9,7 @@ import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.visitor.EncryptorPojoVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.Parenthesis;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.statement.select.*;
 
@@ -272,8 +273,15 @@ public class PlaceholderSelectVisitor extends PlaceholderFieldParseTable impleme
         //2. insert 语句后面的值 (xxx,xxx) 这种单个的值
         if (!(expressions.get(0) instanceof ExpressionList)) {
             for (int i = 0; i < expressions.size(); i++) {
+                //2.1 获取当前values后面的值
                 Expression curExp = (Expression) expressions.get(i);
+                //2.2 如果这个值是括号包起来的，则获取括号里面的值（PS： insert into table(xxx) values (?) 这种表后面只有一个字段的就会出现这种解析语法）
+                if (curExp instanceof Parenthesis) {
+                    curExp = ((Parenthesis) curExp).getExpression();
+                }
+                //2.3 获取上游对应字段
                 Expression upstreamExpression = this.upstreamExpressionList.get(i);
+                //2.4 解析占位符
                 JsqlparserUtil.parseWhereColumTable(this,
                         upstreamExpression,
                         curExp,
