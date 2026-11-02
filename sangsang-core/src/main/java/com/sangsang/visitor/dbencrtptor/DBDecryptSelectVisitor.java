@@ -243,10 +243,9 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
                 for (int i = 0; i < eList.size(); i++) {
                     Expression exp = (Expression) eList.get(i);
                     FieldEncryptor upstreamFieldEncryptor = this.upstreamNeedEncryptFieldEncryptor.size() > i ? this.upstreamNeedEncryptFieldEncryptor.get(i) : null;
-                    if (upstreamFieldEncryptor != null) {
-                        exp = EncryptorInstanceCache.<Expression>getInstance(upstreamFieldEncryptor.value()).encryption(exp);
-                    }
-                    eList.set(i, exp);
+                    DBDecryptExpressionVisitor dbDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(this, EncryptorFunctionEnum.UPSTREAM_COLUMN, upstreamFieldEncryptor);
+                    exp.accept(dbDecryptExpressionVisitor);
+                    eList.set(i, Optional.ofNullable(dbDecryptExpressionVisitor.getProcessedExpression()).orElse(exp));
                 }
             }
         }
@@ -256,10 +255,9 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
             for (int i = 0; i < expressions.size(); i++) {
                 Expression exp = (Expression) expressions.get(i);
                 FieldEncryptor upstreamFieldEncryptor = this.upstreamNeedEncryptFieldEncryptor.size() > i ? this.upstreamNeedEncryptFieldEncryptor.get(i) : null;
-                if (upstreamFieldEncryptor != null) {
-                    exp = EncryptorInstanceCache.<Expression>getInstance(upstreamFieldEncryptor.value()).encryption(exp);
-                }
-                expressions.set(i, exp);
+                DBDecryptExpressionVisitor dbDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(this, EncryptorFunctionEnum.UPSTREAM_COLUMN, upstreamFieldEncryptor);
+                exp.accept(dbDecryptExpressionVisitor);
+                expressions.set(i, Optional.ofNullable(dbDecryptExpressionVisitor.getProcessedExpression()).orElse(exp));
             }
         }
     }

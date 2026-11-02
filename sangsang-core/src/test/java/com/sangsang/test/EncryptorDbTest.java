@@ -213,6 +213,9 @@ public class EncryptorDbTest {
     // insert into 表 缺字段，并且子查询是select a.* from (select ) ，这里a是一个虚拟表，将*补齐的方式不同 并且insert 和select的都是需要密文存储的
     String i12 = "insert into tb_user(select a.* from (select * from tb_user)a)";
 
+    // 这里tb_user后面只跟了一个字段（PS：Jsalparser对这种语法的解析有所不同）
+    String i13 = "INSERT INTO tb_user(phone) VALUES (?)";
+
     // --------------delete 测试语句 ---------------
 
     // delet join
@@ -258,7 +261,7 @@ public class EncryptorDbTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = s28;
+        String sql = i1;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -279,7 +282,7 @@ public class EncryptorDbTest {
     //需要测试的sql
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19,
             s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42, s43, s44, s45, s46, s47, s48, s49, s50, s51,
-            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12,
+            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13,
             d1, d2,
             u1, u2, u3, u4, u5
     );

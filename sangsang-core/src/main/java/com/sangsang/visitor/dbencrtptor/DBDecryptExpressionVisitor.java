@@ -200,14 +200,20 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
     public void visit(Parenthesis parenthesis) {
         //解析括号括起来的表达式
         Expression exp = parenthesis.getExpression();
-        DBDecryptExpressionVisitor sDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(this);
+        //注意：这里不能使用DBDecryptExpressionVisitor.newInstanceCurLayer(this)，因为这个方法会把上游对应的表达式清空，这里需要将上游对应表达式继续往下传递
+        DBDecryptExpressionVisitor sDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(this, this.getEncryptorFunctionEnum(), this.getUpstreamFieldEncryptor());
         exp.accept(sDecryptExpressionVisitor);
         parenthesis.setExpression(Optional.ofNullable(sDecryptExpressionVisitor.getProcessedExpression()).orElse(exp));
     }
 
     @Override
     public void visit(StringValue stringValue) {
-
+        //注意：这种是常量，肯定不是密文存储，头上肯定没注解，所以下面 currentFieldEncryptor 是null
+        Expression disposeExp = this.getEncryptorFunctionEnum()
+                .getFun()
+                .dispose(this.getUpstreamFieldEncryptor(), null, stringValue);
+        //处理结果赋值
+        this.processedExpression = disposeExp;
     }
 
     @Override
