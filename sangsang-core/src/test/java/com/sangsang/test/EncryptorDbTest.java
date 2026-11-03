@@ -245,6 +245,8 @@ public class EncryptorDbTest {
     //联表update，且存在对应字段加解密算法不一致的情况
     String u5 = "update tb_role tr join tb_user tu on tr.id = tu.id set tr.role_name = tu.phone, tr.role_desc = tu.phone , tr.role_name = tu.user_name where tr.id = 1";
 
+    //update的时候，字段右侧是函数
+    String u6 = "UPDATE tb_user SET phone = concat(?, 'x') WHERE id = ?";
 
 //----------------------------------------测试单条sql分割线---------------------------------------------------------
 
@@ -263,7 +265,7 @@ public class EncryptorDbTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = i14;
+        String sql = u6;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -286,7 +288,7 @@ public class EncryptorDbTest {
             s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42, s43, s44, s45, s46, s47, s48, s49, s50, s51,
             i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14,
             d1, d2,
-            u1, u2, u3, u4, u5
+            u1, u2, u3, u4, u5, u6
     );
 
     /**

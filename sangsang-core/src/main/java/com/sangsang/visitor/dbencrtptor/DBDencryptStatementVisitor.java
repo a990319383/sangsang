@@ -6,7 +6,7 @@ import com.sangsang.domain.enums.EncryptorFunctionEnum;
 import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.ExpressionsUtil;
-import com.sangsang.util.JsqlparserUtil;
+import com.sangsang.util.visitor.EncryptorDbVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import lombok.extern.slf4j.Slf4j;
@@ -149,24 +149,9 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
         }
 
         //3.加密处理set的数据
-        List<UpdateSet> updateSets = update.getUpdateSets();
-        for (UpdateSet updateSet : updateSets) {
-            List<Column> columns = updateSet.getColumns();
-            ExpressionList<Expression> expressions = (ExpressionList<Expression>) updateSet.getValues();
-            //处理每对需要加密的字段
-            for (int i = 0; i < columns.size(); i++) {
-                Column column = columns.get(i);
-                Expression expression = expressions.get(i);
-                //左边是否需要加解密
-                FieldEncryptor leftFieldEncryptor = JsqlparserUtil.needEncryptFieldEncryptor(column, fieldParseTableFromItemVisitor);
-                //根据左边是否密文存储来对右边进行处理
-                DBDecryptExpressionVisitor sDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor, EncryptorFunctionEnum.UPSTREAM_COLUMN, leftFieldEncryptor);
-                expression.accept(sDecryptExpressionVisitor);
-                expressions.set(i, Optional.ofNullable(sDecryptExpressionVisitor.getProcessedExpression()).orElse(expression));
-            }
-        }
+        EncryptorDbVisitorUtil.updateSets(update.getUpdateSets(), fieldParseTableFromItemVisitor);
 
-        //5.处理结果赋值
+        //4.处理结果赋值
         this.resultSql = update.toString();
 
     }

@@ -118,6 +118,7 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
      **/
     @Override
     public void visit(Function function) {
+        //1.处理function里面的参数
         List<Expression> expressions = Optional.ofNullable((ExpressionList<Expression>) function.getParameters())
                 .orElse(new ExpressionList<>())
                 .stream()
@@ -129,7 +130,13 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
         if (function.getParameters() != null) {
             function.setParameters(new ExpressionList(expressions));
         }
-
+        //2.如果存在上游表达式，则需要对整个function处理一次
+        if (this.getUpstreamFieldEncryptor() != null) {
+            //注意：当前是个function，头上肯定没有注解，所以传null
+            this.processedExpression = this.getEncryptorFunctionEnum()
+                    .getFun()
+                    .dispose(this.getUpstreamFieldEncryptor(), null, function);
+        }
     }
 
     @Override
