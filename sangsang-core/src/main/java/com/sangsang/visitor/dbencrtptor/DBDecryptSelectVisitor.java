@@ -1,15 +1,17 @@
 package com.sangsang.visitor.dbencrtptor;
 
-import com.sangsang.cache.encryptor.EncryptorInstanceCache;
 import com.sangsang.domain.annos.encryptor.FieldEncryptor;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.enums.EncryptorFunctionEnum;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
+import com.sangsang.util.visitor.EncryptorDbVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.Parenthesis;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
+import net.sf.jsqlparser.expression.operators.relational.ParenthesedExpressionList;
 import net.sf.jsqlparser.statement.select.*;
 
 import java.util.*;
@@ -141,7 +143,7 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
 
         //2.将 select *  select 别名.* 转换为select 字段
         List<SelectItem> selectItems = plainSelect.getSelectItems().stream()
-                .map(m -> JsqlparserUtil.perfectAllColumns(m, this.getLayer(),this.getLayerFieldTableMap(), this.upstreamNeedEncryptFieldEncryptor))
+                .map(m -> JsqlparserUtil.perfectAllColumns(m, this.getLayer(), this.getLayerFieldTableMap(), this.upstreamNeedEncryptFieldEncryptor))
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
 
@@ -228,6 +230,15 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
 
     /**
      * insert 语句 values后面的处理逻辑
+     * SQL 形态              根节点                       子节点
+     * ━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     * VALUES (?)            ExpressionList               Parenthesis(?)
+     * ────────────────────  ───────────────────────────  ────────────────────────────────
+     * VALUES (?),(?)        ExpressionList               多个 Parenthesis(?)
+     * ────────────────────  ───────────────────────────  ────────────────────────────────
+     * VALUES (?,?)          ParenthesedExpressionList    多个实际字段值
+     * ────────────────────  ───────────────────────────  ────────────────────────────────
+     * VALUES (?,?),(?,?)    ExpressionList               多个 ParenthesedExpressionList
      *
      * @author liutangqi
      * @date 2025/3/12 17:45
@@ -235,29 +246,39 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
      **/
     @Override
     public void visit(Values aThis) {
-        ExpressionList<Expression> expressions = (ExpressionList<Expression>) aThis.getExpressions();
-        for (Expression expressionList : expressions) {
-            //1. insert 语句后面的值 (xxx,xxx),(xxx,xxx)这种list
-            if (expressionList instanceof ExpressionList) {
-                ExpressionList eList = (ExpressionList) expressionList;
-                for (int i = 0; i < eList.size(); i++) {
-                    Expression exp = (Expression) eList.get(i);
-                    FieldEncryptor upstreamFieldEncryptor = this.upstreamNeedEncryptFieldEncryptor.size() > i ? this.upstreamNeedEncryptFieldEncryptor.get(i) : null;
-                    DBDecryptExpressionVisitor dbDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(this, EncryptorFunctionEnum.UPSTREAM_COLUMN, upstreamFieldEncryptor);
-                    exp.accept(dbDecryptExpressionVisitor);
-                    eList.set(i, Optional.ofNullable(dbDecryptExpressionVisitor.getProcessedExpression()).orElse(exp));
-                }
-            }
+        //1.外层是 ParenthesedExpressionList (对应形态3) 用例对应i6
+        if (aThis.getExpressions() instanceof ParenthesedExpressionList) {
+            ParenthesedExpressionList parenthesedExpressionList = (ParenthesedExpressionList) aThis.getExpressions();
+            EncryptorDbVisitorUtil.expressionList(this, this.upstreamNeedEncryptFieldEncryptor, parenthesedExpressionList);
         }
 
-        //2. insert 语句后面的值 (xxx,xxx) 这种单个的值
-        if (!(expressions.get(0) instanceof ExpressionList)) {
-            for (int i = 0; i < expressions.size(); i++) {
-                Expression exp = (Expression) expressions.get(i);
-                FieldEncryptor upstreamFieldEncryptor = this.upstreamNeedEncryptFieldEncryptor.size() > i ? this.upstreamNeedEncryptFieldEncryptor.get(i) : null;
-                DBDecryptExpressionVisitor dbDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(this, EncryptorFunctionEnum.UPSTREAM_COLUMN, upstreamFieldEncryptor);
-                exp.accept(dbDecryptExpressionVisitor);
-                expressions.set(i, Optional.ofNullable(dbDecryptExpressionVisitor.getProcessedExpression()).orElse(exp));
+        //2.外层是 ExpressionList (对应形态1、2、4)
+        if (aThis.getExpressions() instanceof ExpressionList) {
+            ExpressionList expressionList = aThis.getExpressions();
+            //2.1 形态1、对应测试用例 i13
+            if (expressionList.size() == 1 && expressionList.getExpressions().get(0) instanceof Parenthesis) {
+                Parenthesis parenthesis = (Parenthesis) expressionList.get(0);
+                ParenthesedExpressionList<Expression> parenthesedExpressionList = new ParenthesedExpressionList<>();
+                parenthesedExpressionList.add(parenthesis.getExpression());
+                EncryptorDbVisitorUtil.expressionList(this, this.upstreamNeedEncryptFieldEncryptor, parenthesedExpressionList);
+                aThis.setExpressions(parenthesedExpressionList);
+            }
+            //2.2 形态2、对应测试用例 i14
+            else if (expressionList.size() > 1 && expressionList.getExpressions().get(0) instanceof Parenthesis) {
+                for (int i = 0; i < expressionList.size(); i++) {
+                    Parenthesis parenthesis = (Parenthesis) expressionList.get(i);
+                    ParenthesedExpressionList<Expression> parenthesedExpressionList = new ParenthesedExpressionList<>();
+                    parenthesedExpressionList.add(parenthesis.getExpression());
+                    EncryptorDbVisitorUtil.expressionList(this, this.upstreamNeedEncryptFieldEncryptor, parenthesedExpressionList);
+                    expressionList.set(i, parenthesedExpressionList);
+                }
+            }
+            //2.3 形态4，对应测试用例 i1
+            else if (expressionList.size() > 1 && expressionList.getExpressions().get(0) instanceof ParenthesedExpressionList) {
+                for (Object exp : expressionList) {
+                    ParenthesedExpressionList parenthesedExpressionList = (ParenthesedExpressionList) exp;
+                    EncryptorDbVisitorUtil.expressionList(this, this.upstreamNeedEncryptFieldEncryptor, parenthesedExpressionList);
+                }
             }
         }
     }

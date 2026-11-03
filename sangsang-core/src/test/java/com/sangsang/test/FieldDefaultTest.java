@@ -58,6 +58,8 @@ public class FieldDefaultTest {
     //PostgreSQL ON CONFLICT UPDATE 语法
     String i12 = "INSERT INTO tb_user (user_name, login_name, login_pwd, phone) VALUES (?, ?, ?, ?) ON CONFLICT (login_name) DO UPDATE SET user_name = EXCLUDED.user_name, login_pwd = EXCLUDED.login_pwd, phone = EXCLUDED.phone;";
 
+    //类比于i10 不过这里values后面是多个值
+    String i13 = "INSERT INTO tb_user(user_name) VALUES (?),(?)";
     // --------------update 测试语句 ---------------
 
     //update 联表  set的时候存在 其它表的值，也存在常量值
@@ -103,7 +105,7 @@ public class FieldDefaultTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要的sql
-        String sql = u11;
+        String sql = i13;
 
         //开始进行数据隔离
         Statement statement = JsqlparserUtil.parse(sql);
@@ -125,7 +127,7 @@ public class FieldDefaultTest {
 
     //----------------------------------------校验当前程序是否正确分割线---------------------------------------------------------
     //需要测试的sql
-    List<String> sqls = Arrays.asList(i1, i2, i3, i5, i6, i7, i8, i10, i11, i12,//i4  i9
+    List<String> sqls = Arrays.asList(i1, i2, i3, i5, i6, i7, i8, i10, i11, i12, i13,//i4  i9
             u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11 //, u12
     );
 

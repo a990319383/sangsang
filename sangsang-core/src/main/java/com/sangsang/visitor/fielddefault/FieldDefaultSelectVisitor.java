@@ -166,6 +166,15 @@ public class FieldDefaultSelectVisitor extends BaseFieldParseTable implements Se
 
     /**
      * insert 语句 values后面的处理逻辑
+     * SQL 形态              根节点                       子节点
+     * ━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     * VALUES (?)            ExpressionList               Parenthesis(?)
+     * ────────────────────  ───────────────────────────  ────────────────────────────────
+     * VALUES (?),(?)        ExpressionList               多个 Parenthesis(?)
+     * ────────────────────  ───────────────────────────  ────────────────────────────────
+     * VALUES (?,?)          ParenthesedExpressionList    多个实际字段值
+     * ────────────────────  ───────────────────────────  ────────────────────────────────
+     * VALUES (?,?),(?,?)    ExpressionList               多个 ParenthesedExpressionList
      *
      * @author liutangqi
      * @date 2025/7/20 10:47
@@ -173,28 +182,40 @@ public class FieldDefaultSelectVisitor extends BaseFieldParseTable implements Se
      **/
     @Override
     public void visit(Values aThis) {
-        ExpressionList<Expression> expressions = (ExpressionList<Expression>) aThis.getExpressions();
-        for (Expression expressionList : expressions) {
-            //1. insert 语句后面的值 (xxx,xxx),(xxx,xxx)这种list
-            if (expressionList instanceof ExpressionList) {
-                ExpressionList eList = (ExpressionList) expressionList;
-                JsqlparserUtil.completeFiledDefaultValues(this.upstreamFieldDefaultColumns, eList);
-            }
-        }
-
-        //2.insert 语句后面的值 (xxx)这种单个值并且用括号包裹起来的，将值添加到括号里面（注意：单值括号解析的时候是Parenthesis，但是拼凑成多值加括号，需要转换为ParenthesedExpressionList）
-        if (expressions.size() == 1 && expressions.get(0) instanceof Parenthesis) {
-            Expression expression = ((Parenthesis) expressions.get(0)).getExpression();
-            ParenthesedExpressionList<Expression> parenthesedExpressionList = new ParenthesedExpressionList<>();
-            parenthesedExpressionList.add(expression);
+        //1.外层是 ParenthesedExpressionList (对应形态3) 用例对应i7
+        if (aThis.getExpressions() instanceof ParenthesedExpressionList) {
+            ParenthesedExpressionList parenthesedExpressionList = (ParenthesedExpressionList) aThis.getExpressions();
             JsqlparserUtil.completeFiledDefaultValues(this.upstreamFieldDefaultColumns, parenthesedExpressionList);
-            aThis.setExpressions(parenthesedExpressionList);
         }
 
-        //3. insert 语句后面的值 (xxx,xxx) 这种多个的值
-        else if (!(expressions.get(0) instanceof ExpressionList)) {
-            ExpressionList eList = (ExpressionList) expressions;
-            JsqlparserUtil.completeFiledDefaultValues(this.upstreamFieldDefaultColumns, eList);
+        //2.外层是 ExpressionList (对应形态1、2、4)
+        if (aThis.getExpressions() instanceof ExpressionList) {
+            ExpressionList expressionList = aThis.getExpressions();
+            //2.1 形态1、对应测试用例 i10
+            if (expressionList.size() == 1 && expressionList.getExpressions().get(0) instanceof Parenthesis) {
+                Parenthesis parenthesis = (Parenthesis) expressionList.get(0);
+                ParenthesedExpressionList<Expression> parenthesedExpressionList = new ParenthesedExpressionList<>();
+                parenthesedExpressionList.add(parenthesis.getExpression());
+                JsqlparserUtil.completeFiledDefaultValues(this.upstreamFieldDefaultColumns, parenthesedExpressionList);
+                aThis.setExpressions(parenthesedExpressionList);
+            }
+            //2.2 形态2、对应测试用例 i13
+            else if (expressionList.size() > 1 && expressionList.getExpressions().get(0) instanceof Parenthesis) {
+                for (int i = 0; i < expressionList.size(); i++) {
+                    Parenthesis parenthesis = (Parenthesis) expressionList.get(i);
+                    ParenthesedExpressionList<Expression> parenthesedExpressionList = new ParenthesedExpressionList<>();
+                    parenthesedExpressionList.add(parenthesis.getExpression());
+                    JsqlparserUtil.completeFiledDefaultValues(this.upstreamFieldDefaultColumns, parenthesedExpressionList);
+                    expressionList.set(i, parenthesedExpressionList);
+                }
+            }
+            //2.3 形态4，对应测试用例 i1
+            else if (expressionList.size() > 1 && expressionList.getExpressions().get(0) instanceof ParenthesedExpressionList) {
+                for (Object exp : expressionList) {
+                    ParenthesedExpressionList parenthesedExpressionList = (ParenthesedExpressionList) exp;
+                    JsqlparserUtil.completeFiledDefaultValues(this.upstreamFieldDefaultColumns, parenthesedExpressionList);
+                }
+            }
         }
     }
 

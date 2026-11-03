@@ -2,6 +2,7 @@ package com.sangsang.util.visitor;
 
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.ColumnTableDto;
+import com.sangsang.domain.dto.PlaceholderFieldParseTable;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.visitor.pojoencrtptor.PlaceholderExpressionVisitor;
@@ -130,6 +131,30 @@ public class EncryptorPojoVisitorUtil {
         }
         for (WithItem withItem : withItemsList) {
             withItem.accept(placeholderSelectVisitor);
+        }
+    }
+
+
+    /**
+     * 通过上游的表达式列表和当前表达式列表，解析对应占位符的对应关系
+     *
+     * @author liutangqi
+     * @date 2026/11/3 14:54
+     * @Param [upstreamExpressionList, expressionList]
+     **/
+    public static void expressionList(PlaceholderFieldParseTable placeholderFieldParseTable,
+                                      List<? extends Expression> upstreamExpressionList,
+                                      ExpressionList<Expression> expressionList) {
+        if (CollectionUtils.isEmpty(upstreamExpressionList) || CollectionUtils.isEmpty(expressionList) || upstreamExpressionList.size() != expressionList.size()) {
+            return;
+        }
+        for (int i = 0; i < expressionList.size(); i++) {
+            Expression curExp = expressionList.get(i);
+            Expression upstreamExpression = upstreamExpressionList.get(i);
+            JsqlparserUtil.parseWhereColumTable(placeholderFieldParseTable,
+                    upstreamExpression,
+                    curExp,
+                    placeholderFieldParseTable.getPlaceholderColumnTableMap());
         }
     }
 }

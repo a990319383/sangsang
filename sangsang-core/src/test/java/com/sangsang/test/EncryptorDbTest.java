@@ -216,6 +216,8 @@ public class EncryptorDbTest {
     // 这里tb_user后面只跟了一个字段（PS：Jsalparser对这种语法的解析有所不同）
     String i13 = "INSERT INTO tb_user(phone) VALUES (?)";
 
+    //类似i13，这里后面的values是多个
+    String i14 = "INSERT INTO tb_user(phone) VALUES (?),(?)";
     // --------------delete 测试语句 ---------------
 
     // delet join
@@ -261,7 +263,7 @@ public class EncryptorDbTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = i1;
+        String sql = i14;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -282,7 +284,7 @@ public class EncryptorDbTest {
     //需要测试的sql
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19,
             s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42, s43, s44, s45, s46, s47, s48, s49, s50, s51,
-            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13,
+            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14,
             d1, d2,
             u1, u2, u3, u4, u5
     );

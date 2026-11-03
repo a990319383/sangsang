@@ -5,12 +5,12 @@ import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.dto.PlaceholderFieldParseTable;
 import com.sangsang.util.CollectionUtils;
-import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.visitor.EncryptorPojoVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.Parenthesis;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
+import net.sf.jsqlparser.expression.operators.relational.ParenthesedExpressionList;
 import net.sf.jsqlparser.statement.select.*;
 
 import java.util.*;
@@ -251,41 +251,57 @@ public class PlaceholderSelectVisitor extends PlaceholderFieldParseTable impleme
 
     }
 
+    /**
+     * insert into values 后面
+     * SQL 形态              根节点                       子节点
+     * ━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     * VALUES (?)            ExpressionList               Parenthesis(?)
+     * ────────────────────  ───────────────────────────  ────────────────────────────────
+     * VALUES (?),(?)        ExpressionList               多个 Parenthesis(?)
+     * ────────────────────  ───────────────────────────  ────────────────────────────────
+     * VALUES (?,?)          ParenthesedExpressionList    多个实际字段值
+     * ────────────────────  ───────────────────────────  ────────────────────────────────
+     * VALUES (?,?),(?,?)    ExpressionList               多个 ParenthesedExpressionList
+     *
+     * @author liutangqi
+     * @date 2026/11/2 17:57
+     * @Param [aThis]
+     **/
     @Override
     public void visit(Values aThis) {
-        ExpressionList<Expression> expressions = (ExpressionList<Expression>) aThis.getExpressions();
-        for (Expression expressionList : expressions) {
-            //1. insert 语句后面的值 (xxx,xxx),(xxx,xxx)这种list
-            if (expressionList instanceof ExpressionList) {
-                ExpressionList eList = (ExpressionList) expressionList;
-                for (int i = 0; i < eList.size(); i++) {
-                    Expression curExp = (Expression) eList.get(i);
-                    Expression upstreamExpression = this.upstreamExpressionList.get(i);
-                    JsqlparserUtil.parseWhereColumTable(this,
-                            upstreamExpression,
-                            curExp,
-                            this.getPlaceholderColumnTableMap());
-
-                }
-            }
+        //1.外层是 ParenthesedExpressionList (对应形态3) 用例对应 i6
+        if (aThis.getExpressions() instanceof ParenthesedExpressionList) {
+            ParenthesedExpressionList<Expression> parenthesedExpressionList = (ParenthesedExpressionList) aThis.getExpressions();
+            EncryptorPojoVisitorUtil.expressionList(this, this.upstreamExpressionList, parenthesedExpressionList);
         }
 
-        //2. insert 语句后面的值 (xxx,xxx) 这种单个的值
-        if (!(expressions.get(0) instanceof ExpressionList)) {
-            for (int i = 0; i < expressions.size(); i++) {
-                //2.1 获取当前values后面的值
-                Expression curExp = (Expression) expressions.get(i);
-                //2.2 如果这个值是括号包起来的，则获取括号里面的值（PS： insert into table(xxx) values (?) 这种表后面只有一个字段的就会出现这种解析语法）
-                if (curExp instanceof Parenthesis) {
-                    curExp = ((Parenthesis) curExp).getExpression();
+        //2.外层是 ExpressionList (对应形态1、2、4)
+        if (aThis.getExpressions() instanceof ExpressionList) {
+            ExpressionList expressionList = aThis.getExpressions();
+            //2.1 形态1、对应测试用例 i16
+            if (expressionList.size() == 1 && expressionList.getExpressions().get(0) instanceof Parenthesis) {
+                Parenthesis parenthesis = (Parenthesis) expressionList.get(0);
+                ParenthesedExpressionList<Expression> parenthesedExpressionList = new ParenthesedExpressionList<>();
+                parenthesedExpressionList.add(parenthesis.getExpression());
+                EncryptorPojoVisitorUtil.expressionList(this, this.upstreamExpressionList, parenthesedExpressionList);
+                aThis.setExpressions(parenthesedExpressionList);
+            }
+            //2.2 形态2、对应测试用例 i17
+            else if (expressionList.size() > 1 && expressionList.getExpressions().get(0) instanceof Parenthesis) {
+                for (int i = 0; i < expressionList.size(); i++) {
+                    Parenthesis parenthesis = (Parenthesis) expressionList.get(i);
+                    ParenthesedExpressionList<Expression> parenthesedExpressionList = new ParenthesedExpressionList<>();
+                    parenthesedExpressionList.add(parenthesis.getExpression());
+                    EncryptorPojoVisitorUtil.expressionList(this, this.upstreamExpressionList, parenthesedExpressionList);
+                    expressionList.set(i, parenthesedExpressionList);
                 }
-                //2.3 获取上游对应字段
-                Expression upstreamExpression = this.upstreamExpressionList.get(i);
-                //2.4 解析占位符
-                JsqlparserUtil.parseWhereColumTable(this,
-                        upstreamExpression,
-                        curExp,
-                        this.getPlaceholderColumnTableMap());
+            }
+            //2.3 形态4，对应测试用例 i1
+            else if (expressionList.size() > 1 && expressionList.getExpressions().get(0) instanceof ParenthesedExpressionList) {
+                for (Object exp : expressionList) {
+                    ParenthesedExpressionList parenthesedExpressionList = (ParenthesedExpressionList) exp;
+                    EncryptorPojoVisitorUtil.expressionList(this, this.upstreamExpressionList, parenthesedExpressionList);
+                }
             }
         }
     }
