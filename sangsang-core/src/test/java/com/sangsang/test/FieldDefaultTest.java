@@ -60,6 +60,9 @@ public class FieldDefaultTest {
 
     //类比于i10 不过这里values后面是多个值
     String i13 = "INSERT INTO tb_user(user_name) VALUES (?),(?)";
+
+    //update_time这个字段是强制覆盖旧值的, 这个对比i6，这里 发生冲突时，是有个update_time = values(update_time)的，values这个语法是不能做任何处理的
+    String i14 = "insert into tb_user (user_name,login_name,phone ,update_time) values (?,?,?,?) ON DUPLICATE KEY UPDATE user_name = values(user_name), login_name = values(login_name), phone = values(phone), update_time=values(update_time)";
     // --------------update 测试语句 ---------------
 
     //update 联表  set的时候存在 其它表的值，也存在常量值
@@ -105,7 +108,7 @@ public class FieldDefaultTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要的sql
-        String sql = i13;
+        String sql = i14;
 
         //开始进行数据隔离
         Statement statement = JsqlparserUtil.parse(sql);
@@ -127,7 +130,7 @@ public class FieldDefaultTest {
 
     //----------------------------------------校验当前程序是否正确分割线---------------------------------------------------------
     //需要测试的sql
-    List<String> sqls = Arrays.asList(i1, i2, i3, i5, i6, i7, i8, i10, i11, i12, i13,//i4  i9
+    List<String> sqls = Arrays.asList(i1, i2, i3, i5, i6, i7, i8, i10, i11, i12, i13, i14,//i4  i9
             u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11 //, u12
     );
 

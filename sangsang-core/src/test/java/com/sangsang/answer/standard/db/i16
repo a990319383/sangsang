@@ -1,0 +1,1 @@
+INSERT INTO tb_user (phone, user_name) VALUES (TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q')), ?) ON CONFLICT (  phone )  DO UPDATE SET phone = TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q'))

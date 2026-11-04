@@ -34,6 +34,7 @@ import net.sf.jsqlparser.statement.drop.Drop;
 import net.sf.jsqlparser.statement.execute.Execute;
 import net.sf.jsqlparser.statement.grant.Grant;
 import net.sf.jsqlparser.statement.insert.Insert;
+import net.sf.jsqlparser.statement.insert.InsertConflictAction;
 import net.sf.jsqlparser.statement.merge.Merge;
 import net.sf.jsqlparser.statement.refresh.RefreshMaterializedViewStatement;
 import net.sf.jsqlparser.statement.select.FromItem;
@@ -43,7 +44,6 @@ import net.sf.jsqlparser.statement.show.ShowIndexStatement;
 import net.sf.jsqlparser.statement.show.ShowTablesStatement;
 import net.sf.jsqlparser.statement.truncate.Truncate;
 import net.sf.jsqlparser.statement.update.Update;
-import net.sf.jsqlparser.statement.update.UpdateSet;
 import net.sf.jsqlparser.statement.upsert.Upsert;
 
 import java.util.ArrayList;
@@ -193,7 +193,16 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
         DBDecryptSelectVisitor dbDecryptSelectVisitor = DBDecryptSelectVisitor.newInstanceCurLayer(fPSelectVisitor, needEncryptFieldEncryptor);
         select.accept(dbDecryptSelectVisitor);
 
-        //5.处理好的sql赋值
+        //5.处理冲突时需要更新的数据
+        //5.1 解析当前insert的表结构信息
+        FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        table.accept(fieldParseTableFromItemVisitor);
+        //5.2 处理 mysql 的 DuplicateUpdateSets
+        EncryptorDbVisitorUtil.updateSets(insert.getDuplicateUpdateSets(), fieldParseTableFromItemVisitor);
+        //5.3 处理 PostgreSQL ON CONFLICT DO UPDATE
+        EncryptorDbVisitorUtil.updateSets(Optional.ofNullable(insert.getConflictAction()).map(InsertConflictAction::getUpdateSets).orElse(CollectionUtils.EMPTY_LIST), fieldParseTableFromItemVisitor);
+
+        //6.处理好的sql赋值
         this.resultSql = insert.toString();
     }
 

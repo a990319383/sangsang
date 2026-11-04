@@ -2,6 +2,7 @@ package com.sangsang.visitor.dbencrtptor;
 
 import com.sangsang.domain.annos.encryptor.FieldEncryptor;
 import com.sangsang.domain.constants.NumberConstant;
+import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.dto.BaseDEcryptParseTable;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
@@ -111,6 +112,8 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
 
     /**
      * 对于function的进行加密
+     * 这里有个特殊点，JSqlparser当前版本语法解析做的不是很好，ON DUPLICATE KEY UPDATE 后面的values解析成了一个函数，这里需要单独处理
+     * values()这个函数很特殊，入参只能是字段，不能增加任何的函数处理
      *
      * @author liutangqi
      * @date 2024/3/15 10:05
@@ -118,19 +121,25 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
      **/
     @Override
     public void visit(Function function) {
-        //1.处理function里面的参数
-        List<Expression> expressions = Optional.ofNullable((ExpressionList<Expression>) function.getParameters())
-                .orElse(new ExpressionList<>())
-                .stream()
-                .map(m -> {
-                    DBDecryptExpressionVisitor sDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(this);
-                    m.accept(sDecryptExpressionVisitor);
-                    return Optional.ofNullable(sDecryptExpressionVisitor.getProcessedExpression()).orElse(m);
-                }).collect(Collectors.toList());
-        if (function.getParameters() != null) {
-            function.setParameters(new ExpressionList(expressions));
+        //1.values函数很特殊，ON DUPLICATE KEY UPDATE 这种语法后面的values是解析成函数function了，这里的值是指取的是insert的这个字段=后面的值
+        //比如 values(phone) 发生冲突时修改的值就是insert的时候phone后面的值，所以这里values后面是不能处理的
+        if (SymbolConstant.VALUES.equalsIgnoreCase(function.getName())) {
+            return;
         }
-        //2.如果存在上游表达式，则需要对整个function处理一次
+
+        //2.处理function里面的参数
+        List<Expression> disposeParameters = new ArrayList<>();
+        ExpressionList<Expression> parameters = Optional.ofNullable((ExpressionList<Expression>) function.getParameters()).orElse(new ExpressionList<>());
+        for (Expression parameter : parameters) {
+            DBDecryptExpressionVisitor sDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(this);
+            parameter.accept(sDecryptExpressionVisitor);
+            disposeParameters.add(Optional.ofNullable(sDecryptExpressionVisitor.getProcessedExpression()).orElse(parameter));
+        }
+        if (function.getParameters() != null) {
+            function.setParameters(new ExpressionList(disposeParameters));
+        }
+
+        //3.如果存在上游表达式，则需要对整个function处理一次
         if (this.getUpstreamFieldEncryptor() != null) {
             //注意：当前是个function，头上肯定没有注解，所以传null
             this.processedExpression = this.getEncryptorFunctionEnum()

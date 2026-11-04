@@ -218,6 +218,16 @@ public class EncryptorDbTest {
 
     //类似i13，这里后面的values是多个
     String i14 = "INSERT INTO tb_user(phone) VALUES (?),(?)";
+
+    // ON DUPLICATE KEY UPDATE 更新加密字段
+    String i15 = "INSERT INTO tb_user(phone,user_name) VALUES (?,?) ON DUPLICATE KEY UPDATE phone = ?";
+
+    // ON CONFLICT DO UPDATE 更新加密字段
+    String i16 = "INSERT INTO tb_user(phone,user_name) VALUES (?,?) ON CONFLICT (phone) DO UPDATE SET phone = ?";
+
+    // ON DUPLICATE KEY UPDATE使用insert分支中其它字段的值，phone用的是user_name的插入值，user_name用的是phone的插入值，这种写法应该没有使用场景，所以不去费劲兼容这种语法
+    @Deprecated
+    String i17 = "INSERT INTO tb_user(phone,user_name) VALUES (?,?) ON DUPLICATE KEY UPDATE phone = values(user_name), user_name = values(phone)";
     // --------------delete 测试语句 ---------------
 
     // delet join
@@ -265,7 +275,7 @@ public class EncryptorDbTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = u6;
+        String sql = i16;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -286,7 +296,7 @@ public class EncryptorDbTest {
     //需要测试的sql
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19,
             s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42, s43, s44, s45, s46, s47, s48, s49, s50, s51,
-            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14,
+            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, //i17
             d1, d2,
             u1, u2, u3, u4, u5, u6
     );

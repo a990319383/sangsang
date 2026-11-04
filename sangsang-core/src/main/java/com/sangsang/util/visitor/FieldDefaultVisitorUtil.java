@@ -4,6 +4,7 @@ import cn.hutool.core.util.ObjectUtil;
 import com.sangsang.cache.fielddefault.FieldDefaultInstanceCache;
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.annos.fielddefault.FieldDefault;
+import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.dto.ColumnUniqueDto;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.enums.SqlCommandEnum;
@@ -18,6 +19,7 @@ import com.sangsang.visitor.fielddefault.FieldDefaultSelectVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.Function;
 import net.sf.jsqlparser.expression.NullValue;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
@@ -118,9 +120,15 @@ public class FieldDefaultVisitorUtil {
                     continue;
                 }
                 //7.4 标注了@FieldDefault并且需要覆盖原值，获取策略默认值，使用case when语法包装
+                //这里有个很特殊的点，这里的 values() 这个语法后面是直接跟的一个字段，表示冲突时用这个字段的插入值作为修改值，这个表达式是不能做任何加工的，所以这个需要单独处理
                 Expression strategyExp = ExpressionsUtil.buildFieldDefaultExp(fieldDefault.value());
-                Expression caseWhenExp = ExpressionsUtil.buildAffirmative(updateSet.getValue(j), strategyExp);
-                updateSetValues.set(j, caseWhenExp);
+                //7.4.1 默认直接使用策略值替换sql原来设置的值
+                Expression disposeExp = strategyExp;
+                //7.4.2 如果右侧不是values()函数，则用case when语法包装
+                if (!(updateSet.getValue(j) instanceof Function) || !SymbolConstant.VALUES.equalsIgnoreCase(((Function) updateSet.getValue(j)).getName())) {
+                    disposeExp = ExpressionsUtil.buildAffirmative(updateSet.getValue(j), strategyExp);
+                }
+                updateSetValues.set(j, disposeExp);
             }
 
             //8. updateSet右侧是子查询，复用FieldDefaultSelectVisitor处理查询项中的强制覆盖

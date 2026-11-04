@@ -120,6 +120,10 @@ public interface SymbolConstant {
      */
     String FROM_BASE64 = "FROM_BASE64";
 
+    /**
+     * values函数
+     */
+    String VALUES = "values";
 
     /**
      * 类型转换函数想要转换的类型
