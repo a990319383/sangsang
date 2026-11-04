@@ -1,0 +1,1 @@
+INSERT INTO tb_user (phone) SELECT TO_BASE64(AES_ENCRYPT(user_name, '7uq?q8g3@q')) AS user_name FROM tb_user UNION ALL SELECT TO_BASE64(AES_ENCRYPT(user_name, '7uq?q8g3@q')) AS user_name FROM tb_user

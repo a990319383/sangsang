@@ -214,7 +214,7 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
             select.accept(fieldParseTableSelectVisitor);
 
             //需要加密的字段进行加密处理
-            DBDecryptSelectVisitor sDecryptSelectVisitor = DBDecryptSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor);
+            DBDecryptSelectVisitor sDecryptSelectVisitor = DBDecryptSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, this.upstreamNeedEncryptFieldEncryptor);
             select.accept(sDecryptSelectVisitor);
 
             //维护加解密之后的语句

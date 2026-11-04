@@ -174,6 +174,9 @@ public class EncryptorDbTest {
     //需要访问上层作用域时，上层的作用域是不是第一层
     String s51 = "SELECT a.* FROM(SELECT * FROM tb_user tu WHERE tu.phone IN (SELECT role_name FROM tb_role tr))a JOIN tb_menu tm ON a.id = tm.id";
 
+    // in (select union all) 这种语法，上游phone是需要密文存储的
+    String s52 = "SELECT phone FROM tb_user WHERE phone IN( SELECT user_name FROM tb_user UNION ALL SELECT user_name FROM tb_user);";
+
     //临时测试sql
     String s_test_tmp = "select phone ph ,id as iii,'?' from tb_user where phone = ?";
 
@@ -228,6 +231,9 @@ public class EncryptorDbTest {
     // ON DUPLICATE KEY UPDATE使用insert分支中其它字段的值，phone用的是user_name的插入值，user_name用的是phone的插入值，这种写法应该没有使用场景，所以不去费劲兼容这种语法
     @Deprecated
     String i17 = "INSERT INTO tb_user(phone,user_name) VALUES (?,?) ON DUPLICATE KEY UPDATE phone = values(user_name), user_name = values(phone)";
+
+    //insert select 里面有union all
+    String i18 = "INSERT INTO tb_user(phone) SELECT user_name FROM tb_user UNION ALL SELECT user_name FROM tb_user;";
     // --------------delete 测试语句 ---------------
 
     // delet join
@@ -275,7 +281,7 @@ public class EncryptorDbTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = i16;
+        String sql = s52;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -295,8 +301,9 @@ public class EncryptorDbTest {
 
     //需要测试的sql
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19,
-            s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42, s43, s44, s45, s46, s47, s48, s49, s50, s51,
-            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, //i17
+            s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42,
+            s43, s44, s45, s46, s47, s48, s49, s50, s51, s52,
+            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i18,//i17
             d1, d2,
             u1, u2, u3, u4, u5, u6
     );
