@@ -1,0 +1,1 @@
+WITH x AS (SELECT CAST(AES_DECRYPT(FROM_BASE64(phone), '7uq?q8g3@q') AS CHAR) AS phone FROM tb_user WHERE phone = TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q'))) SELECT phone FROM x WHERE phone = ?

@@ -1,0 +1,1 @@
+MERGE INTO tb_user t USING tb_user s ON (t.phone = TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q'))) WHEN MATCHED THEN UPDATE SET t.phone = TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q')) WHEN NOT MATCHED THEN INSERT (id, phone) VALUES (?, TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q')))

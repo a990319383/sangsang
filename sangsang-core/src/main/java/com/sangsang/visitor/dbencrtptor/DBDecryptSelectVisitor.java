@@ -134,20 +134,23 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
      **/
     @Override
     public void visit(PlainSelect plainSelect) {
-        //1.解密 from 的表 （解密所有内层的语句）
+        //1.处理CTE内部的查询
+        EncryptorDbVisitorUtil.cte(plainSelect.getWithItemsList());
+
+        //2.解密 from 的表 （解密所有内层的语句）
         FromItem fromItem = plainSelect.getFromItem();
         if (fromItem != null) {
             DBDecryptFromItemVisitor sDecryptFromItemVisitor = DBDecryptFromItemVisitor.newInstanceCurLayer(this, this.upstreamNeedEncryptFieldEncryptor);
             fromItem.accept(sDecryptFromItemVisitor);
         }
 
-        //2.将 select *  select 别名.* 转换为select 字段
+        //3.将 select *  select 别名.* 转换为select 字段
         List<SelectItem> selectItems = plainSelect.getSelectItems().stream()
                 .map(m -> JsqlparserUtil.perfectAllColumns(m, this.getLayer(), this.getLayerFieldTableMap(), this.upstreamNeedEncryptFieldEncryptor))
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
 
-        //3.将其中的 select 的每一项 如果需要解密的进行解密处理 （不需要处理的 * ，别名.* 原样返回）
+        //4.将其中的 select 的每一项 如果需要解密的进行解密处理 （不需要处理的 * ，别名.* 原样返回）
         List<SelectItem<?>> itemRes = new ArrayList<>();
         for (int i = 0; i < selectItems.size(); i++) {
             SelectItem sItem = selectItems.get(i);
@@ -162,10 +165,10 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
             itemRes.add(sItem);
         }
 
-        //4.修改原sql查询项
+        //5.修改原sql查询项
         plainSelect.setSelectItems(itemRes);
 
-        //5.对where条件后的进行解密
+        //6.对where条件后的进行解密
         if (plainSelect.getWhere() != null) {
             Expression where = plainSelect.getWhere();
             DBDecryptExpressionVisitor sDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(this, EncryptorFunctionEnum.DEFAULT_DECRYPTION, null);
@@ -174,15 +177,15 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
             plainSelect.setWhere(Optional.ofNullable(sDecryptExpressionVisitor.getProcessedExpression()).orElse(where));
         }
 
-        //6.处理join
+        //7.处理join
         List<Join> joins = plainSelect.getJoins();
         if (CollectionUtils.isNotEmpty(joins)) {
             DBDecryptFromItemVisitor sDecryptFromItemVisitor = DBDecryptFromItemVisitor.newInstanceCurLayer(this);
             for (Join join : joins) {
-                //6.1 处理join的表
+                //7.1 处理join的表
                 FromItem joinRightItem = join.getRightItem();
                 joinRightItem.accept(sDecryptFromItemVisitor);
-                //6.2 处理 on
+                //7.2 处理 on
                 List<Expression> dencryptExpressions = new ArrayList<>();
                 for (Expression expression : join.getOnExpressions()) {
                     DBDecryptExpressionVisitor sDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(this, EncryptorFunctionEnum.DEFAULT_DECRYPTION, null);
@@ -204,6 +207,9 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
      **/
     @Override
     public void visit(SetOperationList setOpList) {
+        //处理挂在union语句上的CTE定义
+        EncryptorDbVisitorUtil.cte(setOpList.getWithItemsList());
+
         List<Select> selects = setOpList.getSelects();
 
         List<Select> resSelectBody = new ArrayList<>();
@@ -225,7 +231,7 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
 
     @Override
     public void visit(WithItem withItem) {
-
+        EncryptorDbVisitorUtil.cte(Arrays.asList(withItem));
     }
 
     /**

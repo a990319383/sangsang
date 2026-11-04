@@ -177,6 +177,9 @@ public class EncryptorDbTest {
     // in (select union all) 这种语法，上游phone是需要密文存储的
     String s52 = "SELECT phone FROM tb_user WHERE phone IN( SELECT user_name FROM tb_user UNION ALL SELECT user_name FROM tb_user);";
 
+    //CTE内部查询加解密，外层使用CTE的明文结果集
+    String s53 = "WITH x AS (SELECT phone FROM tb_user WHERE phone = ?) SELECT phone FROM x WHERE phone = ?";
+
     //临时测试sql
     String s_test_tmp = "select phone ph ,id as iii,'?' from tb_user where phone = ?";
 
@@ -234,6 +237,12 @@ public class EncryptorDbTest {
 
     //insert select 里面有union all
     String i18 = "INSERT INTO tb_user(phone) SELECT user_name FROM tb_user UNION ALL SELECT user_name FROM tb_user;";
+
+    //UPSERT VALUES语法
+    String up1 = "UPSERT INTO tb_user(id,phone) VALUES(?,?)";
+
+    //REPLACE SET语法
+    String up2 = "REPLACE INTO tb_user SET id = ?, phone = ?";
     // --------------delete 测试语句 ---------------
 
     // delet join
@@ -264,6 +273,9 @@ public class EncryptorDbTest {
     //update的时候，字段右侧是函数
     String u6 = "UPDATE tb_user SET phone = concat(?, 'x') WHERE id = ?";
 
+    //MERGE的ON、UPDATE和INSERT分支
+    String m1 = "MERGE INTO tb_user t USING tb_user s ON (t.phone = ?) WHEN MATCHED THEN UPDATE SET t.phone = ? WHEN NOT MATCHED THEN INSERT(id,phone) VALUES(?,?)";
+
 //----------------------------------------测试单条sql分割线---------------------------------------------------------
 
     /**
@@ -281,7 +293,7 @@ public class EncryptorDbTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = s52;
+        String sql = up2;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -302,10 +314,11 @@ public class EncryptorDbTest {
     //需要测试的sql
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19,
             s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42,
-            s43, s44, s45, s46, s47, s48, s49, s50, s51, s52,
-            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i18,//i17
+            s43, s44, s45, s46, s47, s48, s49, s50, s51, s52, s53,
+            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i18, up1, up2,//i17
             d1, d2,
-            u1, u2, u3, u4, u5, u6
+            u1, u2, u3, u4, u5, u6,
+            m1
     );
 
     /**

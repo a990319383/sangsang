@@ -1,0 +1,1 @@
+UPSERT INTO tb_user (id, phone) VALUES (?, TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q')))

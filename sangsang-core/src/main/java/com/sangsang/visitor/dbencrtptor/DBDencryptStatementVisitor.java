@@ -6,6 +6,7 @@ import com.sangsang.domain.enums.EncryptorFunctionEnum;
 import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.ExpressionsUtil;
+import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.visitor.EncryptorDbVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
@@ -36,6 +37,7 @@ import net.sf.jsqlparser.statement.grant.Grant;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.insert.InsertConflictAction;
 import net.sf.jsqlparser.statement.merge.Merge;
+import net.sf.jsqlparser.statement.merge.MergeOperation;
 import net.sf.jsqlparser.statement.refresh.RefreshMaterializedViewStatement;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
@@ -291,6 +293,40 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Merge merge) {
+        //1.处理CTE内部的查询
+        EncryptorDbVisitorUtil.cte(merge.getWithItemsList());
+
+        //2.解析目标表和using来源表拥有的全部字段信息
+        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        merge.getTable().accept(fieldParseTable);
+        FromItem fromItem = merge.getFromItem();
+        if (fromItem != null) {
+            fromItem.accept(fieldParseTable);
+            //using来源是子查询时，对子查询进行加解密处理
+            fromItem.accept(DBDecryptFromItemVisitor.newInstanceCurLayer(fieldParseTable));
+        }
+
+        //3.处理on条件
+        Expression onCondition = merge.getOnCondition();
+        if (onCondition != null) {
+            DBDecryptExpressionVisitor expressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(fieldParseTable, EncryptorFunctionEnum.DEFAULT_DECRYPTION, null);
+            onCondition.accept(expressionVisitor);
+            merge.setOnCondition(Optional.ofNullable(expressionVisitor.getProcessedExpression()).orElse(onCondition));
+        }
+
+        //4.单独解析目标表，用于处理not matched insert分支中没有表别名的目标字段
+        FieldParseParseTableFromItemVisitor targetFieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        merge.getTable().accept(targetFieldParseTable);
+
+        //5.处理matched/not matched的全部分支
+        DBDecryptMergeOperationVisitor mergeOperationVisitor = DBDecryptMergeOperationVisitor.newInstanceCurLayer(fieldParseTable, targetFieldParseTable);
+        List<MergeOperation> operations = Optional.ofNullable(merge.getOperations()).orElse(new ArrayList<>());
+        for (MergeOperation operation : operations) {
+            operation.accept(mergeOperationVisitor);
+        }
+
+        //6.处理结果赋值
+        this.resultSql = merge.toString();
 
     }
 
@@ -317,6 +353,28 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Upsert upsert) {
+        //1.解析目标表拥有的全部字段信息
+        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        upsert.getTable().accept(fieldParseTable);
+
+        //2.处理REPLACE SET语法
+        EncryptorDbVisitorUtil.updateSets(upsert.getUpdateSets(), fieldParseTable);
+        EncryptorDbVisitorUtil.updateSets(upsert.getDuplicateUpdateSets(), fieldParseTable);
+
+        //3.处理UPSERT VALUES/SELECT语法
+        List<Column> columns = upsert.getColumns();
+        Select select = upsert.getSelect();
+        if (CollectionUtils.isNotEmpty(columns) && select != null) {
+            List<FieldEncryptor> fieldEncryptors = columns.stream()
+                    .map(m -> JsqlparserUtil.needEncryptFieldEncryptor(m, fieldParseTable))
+                    .collect(Collectors.toList());
+            FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
+            select.accept(fieldParseTableSelectVisitor);
+            select.accept(DBDecryptSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, fieldEncryptors));
+        }
+
+        //4.处理结果赋值
+        this.resultSql = upsert.toString();
 
     }
 

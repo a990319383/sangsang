@@ -1,0 +1,1 @@
+REPLACE INTO tb_user SET id = ?, phone = TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q'))
