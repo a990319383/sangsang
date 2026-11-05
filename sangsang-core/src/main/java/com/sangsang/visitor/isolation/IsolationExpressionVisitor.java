@@ -301,6 +301,7 @@ public class IsolationExpressionVisitor extends BaseFieldParseTable implements E
      **/
     @Override
     public void visit(ParenthesedSelect selectBody) {
+        System.out.println("todo-ltq");//todo-ltq
     }
 
     @Override
@@ -640,9 +641,9 @@ public class IsolationExpressionVisitor extends BaseFieldParseTable implements E
      **/
     @Override
     public void visit(Select selectBody) {
-        //注意：这种语法都是单独的一个sql，这个sql解析出来的结果只有这个嵌套层才会使用，外层不会使用，并且这个嵌套层会使用外层同级的解析结果
-        //1.采用独立存储空间单独解析合并当前子查询的语法
-        FieldParseParseTableSelectVisitor sFieldSelectItemVisitor = FieldParseParseTableSelectVisitor.newInstanceIndividualMap(this);
+        //注意：这种语法都是单独的一个sql，这个sql解析出来的结果只有这个嵌套层才会使用，外层不会使用，所以不能用外层的解析结果
+        //1.数据权限隔离这个场景，这里不需要上游的解析结果，单独解析这个查询语句即可
+        FieldParseParseTableSelectVisitor sFieldSelectItemVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
         selectBody.accept(sFieldSelectItemVisitor);
 
         //2.利用合并后的解析结果进行语法转换处理

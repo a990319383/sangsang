@@ -126,6 +126,10 @@ public class TfOracle2MysqlTest {
     //jsqlparser4.9版本不支持此种语法，无法转换
     String i1 = "INSERT ALL INTO TB_USER (username, phone) VALUES ('张三', '138001') INTO TB_USER (username, phone) VALUES ('李四', '138002') INTO TB_USER (username, phone) VALUES ('王五', '138003') SELECT 1 FROM DUAL";
 
+    //Oracle支持的MERGE语法，保留语句结构并转换各分支中的字段、函数和来源子查询
+    //todo-ltq 后续看情况是否适配此类语法
+    String m1 = "MERGE INTO \"TB_USER\" u USING (SELECT \"ID\", \"PHONE\", \"CREATE_TIME\" FROM \"TB_USER\") b ON (u.\"ID\" = b.\"ID\" AND NVL(b.\"PHONE\", '0') = '0') WHEN MATCHED THEN UPDATE SET \"PHONE\" = NVL(b.\"PHONE\", '0') WHEN NOT MATCHED THEN INSERT (\"ID\", \"PHONE\", \"CREATE_TIME\") VALUES (b.\"ID\", b.\"PHONE\", TO_CHAR(b.\"CREATE_TIME\", 'YYYY-MM-DD'))";
+
     /**
      * oracle转mysql语法转换器测试
      *
@@ -178,6 +182,7 @@ public class TfOracle2MysqlTest {
     List<String> sqls = Arrays.asList(
             s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15,
             s16, s17, s18, s19, s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s32, s33, s34, s35, s36
+//            m1
     );
 
 

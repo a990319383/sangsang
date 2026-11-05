@@ -1,0 +1,1 @@
+REPLACE INTO tb_user SET id = (SELECT id FROM sys_user WHERE login_name = 'admin' AND (sys_user.id = 333 OR sys_user.role_id = 1111111)), phone = ?

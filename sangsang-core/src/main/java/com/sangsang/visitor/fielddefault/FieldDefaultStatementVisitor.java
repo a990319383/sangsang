@@ -5,7 +5,9 @@ import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.annos.fielddefault.FieldDefault;
 import com.sangsang.domain.constants.NumberConstant;
 import com.sangsang.domain.constants.SymbolConstant;
+import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.enums.SqlCommandEnum;
+import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.visitor.FieldDefaultVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
@@ -34,6 +36,7 @@ import net.sf.jsqlparser.statement.grant.Grant;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.insert.InsertConflictAction;
 import net.sf.jsqlparser.statement.merge.Merge;
+import net.sf.jsqlparser.statement.merge.MergeOperation;
 import net.sf.jsqlparser.statement.refresh.RefreshMaterializedViewStatement;
 import net.sf.jsqlparser.statement.select.*;
 import net.sf.jsqlparser.statement.show.ShowIndexStatement;
@@ -245,6 +248,30 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Merge merge) {
+        //1.获取MERGE目标表
+        Table table = merge.getTable();
+
+        //2.获取目标表字段对应的默认值信息
+        Map<String, FieldDefault> stringFieldDefaultMap = TableCache.getTableFieldDefaultInfo().get(table.getName());
+        if (CollectionUtil.isEmpty(stringFieldDefaultMap)) {
+            this.resultSql = merge.toString();
+            return;
+        }
+
+        //3.解析目标表拥有的全部字段信息
+        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        table.accept(fieldParseTable);
+
+        //4.分别按UPDATE和INSERT语义处理matched/not matched分支
+        FieldDefaultMergeOperationVisitor mergeOperationVisitor = new FieldDefaultMergeOperationVisitor(
+                fieldParseTable.getLayerFieldTableMap().get(NumberConstant.ONE), stringFieldDefaultMap);
+        List<MergeOperation> operations = Optional.ofNullable(merge.getOperations()).orElse(CollectionUtils.EMPTY_LIST);
+        for (MergeOperation operation : operations) {
+            operation.accept(mergeOperationVisitor);
+        }
+
+        //5.处理结果赋值
+        this.resultSql = merge.toString();
 
     }
 
@@ -255,6 +282,35 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Upsert upsert) {
+        //1.获取目标表字段对应的默认值信息
+        Table table = upsert.getTable();
+        Map<String, FieldDefault> stringFieldDefaultMap = TableCache.getTableFieldDefaultInfo().get(table.getName());
+        if (CollectionUtil.isEmpty(stringFieldDefaultMap)) {
+            this.resultSql = upsert.toString();
+            return;
+        }
+
+        //2.按INSERT语义处理UPSERT VALUES/SELECT中的字段和值
+        List<FieldDefault> insertFieldDefaultColumns = FieldDefaultVisitorUtil.upsertFieldDefaultColumns(upsert, stringFieldDefaultMap);
+        Select select = upsert.getSelect();
+        if (select != null) {
+            FieldParseParseTableSelectVisitor fPSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
+            select.accept(fPSelectVisitor);
+            FieldDefaultSelectVisitor fdSelectVisitor = FieldDefaultSelectVisitor.newInstanceCurLayer(fPSelectVisitor, insertFieldDefaultColumns, true);
+            select.accept(fdSelectVisitor);
+        }
+
+        //3.解析目标表字段，用于处理REPLACE SET及冲突更新分支
+        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        table.accept(fieldParseTable);
+        Map<String, List<FieldInfoDto>> fieldInfoDtoMap = fieldParseTable.getLayerFieldTableMap().get(NumberConstant.ONE);
+
+        //4.REPLACE SET属于数据新增，显式冲突更新分支属于数据修改
+        FieldDefaultVisitorUtil.updateSets(upsert.getUpdateSets(), fieldInfoDtoMap, SqlCommandEnum.INSERT);
+        FieldDefaultVisitorUtil.updateSets(upsert.getDuplicateUpdateSets(), fieldInfoDtoMap, SqlCommandEnum.UPDATE);
+
+        //5.处理结果赋值
+        this.resultSql = upsert.toString();
 
     }
 

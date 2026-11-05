@@ -1,0 +1,1 @@
+REPLACE INTO tb_user SET id = ?, phone = ?, create_time = '2025-11-14 10:07:12', update_time = '2025-11-14 10:07:13'

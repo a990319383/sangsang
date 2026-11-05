@@ -1,0 +1,1 @@
+MERGE INTO tb_user tu USING sys_user su ON (tu.id = su.id) WHEN MATCHED AND (su.id = 333 OR su.role_id = 1111111) AND tu.role_id = 1111111 THEN UPDATE SET phone = su.mobile WHEN NOT MATCHED AND (su.id = 333 OR su.role_id = 1111111) THEN INSERT (id, phone) VALUES (su.id, su.mobile)

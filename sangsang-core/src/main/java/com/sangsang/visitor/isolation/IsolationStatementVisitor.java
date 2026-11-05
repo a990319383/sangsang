@@ -1,6 +1,7 @@
 package com.sangsang.visitor.isolation;
 
 import com.sangsang.cache.fieldparse.TableCache;
+import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.visitor.FieldParseVisitorUtil;
 import com.sangsang.util.visitor.IsolationVisitorUtil;
@@ -29,7 +30,9 @@ import net.sf.jsqlparser.statement.execute.Execute;
 import net.sf.jsqlparser.statement.grant.Grant;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.merge.Merge;
+import net.sf.jsqlparser.statement.merge.MergeOperation;
 import net.sf.jsqlparser.statement.refresh.RefreshMaterializedViewStatement;
+import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.show.ShowIndexStatement;
 import net.sf.jsqlparser.statement.show.ShowTablesStatement;
@@ -287,6 +290,49 @@ public class IsolationStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Merge merge) {
+        //1.未开启DML语句的支持，则不处理
+        if (!TableCache.getCurConfig().getIsolation().isSupportDML()) {
+            return;
+        }
+
+        //2.解析目标表和来源表拥有的全部字段信息
+        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        merge.getTable().accept(fieldParseTable);
+        FromItem fromItem = merge.getFromItem();
+        if (fromItem != null) {
+            fromItem.accept(fieldParseTable);
+        }
+
+        //3.处理CTE、来源子查询以及ON条件中可能存在的子查询
+        IsolationSelectVisitor isolationSelectVisitor = IsolationSelectVisitor.newInstanceCurLayer(fieldParseTable);
+        IsolationVisitorUtil.cte(merge.getWithItemsList(), isolationSelectVisitor);
+        if (fromItem != null) {
+            fromItem.accept(IsolationFromItemVisitor.newInstanceCurLayer(fieldParseTable));
+        }
+        if (merge.getOnCondition() != null) {
+            merge.getOnCondition().accept(IsolationExpressionVisitor.newInstanceCurLayer(fieldParseTable));
+        }
+
+        //4.单独解析目标表，matched分支需要追加目标表隔离条件
+        FieldParseParseTableFromItemVisitor targetFieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        merge.getTable().accept(targetFieldParseTable);
+
+        //5.直接来源表无法在USING后追加WHERE，通过各分支条件限制；来源子查询已在子查询内部完成过滤
+        FieldParseParseTableFromItemVisitor sourceFieldParseTable = null;
+        if (fromItem instanceof Table) {
+            sourceFieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+            fromItem.accept(sourceFieldParseTable);
+        }
+
+        //6.处理matched/not matched的全部分支
+        IsolationMergeOperationVisitor mergeOperationVisitor = new IsolationMergeOperationVisitor(fieldParseTable, sourceFieldParseTable, targetFieldParseTable);
+        List<MergeOperation> operations = Optional.ofNullable(merge.getOperations()).orElse(CollectionUtils.EMPTY_LIST);
+        for (MergeOperation operation : operations) {
+            operation.accept(mergeOperationVisitor);
+        }
+
+        //7.处理结果赋值
+        this.resultSql = merge.toString();
 
     }
 
@@ -306,6 +352,28 @@ public class IsolationStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Upsert upsert) {
+        //1.未开启DML语句的支持，则不处理
+        if (!TableCache.getCurConfig().getIsolation().isSupportDML()) {
+            return;
+        }
+
+        //2.处理UPSERT VALUES/SELECT中可能存在的来源表或子查询
+        Select select = upsert.getSelect();
+        if (select != null) {
+            FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
+            select.accept(fieldParseTableSelectVisitor);
+            select.accept(IsolationSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor));
+        }
+
+        //3.处理REPLACE SET及冲突更新值中可能存在的子查询
+        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        upsert.getTable().accept(fieldParseTable);
+        IsolationExpressionVisitor expressionVisitor = IsolationExpressionVisitor.newInstanceCurLayer(fieldParseTable);
+        IsolationVisitorUtil.updateSets(upsert.getUpdateSets(), expressionVisitor);
+        IsolationVisitorUtil.updateSets(upsert.getDuplicateUpdateSets(), expressionVisitor);
+
+        //4.处理结果赋值
+        this.resultSql = upsert.toString();
 
     }
 

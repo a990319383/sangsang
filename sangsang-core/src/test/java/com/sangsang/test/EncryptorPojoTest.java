@@ -285,6 +285,14 @@ public class EncryptorPojoTest {
     //测试MERGE的USING来源表条件、MATCHED UPDATE和NOT MATCHED INSERT分支中的占位符映射
     String m1 = "merge into tb_user u using tb_user_bak b on (u.id = b.id and b.phone = ?) when matched then update set u.phone = ? when not matched then insert (id, phone) values (?, ?)";
 
+    // --------------upsert/replace 测试语句 ---------------
+
+    //Apache Phoenix、CockroachDB支持的UPSERT VALUES语法
+    String up1 = "UPSERT INTO tb_user(id, phone) VALUES(?, ?)";
+
+    //MySQL支持的REPLACE SET语法
+    String up2 = "REPLACE INTO tb_user SET id = ?, phone = ?";
+
 
 //----------------------------------------测试单条sql分割线---------------------------------------------------------
 
@@ -326,7 +334,8 @@ public class EncryptorPojoTest {
             i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i17,
             d1, d2, d3,
             u1, u2, u3, u4, u5, u6, u7,
-            m1
+            m1,
+            up1, up2
     );
 
     /**

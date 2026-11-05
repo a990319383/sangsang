@@ -146,6 +146,15 @@ public class IsolationTest {
     // 验证 INSERT ... SELECT 不使用括号时，来源表仍能追加数据隔离条件
     String i3 = "insert into tb_user(user_name,phone) select login_name,mobile from sys_user";
 
+    //MERGE直接使用来源表时，在分支条件中过滤来源数据，matched分支同时限制目标表
+    String m1 = "MERGE INTO tb_user tu USING sys_user su ON (tu.id = su.id) WHEN MATCHED THEN UPDATE SET phone = su.mobile WHEN NOT MATCHED THEN INSERT (id, phone) VALUES (su.id, su.mobile)";
+
+    //Apache Phoenix、CockroachDB支持的UPSERT VALUES语法，没有来源查询时不追加隔离条件
+    String up1 = "UPSERT INTO tb_user(id, phone) VALUES(?, ?)";
+
+    //MySQL支持的REPLACE SET语法，只处理值表达式中的来源子查询
+    String up2 = "REPLACE INTO tb_user SET id = (SELECT id FROM sys_user WHERE login_name = 'admin'), phone = ?";
+
 
     /**
      * 数据隔离测试
@@ -162,7 +171,7 @@ public class IsolationTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要的sql
-        String sql = u10;
+        String sql = up2;
 
         //开始进行数据隔离
         Statement statement = JsqlparserUtil.parse(sql);
@@ -189,7 +198,9 @@ public class IsolationTest {
             u1, u2, u3, u4,
             u5, u6, u7, u8, u9, u10,
             d1, d2, d3, d4, d5, d6, d7, d8, d9,
-            i1, i2, i3
+            i1, i2, i3,
+            m1,
+            up1, up2
     );
 
 

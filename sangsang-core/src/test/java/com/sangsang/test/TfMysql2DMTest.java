@@ -117,6 +117,9 @@ public class TfMysql2DMTest {
     // value ===> values  (jsqlparser语法解析的时候会自动把value 转换为values)
     String i4 = "INSERT INTO tb_user (id,USER_NAME,PHONE) value (7,'名字3',18777777777),(9,'名字5',18999999999)";
 
+    //MySQL支持的REPLACE SET语法，保留语句结构并转换字段、函数和值表达式 todo-ltq 后续看情况适配
+    String up1 = "REPLACE INTO `tb_user` SET `phone` = DATE_FORMAT(NOW(), '%Y-%m-%d'), `update_time` = DATE_ADD(NOW(), INTERVAL 1 DAY)";
+
     //测试的sql
     String testSql = "SELECT count(1) as transportSum, /* 运单总数数量 */ sum(IF(status = 0, 1, 0)) as orderSum, /* 已接单数量 */ sum(IF(status = 1, 1, 0)) as inGoodsSum, /* 装货中数量 */ sum(IF(status = 2, 1, 0)) as transportationSum, /* 运输中数量 */ sum(IF(status = 3, 1, 0)) as deliveredSum /* 已交货数量 */ FROM tms_transport WHERE status in (0,1,2,3) and del_flag = 0 AND create_date >= \"2021-01-01\" AND \"2026-01-01\" >= create_date AND org_id = 11111";
 
@@ -163,6 +166,7 @@ public class TfMysql2DMTest {
             i1, i2, i3, i4,
             d1,
             u1
+//            up1
     );
 
 

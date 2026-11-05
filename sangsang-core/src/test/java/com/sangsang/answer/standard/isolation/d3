@@ -1,1 +1,1 @@
-DELETE FROM tb_user WHERE (id IN (SELECT id FROM sys_user WHERE id = ? AND (tb_user.role_id = 1111111 AND (sys_user.id = 333 OR sys_user.role_id = 1111111)))) AND tb_user.role_id = 1111111
+DELETE FROM tb_user WHERE (id IN (SELECT id FROM sys_user WHERE id = ? AND (sys_user.id = 333 OR sys_user.role_id = 1111111))) AND tb_user.role_id = 1111111

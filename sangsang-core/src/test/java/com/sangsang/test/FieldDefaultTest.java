@@ -100,6 +100,19 @@ public class FieldDefaultTest {
     //多字段赋值右侧存在select *时，右边的表结构可能是没有缓存表结构的，无法兼容这种情况，如果兼容这种情况需要缓存全库，代价太大，没必要兼容这种语法
     String u12 = "UPDATE tb_user SET (phone, update_time) = (SELECT * FROM (SELECT ? AS phone, ? AS update_time) s) WHERE id = ?";
 
+    // --------------merge 测试语句 ---------------
+
+    //MERGE的MATCHED UPDATE分支使用UPDATE策略，NOT MATCHED INSERT分支使用INSERT策略
+    String m1 = "MERGE INTO tb_user u USING tb_user_bak b ON (u.id = b.id) WHEN MATCHED THEN UPDATE SET phone = b.phone, role_id = NULL WHEN NOT MATCHED THEN INSERT (id, phone) VALUES (b.id, b.phone)";
+
+    // --------------upsert/replace 测试语句 ---------------
+
+    //Apache Phoenix、CockroachDB支持的UPSERT VALUES语法，按INSERT策略补齐默认值字段
+    String up1 = "UPSERT INTO tb_user(id, phone) VALUES(?, ?)";
+
+    //MySQL支持的REPLACE SET语法，按INSERT策略补齐默认值字段
+    String up2 = "REPLACE INTO tb_user SET id = ?, phone = ?";
+
     @Test
     public void fieldDefaultTest() throws Exception {
         //设置测试配置
@@ -108,7 +121,7 @@ public class FieldDefaultTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要的sql
-        String sql = i14;
+        String sql = m1;
 
         //开始进行数据隔离
         Statement statement = JsqlparserUtil.parse(sql);
@@ -131,7 +144,9 @@ public class FieldDefaultTest {
     //----------------------------------------校验当前程序是否正确分割线---------------------------------------------------------
     //需要测试的sql
     List<String> sqls = Arrays.asList(i1, i2, i3, i5, i6, i7, i8, i10, i11, i12, i13, i14,//i4  i9
-            u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11 //, u12
+            u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11, //, u12
+            m1,
+            up1, up2
     );
 
 

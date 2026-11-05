@@ -28,6 +28,7 @@ import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.update.UpdateSet;
+import net.sf.jsqlparser.statement.upsert.Upsert;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -240,17 +241,87 @@ public class FieldDefaultVisitorUtil {
             insert.setColumns(columns);
         }
 
-        //5.把存储当前表的默认值设置信息深克隆一份，避免对缓存数据的影响
+        //5.处理字段列表并返回每个字段对应的默认值注解信息
+        return FieldDefaultVisitorUtil.insertFieldDefaultColumns(columns, stringFieldDefaultMap);
+    }
+
+    /**
+     * 依次解析获取UPSERT字段上面标注的@FieldDefault信息，如果设置了默认值的字段没有出现，则手动添加
+     *
+     * @author liutangqi
+     * @date 2026/11/4 20:20
+     * @Param [upsert, stringFieldDefaultMap]
+     **/
+    public static List<FieldDefault> upsertFieldDefaultColumns(Upsert upsert, Map<String, FieldDefault> stringFieldDefaultMap) {
+        List<FieldDefault> insertFieldDefaultColumns = new ArrayList<>();
+        if (upsert.getSelect() == null) {
+            return insertFieldDefaultColumns;
+        }
+
+        //1.获取UPSERT的目标字段顺序
+        ExpressionList<Column> columns = upsert.getColumns();
+        Table table = upsert.getTable();
+
+        //2.未指定字段且未开启自动读取表结构时，无法确认VALUES中值的字段归属
+        if (!TableCache.getCurConfig().isAutoFill() && CollectionUtils.isEmpty(columns)) {
+            log.warn("【sangsang】upsert 语句未指定表字段顺序，且当前未开启自动读取表结构，无法获取表字段顺序。此情况无法设置默认值！！！请规范语法或开启 sangsang.autoFill=true  原sql:{}", upsert.toString());
+            return insertFieldDefaultColumns;
+        }
+
+        //3.开启自动读取表结构时，按数据库字段顺序补齐目标字段
+        if (TableCache.getCurConfig().isAutoFill() && CollectionUtils.isEmpty(columns)) {
+            List<String> fieldLinkedList = TableCache.getTableFieldMap().get(table.getName());
+            columns = new ExpressionList(fieldLinkedList.stream().map(m -> ExpressionsUtil.buildColumn(m, table.getName())).collect(Collectors.toList()));
+            upsert.setColumns(columns);
+        }
+
+        //4.处理字段列表并返回每个字段对应的默认值注解信息
+        return FieldDefaultVisitorUtil.insertFieldDefaultColumns(columns, stringFieldDefaultMap);
+    }
+
+    /**
+     * 处理MERGE INSERT分支的字段和值，补齐INSERT阶段需要维护的默认值
+     *
+     * @author liutangqi
+     * @date 2026/11/4 20:20
+     * @Param [columns, values, stringFieldDefaultMap]
+     **/
+    public static void insertColumnsAndValues(ExpressionList<Column> columns,
+                                              ExpressionList<Expression> values,
+                                              Map<String, FieldDefault> stringFieldDefaultMap) {
+        if (CollectionUtils.isEmpty(columns) || CollectionUtils.isEmpty(values) || columns.size() != values.size()) {
+            return;
+        }
+
+        //1.补齐缺失的默认值字段，并记录字段顺序对应的默认值注解
+        List<FieldDefault> insertFieldDefaultColumns = FieldDefaultVisitorUtil.insertFieldDefaultColumns(columns, stringFieldDefaultMap);
+
+        //2.根据补齐后的字段顺序处理现有值，并为缺失字段追加策略值
+        JsqlparserUtil.completeFiledDefaultValues(insertFieldDefaultColumns, values);
+    }
+
+    /**
+     * 处理INSERT类语法的字段列表，返回字段顺序对应的@FieldDefault信息
+     *
+     * @author liutangqi
+     * @date 2026/11/4 20:20
+     * @Param [columns, stringFieldDefaultMap]
+     **/
+    private static List<FieldDefault> insertFieldDefaultColumns(ExpressionList<Column> columns,
+                                                                Map<String, FieldDefault> stringFieldDefaultMap) {
+        List<FieldDefault> insertFieldDefaultColumns = new ArrayList<>();
+
+        //1.把存储当前表的默认值设置信息深克隆一份，避免对缓存数据的影响
         Map<String, FieldDefault> cloneFieldDefaultMap = ObjectUtil.cloneByStream(stringFieldDefaultMap);
 
-        //6. 将现有的字段需要维护insert的标注信息维护到上面的list中
+        //2.将现有的字段需要维护insert的标注信息维护到上面的list中
         for (Column column : columns) {
             FieldDefault fieldDefault = CollectionUtils.getAndRemove(cloneFieldDefaultMap, column.getColumnName());
             FieldDefault currentFieldDefault = Optional.ofNullable(fieldDefault).filter(f -> FieldDefaultInstanceCache.getInstance(f.value()).whetherToHandle(SqlCommandEnum.INSERT)).orElse(null);
             insertFieldDefaultColumns.add(currentFieldDefault);
         }
 
-        //7. 把缺的字段补上，只保留需要设置默认值的字段 （注意：这里只补insert时需要维护的字段，所以这里加了层过滤）
+        //3.把缺的字段补上，只保留需要设置默认值的字段 （注意：这里只补insert时需要维护的字段，所以这里加了层过滤）
         cloneFieldDefaultMap = cloneFieldDefaultMap
                 .entrySet()
                 .stream()

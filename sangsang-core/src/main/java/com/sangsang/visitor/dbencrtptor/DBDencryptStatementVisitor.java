@@ -320,7 +320,7 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
 
         //5.处理matched/not matched的全部分支
         DBDecryptMergeOperationVisitor mergeOperationVisitor = DBDecryptMergeOperationVisitor.newInstanceCurLayer(fieldParseTable, targetFieldParseTable);
-        List<MergeOperation> operations = Optional.ofNullable(merge.getOperations()).orElse(new ArrayList<>());
+        List<MergeOperation> operations = Optional.ofNullable(merge.getOperations()).orElse(CollectionUtils.EMPTY_LIST);
         for (MergeOperation operation : operations) {
             operation.accept(mergeOperationVisitor);
         }

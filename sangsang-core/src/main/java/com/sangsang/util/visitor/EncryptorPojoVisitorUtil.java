@@ -1,17 +1,24 @@
 package com.sangsang.util.visitor;
 
+import com.sangsang.domain.constants.NumberConstant;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.ColumnTableDto;
+import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.dto.PlaceholderFieldParseTable;
+import com.sangsang.domain.wrapper.FieldHashMapWrapper;
+import com.sangsang.domain.wrapper.LayerHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
+import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import com.sangsang.visitor.pojoencrtptor.PlaceholderExpressionVisitor;
 import com.sangsang.visitor.pojoencrtptor.PlaceholderSelectVisitor;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
+import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.WithItem;
 import net.sf.jsqlparser.statement.update.UpdateSet;
 
@@ -79,6 +86,44 @@ public class EncryptorPojoVisitorUtil {
                     expressions.get(i),
                     placeholderColumnTableMap);
         }
+    }
+
+    /**
+     * 解析INSERT类语法中目标字段和VALUES/SELECT占位符的对应关系
+     *
+     * @author liutangqi
+     * @date 2026/11/4 20:50
+     * @Param [select, table, columns, placeholderColumnTableMap]
+     **/
+    public static void insertSelect(Select select,
+                                    Table table,
+                                    List<Column> columns,
+                                    Map<String, ColumnTableDto> placeholderColumnTableMap) {
+        if (select == null || CollectionUtils.isEmpty(columns)) {
+            return;
+        }
+
+        //1.把目标字段整理成字段解析结果，VALUES中的值才能按位置找到目标表字段
+        List<FieldInfoDto> fieldInfoDtos = new ArrayList<>();
+        for (Column column : columns) {
+            fieldInfoDtos.add(FieldInfoDto.builder()
+                    .columnName(column.getColumnName())
+                    .sourceColumn(column.getColumnName())
+                    .sourceTableName(table.getName())
+                    .fromSourceTable(true)
+                    .rowNumber(false)
+                    .build());
+        }
+        Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap = new LayerHashMapWrapper();
+        Map<String, List<FieldInfoDto>> fieldTableMap = new FieldHashMapWrapper<>();
+        fieldTableMap.put(table.getName(), fieldInfoDtos);
+        layerFieldTableMap.put(NumberConstant.ONE, fieldTableMap);
+
+        //2.合并目标字段和来源查询的解析结果，再按目标字段顺序解析占位符
+        FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer(null, layerFieldTableMap);
+        select.accept(fieldParseTableSelectVisitor);
+        PlaceholderSelectVisitor placeholderSelectVisitor = PlaceholderSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, placeholderColumnTableMap, columns);
+        select.accept(placeholderSelectVisitor);
     }
 
     /**

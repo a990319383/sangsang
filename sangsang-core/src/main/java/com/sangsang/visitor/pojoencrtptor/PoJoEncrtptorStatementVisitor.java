@@ -41,10 +41,7 @@ import net.sf.jsqlparser.statement.grant.Grant;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.insert.InsertConflictAction;
 import net.sf.jsqlparser.statement.merge.Merge;
-import net.sf.jsqlparser.statement.merge.MergeDelete;
-import net.sf.jsqlparser.statement.merge.MergeInsert;
 import net.sf.jsqlparser.statement.merge.MergeOperation;
-import net.sf.jsqlparser.statement.merge.MergeUpdate;
 import net.sf.jsqlparser.statement.refresh.RefreshMaterializedViewStatement;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Select;
@@ -337,25 +334,10 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
         merge.getTable().accept(targetFieldParseTable);
 
         //5.处理matched/not matched的全部分支
-        List<MergeOperation> operations = Optional.ofNullable(merge.getOperations()).orElse(new ArrayList<>());
+        PojoEncryptorMergeOperationVisitor mergeOperationVisitor = PojoEncryptorMergeOperationVisitor.newInstanceCurLayer(fieldParseTable, targetFieldParseTable, this.getPlaceholderColumnTableMap());
+        List<MergeOperation> operations = Optional.ofNullable(merge.getOperations()).orElse(CollectionUtils.EMPTY_LIST);
         for (MergeOperation operation : operations) {
-            if (operation instanceof MergeUpdate) {
-                MergeUpdate mergeUpdate = (MergeUpdate) operation;
-                EncryptorPojoVisitorUtil.updateSets(mergeUpdate.getUpdateSets(), fieldParseTable, this.getPlaceholderColumnTableMap());
-                EncryptorPojoVisitorUtil.expression(mergeUpdate.getAndPredicate(), fieldParseTable, this.getPlaceholderColumnTableMap());
-                EncryptorPojoVisitorUtil.expression(mergeUpdate.getWhereCondition(), fieldParseTable, this.getPlaceholderColumnTableMap());
-                EncryptorPojoVisitorUtil.expression(mergeUpdate.getDeleteWhereCondition(), fieldParseTable, this.getPlaceholderColumnTableMap());
-            }
-            if (operation instanceof MergeInsert) {
-                MergeInsert mergeInsert = (MergeInsert) operation;
-                EncryptorPojoVisitorUtil.columnsAndValues(mergeInsert.getColumns(), mergeInsert.getValues(), targetFieldParseTable, this.getPlaceholderColumnTableMap());
-                EncryptorPojoVisitorUtil.expression(mergeInsert.getAndPredicate(), fieldParseTable, this.getPlaceholderColumnTableMap());
-                EncryptorPojoVisitorUtil.expression(mergeInsert.getWhereCondition(), fieldParseTable, this.getPlaceholderColumnTableMap());
-            }
-            if (operation instanceof MergeDelete) {
-                MergeDelete mergeDelete = (MergeDelete) operation;
-                EncryptorPojoVisitorUtil.expression(mergeDelete.getAndPredicate(), fieldParseTable, this.getPlaceholderColumnTableMap());
-            }
+            operation.accept(mergeOperationVisitor);
         }
 
     }
@@ -399,6 +381,23 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Upsert upsert) {
+        //1.初始化占位符解析的结果集
+        this.placeholderColumnTableMap = new HashMap<>();
+
+        //2.解析目标表拥有的全部字段信息
+        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        upsert.getTable().accept(fieldParseTable);
+
+        //3.处理REPLACE SET及冲突更新分支中的占位符
+        EncryptorPojoVisitorUtil.updateSets(upsert.getUpdateSets(), fieldParseTable, this.getPlaceholderColumnTableMap());
+        EncryptorPojoVisitorUtil.updateSets(upsert.getDuplicateUpdateSets(), fieldParseTable, this.getPlaceholderColumnTableMap());
+
+        //4.处理UPSERT VALUES/SELECT语法中的占位符
+        List<Column> columns = upsert.getColumns();
+        Select select = upsert.getSelect();
+        if (CollectionUtils.isNotEmpty(columns) && select != null) {
+            EncryptorPojoVisitorUtil.insertSelect(select, upsert.getTable(), columns, this.getPlaceholderColumnTableMap());
+        }
 
     }
 

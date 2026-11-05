@@ -1,0 +1,1 @@
+MERGE INTO tb_user u USING tb_user_bak b ON (u.id = b.id) WHEN MATCHED THEN UPDATE SET phone = b.phone, role_id = CASE WHEN NULL IS NULL THEN 11111 ELSE 11111 END, update_time = '2025-11-14 10:07:13' WHEN NOT MATCHED THEN INSERT (id, phone, create_time, update_time) VALUES (b.id, b.phone, '2025-11-14 10:07:12', '2025-11-14 10:07:13')

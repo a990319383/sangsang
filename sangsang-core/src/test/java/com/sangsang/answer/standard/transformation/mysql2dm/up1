@@ -1,0 +1,1 @@
+REPLACE INTO "tb_user" SET "phone" = DATE_FORMAT(NOW(), '%Y-%m-%d'), "update_time" = DATEADD(DAY, 1, NOW())

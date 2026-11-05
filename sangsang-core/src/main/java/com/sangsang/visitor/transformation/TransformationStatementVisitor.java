@@ -3,6 +3,7 @@ package com.sangsang.visitor.transformation;
 import com.sangsang.cache.transformation.TransformationInstanceCache;
 import com.sangsang.domain.dto.ColumnTransformationDto;
 import com.sangsang.util.CollectionUtils;
+import com.sangsang.util.visitor.TransformationVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import com.sangsang.visitor.transformation.wrap.ExpressionWrapper;
@@ -31,6 +32,7 @@ import net.sf.jsqlparser.statement.execute.Execute;
 import net.sf.jsqlparser.statement.grant.Grant;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.merge.Merge;
+import net.sf.jsqlparser.statement.merge.MergeOperation;
 import net.sf.jsqlparser.statement.refresh.RefreshMaterializedViewStatement;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
@@ -292,6 +294,34 @@ public class TransformationStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Merge merge) {
+        //1.解析目标表和using来源表拥有的全部字段信息
+        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        merge.getTable().accept(fieldParseTable);
+        FromItem fromItem = merge.getFromItem();
+        if (fromItem != null) {
+            fromItem.accept(fieldParseTable);
+        }
+
+        //2.处理CTE、目标表和using来源表
+        TransformationVisitorUtil.cte(merge.getWithItemsList());
+        TransformationFromItemVisitor fromItemVisitor = TransformationFromItemVisitor.newInstanceCurLayer(fieldParseTable);
+        merge.getTable().accept(fromItemVisitor);
+        if (fromItem != null) {
+            fromItem.accept(fromItemVisitor);
+        }
+
+        //3.处理ON条件
+        merge.setOnCondition(TransformationVisitorUtil.expression(merge.getOnCondition(), fieldParseTable));
+
+        //4.处理matched/not matched的全部分支，保留原MERGE语句结构
+        TransformationMergeOperationVisitor mergeOperationVisitor = TransformationMergeOperationVisitor.newInstanceCurLayer(fieldParseTable);
+        List<MergeOperation> operations = Optional.ofNullable(merge.getOperations()).orElse(CollectionUtils.EMPTY_LIST);
+        for (MergeOperation operation : operations) {
+            operation.accept(mergeOperationVisitor);
+        }
+
+        //5.处理结果赋值
+        this.resultSql = merge.toString();
 
     }
 
@@ -311,6 +341,23 @@ public class TransformationStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Upsert upsert) {
+        //1.解析目标表拥有的全部字段信息
+        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
+        upsert.getTable().accept(fieldParseTable);
+
+        //2.处理UPSERT VALUES/SELECT中的值及来源查询
+        upsert.setSelect(TransformationVisitorUtil.select(upsert.getSelect()));
+
+        //3.处理目标字段、REPLACE SET及冲突更新分支
+        TransformationVisitorUtil.columns(upsert.getColumns());
+        TransformationVisitorUtil.updateSets(upsert.getUpdateSets(), fieldParseTable);
+        TransformationVisitorUtil.updateSets(upsert.getDuplicateUpdateSets(), fieldParseTable);
+
+        //4.处理目标表，语句关键字和整体结构保持不变
+        upsert.getTable().accept(TransformationFromItemVisitor.newInstanceCurLayer(fieldParseTable));
+
+        //5.处理结果赋值
+        this.resultSql = upsert.toString();
 
     }
 
