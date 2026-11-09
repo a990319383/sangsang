@@ -1,5 +1,8 @@
 package com.sangsang.util;
 
+import com.sangsang.cache.fieldparse.TableCache;
+import com.sangsang.config.properties.EncryptorProperties;
+import com.sangsang.config.properties.SangSangProperties;
 import com.sangsang.domain.annos.FieldInterceptorOrder;
 import com.sangsang.domain.constants.FieldConstant;
 import com.sangsang.domain.constants.InterceptorOrderConstant;
@@ -176,6 +179,28 @@ public class InterceptorUtil {
         }
         return unwrapDataSource(mappedStatement.getConfiguration().getEnvironment().getDataSource());
     }
+
+
+    /**
+     * 拦截器输出sql的时候，将秘钥脱敏
+     *
+     * @author liutangqi
+     * @date 2026/11/5 18:00
+     * @Param [sql]
+     **/
+    public static String dbDesensitizeSql(String sql){
+        String secretKey = Optional.ofNullable(TableCache.getCurConfig())
+                .map(SangSangProperties::getEncryptor)
+                .map(EncryptorProperties::getSecretKey)
+                .orElse(null);
+        //读取不到当前秘钥，返回原sql
+        if(StringUtils.isBlank(secretKey)){
+            return sql;
+        }
+        //读取到了秘钥，进行脱敏替换
+        return sql.replaceAll(secretKey, "秘钥马赛克");
+    }
+
 
     /**
      * 递归获取当前真正执行的DataSource

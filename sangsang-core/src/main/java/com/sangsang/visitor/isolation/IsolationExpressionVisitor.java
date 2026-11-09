@@ -301,7 +301,6 @@ public class IsolationExpressionVisitor extends BaseFieldParseTable implements E
      **/
     @Override
     public void visit(ParenthesedSelect selectBody) {
-        System.out.println("todo-ltq");//todo-ltq
     }
 
     @Override
