@@ -202,8 +202,9 @@ public class EncryptorPojoTest {
     //any 语法2 ? 在上游字段
     String s58 = "SELECT tu.phone FROM tb_user tu WHERE ? > ANY (SELECT role_name FROM tb_role tr where tr.role_name = ?)";
 
-    //临时测试sql
-    String s_test_tmp = "select phone ph ,id as iii,'?' from tb_user where phone = ?";
+    //HAVING条件中的加密字段  这种语法无法兼容，字符串加密后max()函数得到的结果值和明文得到的不是一个值，对?进行加密的话会导致业务出错
+    @Deprecated
+    String s59 = "SELECT count(*) FROM tb_user HAVING max(phone) = ?";
 
     // -----------------insert 测试语句---------------------
     String i1 = "insert into tb_user(id, user_name ,phone) values(1,?,'18243512315'),(2,'南瓜',?)";

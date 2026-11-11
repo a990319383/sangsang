@@ -198,6 +198,10 @@ public class EncryptorDbTest {
     //HAVING条件中的加密字段
     String s59 = "SELECT count(*) FROM tb_user HAVING max(phone) = ?";
 
+    //全文搜索 这种语法无法兼容，密文存储后，和之前的明文检索出来的东西完全不相干，且 MATCH (phone)这种语法固定，没办法对phone字段解密后后检索
+    @Deprecated
+    String s60 = "SELECT phone AS phone FROM tb_user WHERE MATCH (phone) AGAINST (?)";
+
     //临时测试sql
     String s_test_tmp = "select phone ph ,id as iii,'?' from tb_user where phone = ?";
 
