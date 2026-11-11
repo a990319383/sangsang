@@ -1,5 +1,6 @@
 package com.sangsang.visitor.dbencrtptor;
 
+import com.sangsang.cache.encryptor.EncryptorInstanceCache;
 import com.sangsang.domain.annos.encryptor.FieldEncryptor;
 import com.sangsang.domain.constants.NumberConstant;
 import com.sangsang.domain.constants.SymbolConstant;
@@ -275,9 +276,24 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
         JsqlparserUtil.visitDbBinaryExpression(this, xorExpression);
     }
 
+    /**
+     * 这种语法，密文不满足明文的比较关系，所以只能对原字段进行解密
+     *
+     * @author liutangqi
+     * @date 2026/11/9 16:11
+     * @Param [between]
+     **/
     @Override
     public void visit(Between between) {
-
+        //1.判断between左边的字段是否需要密文存储
+        FieldEncryptor leftFieldEncryptor = JsqlparserUtil.needEncryptFieldEncryptor(between.getLeftExpression(), this);
+        if (leftFieldEncryptor == null) {
+            return;
+        }
+        //2.对左边的字段进行解密处理
+        Expression decryptionExp = EncryptorInstanceCache.<Expression>getInstance(leftFieldEncryptor.value()).decryption(between.getLeftExpression());
+        //3.赋值
+        between.setLeftExpression(decryptionExp);
     }
 
     @Override
@@ -605,9 +621,29 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
 
     }
 
+
+    /**
+     * any这种语法，对应测试用例s57,s58
+     *
+     * @author liutangqi
+     * @date 2026/11/10 10:58
+     * @Param [anyComparisonExpression]
+     **/
     @Override
     public void visit(AnyComparisonExpression anyComparisonExpression) {
+        //1.异常语法不处理
+        Select select = anyComparisonExpression.getSelect();
+        if (select == null) {
+            return;
+        }
 
+        //2.any里面的子查询都是和上游作用域完全不相干的独立语句，所以单独解析
+        FieldParseParseTableSelectVisitor fPSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
+        select.accept(fPSelectVisitor);
+
+        //3.利用单独解析的结果集，对子查询进行密文处理。注意：上游可能会存在对应字段 当上游字段 = any() 时，这时候就需要根据上游字段单独处理
+        DBDecryptExpressionVisitor dbDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(fPSelectVisitor, EncryptorFunctionEnum.UPSTREAM_COLUMN, this.getUpstreamFieldEncryptor());
+        select.accept(dbDecryptExpressionVisitor);
     }
 
     @Override
@@ -760,8 +796,11 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
     }
 
     @Override
-    public void visit(NotExpression aThis) {
+    public void visit(NotExpression notExpression) {
+        DBDecryptExpressionVisitor dbDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(this);
+        notExpression.getExpression().accept(dbDecryptExpressionVisitor);
 
+        notExpression.setExpression(Optional.ofNullable(dbDecryptExpressionVisitor.getProcessedExpression()).orElse(notExpression.getExpression()));
     }
 
     @Override
@@ -839,9 +878,18 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
 
     }
 
+    /**
+     * 对应语法s56
+     * SELECT phone FROM tb_user WHERE phone IS DISTINCT FROM ?
+     * 这条语句会选出所有 phone 与参数 ? 不同的行。如果 phone 列里存在 NULL 值，且参数 ? 不是 NULL，那么 NULL 的行也会被选中，这点区别于=null
+     *
+     * @author liutangqi
+     * @date 2026/11/9 18:45
+     * @Param [isDistinctExpression]
+     **/
     @Override
     public void visit(IsDistinctExpression isDistinctExpression) {
-
+        JsqlparserUtil.visitDbBinaryExpression(this, isDistinctExpression);
     }
 
     @Override

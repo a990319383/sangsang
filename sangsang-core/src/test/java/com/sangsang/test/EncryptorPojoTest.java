@@ -30,7 +30,6 @@ public class EncryptorPojoTest {
     //多层嵌套 带*
     String s2 = "select * from ( select * from tb_user )a where a.id >0 and a.phone = ?";
 
-
     //多层嵌套，where 条件中用上一层的字段作为筛选
     String s3 = "select b.ph, b.create_time as btime from ( select menuName, login_name, ph, a.create_time from ( select phone as ph, tu.login_name, tm.create_time, tm.menu_name as menuName from tb_user tu left join tb_menu tm on tu.id = tm.id) a where ph = ? ) b";
 
@@ -191,6 +190,18 @@ public class EncryptorPojoTest {
     //测试HAVING条件中的占位符能够关联到对应字段
     String s54 = "select phone,count(*) from tb_user group by phone having phone = ?";
 
+    //where not
+    String s55 = "SELECT phone FROM tb_user WHERE NOT phone = ?";
+
+    //IS DISTINCT FROM (这条语句会选出所有 phone 与参数 ? 不同的行。如果 phone 列里存在 NULL 值，且参数 ? 不是 NULL，那么 NULL 的行也会被选中，这点区别于=null )
+    String s56 = "SELECT phone FROM tb_user WHERE phone IS DISTINCT FROM ?";
+
+    //any 语法1 ? 在子查询里面
+    String s57 = "SELECT tu.phone FROM tb_user tu WHERE tu.phone > ANY (SELECT ? FROM tb_role tr where tr.role_name = ?)";
+
+    //any 语法2 ? 在上游字段
+    String s58 = "SELECT tu.phone FROM tb_user tu WHERE ? > ANY (SELECT role_name FROM tb_role tr where tr.role_name = ?)";
+
     //临时测试sql
     String s_test_tmp = "select phone ph ,id as iii,'?' from tb_user where phone = ?";
 
@@ -311,7 +322,7 @@ public class EncryptorPojoTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = i17;
+        String sql = s58;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -330,7 +341,7 @@ public class EncryptorPojoTest {
     //需要测试的sql
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19,
             s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42,
-            s43, s44, s45, s46, s47, s48, s49, s50, s51, s52, s53, s54,
+            s43, s44, s45, s46, s47, s48, s49, s50, s51, s52, s53, s54, s55, s56, s57, s58,
             i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i17,
             d1, d2, d3,
             u1, u2, u3, u4, u5, u6, u7,

@@ -20,9 +20,7 @@ import net.sf.jsqlparser.statement.select.AllTableColumns;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.Select;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * 解析中#{}条件入参条件所属的表以及字段
@@ -46,19 +44,25 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
      * @date 2025/3/5 10:40
      * @Param [placeholderFieldParseTable]
      **/
-    public static PlaceholderExpressionVisitor newInstanceCurLayer(PlaceholderFieldParseTable placeholderFieldParseTable, Expression upstreamExpression) {
-        return new PlaceholderExpressionVisitor(placeholderFieldParseTable, placeholderFieldParseTable.getPlaceholderColumnTableMap(), upstreamExpression);
+    public static PlaceholderExpressionVisitor newInstanceCurLayer(PlaceholderFieldParseTable placeholderFieldParseTable,
+                                                                   Expression upstreamExpression) {
+        return new PlaceholderExpressionVisitor(placeholderFieldParseTable,
+                placeholderFieldParseTable.getPlaceholderColumnTableMap(),
+                upstreamExpression);
     }
 
     /**
      * 获取当前层解析对象
+     * 注意:这里的上游表达式是置为null的，因为传递了多次，之前的上游表达式到这里就不一定是对应的上游表达式了
      *
      * @author liutangqi
      * @date 2025/3/5 10:40
      * @Param [placeholderFieldParseTable]
      **/
     public static PlaceholderExpressionVisitor newInstanceCurLayer(PlaceholderFieldParseTable placeholderFieldParseTable) {
-        return new PlaceholderExpressionVisitor(placeholderFieldParseTable, placeholderFieldParseTable.getPlaceholderColumnTableMap(), null);
+        return new PlaceholderExpressionVisitor(placeholderFieldParseTable,
+                placeholderFieldParseTable.getPlaceholderColumnTableMap(),
+                null);
     }
 
     /**
@@ -68,11 +72,31 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
      * @date 2025/3/5 10:40
      * @Param [placeholderFieldParseTable]
      **/
-    public static PlaceholderExpressionVisitor newInstanceCurLayer(BaseFieldParseTable baseFieldParseTable, Map<String, ColumnTableDto> placeholderColumnTableMap) {
-        return new PlaceholderExpressionVisitor(baseFieldParseTable, placeholderColumnTableMap, null);
+    public static PlaceholderExpressionVisitor newInstanceCurLayer(BaseFieldParseTable baseFieldParseTable,
+                                                                   Map<String, ColumnTableDto> placeholderColumnTableMap) {
+        return new PlaceholderExpressionVisitor(baseFieldParseTable,
+                placeholderColumnTableMap,
+                null);
     }
 
-    private PlaceholderExpressionVisitor(BaseFieldParseTable baseFieldParseTable, Map<String, ColumnTableDto> placeholderColumnTableMap, Expression upstreamExpression) {
+    /**
+     * 获取当前层解析对象
+     *
+     * @author liutangqi
+     * @date 2026/11/10 17:33
+     * @Param [baseFieldParseTable, placeholderColumnTableMap, upstreamExpression]
+     **/
+    public static PlaceholderExpressionVisitor newInstanceCurLayer(BaseFieldParseTable baseFieldParseTable,
+                                                                   Map<String, ColumnTableDto> placeholderColumnTableMap,
+                                                                   Expression upstreamExpression) {
+        return new PlaceholderExpressionVisitor(baseFieldParseTable,
+                placeholderColumnTableMap,
+                upstreamExpression);
+    }
+
+    private PlaceholderExpressionVisitor(BaseFieldParseTable baseFieldParseTable,
+                                         Map<String, ColumnTableDto> placeholderColumnTableMap,
+                                         Expression upstreamExpression) {
         super(baseFieldParseTable, placeholderColumnTableMap);
         this.upstreamExpression = upstreamExpression;
     }
@@ -105,12 +129,10 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
 
     @Override
     public void visit(JdbcParameter jdbcParameter) {
-        //当存在上游对应字段时，解析jdbc占位符
-        if (upstreamExpression != null) {
-            JsqlparserUtil.parseWhereColumTable(this,
-                    this.upstreamExpression,
-                    jdbcParameter,
-                    this.getPlaceholderColumnTableMap());
+        //当上游字段是Column时，构建占位符字段对应信息
+        if (this.upstreamExpression instanceof Column) {
+            ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn((Column) this.upstreamExpression, this);
+            this.getPlaceholderColumnTableMap().put(JsqlparserUtil.buildPlaceholder(jdbcParameter), columnTableDto);
         }
     }
 
@@ -411,12 +433,10 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
 
     @Override
     public void visit(Column column) {
-        //当上游字段不为空时，说明这个列和上游字段是相互对应的，所以处理他们的占位符对应关系
-        if (this.upstreamExpression != null) {
-            JsqlparserUtil.parseWhereColumTable(this,
-                    this.upstreamExpression,
-                    column,
-                    this.getPlaceholderColumnTableMap());
+        //当上游字段是jdbcParameter时，构建占位符字段对应信息
+        if (this.upstreamExpression instanceof JdbcParameter) {
+            ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn(column, this);
+            this.getPlaceholderColumnTableMap().put(JsqlparserUtil.buildPlaceholder((JdbcParameter) upstreamExpression), columnTableDto);
         }
     }
 
@@ -521,7 +541,18 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
 
     @Override
     public void visit(AnyComparisonExpression anyComparisonExpression) {
-
+        //1.异常语法不处理
+        Select select = anyComparisonExpression.getSelect();
+        if (select == null) {
+            return;
+        }
+        //2.这里的select是一个单独的语法，但是找对应关系的时候是需要上层作用域的信息的，所以这里将当前作用域的解析结果合并到单独解析的结果集中
+        FieldParseParseTableSelectVisitor fpSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceIndividualMap(this);
+        select.accept(fpSelectVisitor);
+        //3.解析这个单独的子查询，注意：左侧的表达式会作为下游的上级作用域的参考字段
+        select.accept(PlaceholderSelectVisitor.newInstanceCurLayer(fpSelectVisitor,
+                this.getPlaceholderColumnTableMap(),
+                Arrays.asList(this.upstreamExpression)));
     }
 
     @Override
@@ -648,7 +679,8 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
 
     @Override
     public void visit(NotExpression notExpression) {
-
+        Optional.ofNullable(notExpression.getExpression())
+                .ifPresent(p -> p.accept(this));
     }
 
     @Override
@@ -728,7 +760,10 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
 
     @Override
     public void visit(IsDistinctExpression isDistinctExpression) {
-
+        //对应测试用例s56
+        JsqlparserUtil.parseWhereColumTable(this,
+                isDistinctExpression,
+                this.getPlaceholderColumnTableMap());
     }
 
     @Override

@@ -180,6 +180,21 @@ public class EncryptorDbTest {
     //CTE内部查询加解密，外层使用CTE的明文结果集
     String s53 = "WITH x AS (SELECT phone FROM tb_user WHERE phone = ?) SELECT phone FROM x WHERE phone = ?";
 
+    // BETWEEN
+    String s54 = "SELECT phone FROM tb_user WHERE phone BETWEEN ? AND ?";
+
+    //where not
+    String s55 = "SELECT phone FROM tb_user WHERE NOT phone = ?";
+
+    //IS DISTINCT FROM (这条语句会选出所有 phone 与参数 ? 不同的行。如果 phone 列里存在 NULL 值，且参数 ? 不是 NULL，那么 NULL 的行也会被选中，这点区别于=null )
+    String s56 = "SELECT phone FROM tb_user WHERE phone IS DISTINCT FROM ?";
+
+    //any 语法，前面是大于等于这种加密后不满足原条件的关系表达式
+    String s57 = "SELECT tu.phone FROM tb_user tu WHERE tu.phone > ANY (SELECT ? FROM tb_role tr)";
+
+    //any语法，前面是等于这种明文密文都满足一样的条件的关系表达式
+    String s58 = "SELECT tu.phone FROM tb_user tu WHERE tu.phone = ANY (SELECT tr.role_name FROM tb_role tr)";
+
     //临时测试sql
     String s_test_tmp = "select phone ph ,id as iii,'?' from tb_user where phone = ?";
 
@@ -293,7 +308,7 @@ public class EncryptorDbTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = up2;
+        String sql = s58;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -314,7 +329,7 @@ public class EncryptorDbTest {
     //需要测试的sql
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19,
             s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42,
-            s43, s44, s45, s46, s47, s48, s49, s50, s51, s52, s53,
+            s43, s44, s45, s46, s47, s48, s49, s50, s51, s52, s53, s54, s55, s56, s57, s58,
             i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i18, up1, up2,//i17
             d1, d2,
             u1, u2, u3, u4, u5, u6,

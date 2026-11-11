@@ -454,22 +454,28 @@ public class JsqlparserUtil {
 
 
     /**
-     * 如果表达式的一边是Column 一边是我们的特殊表达式，则将他们的对应关系维护到placeholderColumnTableMap 中
+     * 将左右表达式的对应关系维护到placeholderColumnTableMap 中
      *
      * @author liutangqi
      * @date 2024/7/11 11:24
      * @Param [layer 当前层数, layerFieldTableMap 当前层所有的字段信息,leftExpression 左表达式,rightExpression右表达式, placeholderColumnTableMap 存放结果集的map]
      **/
     public static void parseWhereColumTable(BaseFieldParseTable baseFieldParseTable, Expression leftExpression, Expression rightExpression, Map<String, ColumnTableDto> placeholderColumnTableMap) {
-        if (leftExpression instanceof Column && rightExpression instanceof JdbcParameter) {
-            ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn((Column) leftExpression, baseFieldParseTable);
-            placeholderColumnTableMap.put(buildPlaceholder((JdbcParameter) rightExpression), columnTableDto);
+        //1.异常数据过滤
+        if (leftExpression == null || rightExpression == null) {
+            return;
         }
 
-        //左边是我们的占位符 右边是列
-        if (rightExpression instanceof Column && leftExpression instanceof JdbcParameter) {
-            ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn((Column) rightExpression, baseFieldParseTable);
-            placeholderColumnTableMap.put(buildPlaceholder((JdbcParameter) leftExpression), columnTableDto);
+        //2.如果左表达式是 ? 或者 Column 则将左表达式作为上游对应字段，去解析右表达式
+        if (leftExpression instanceof JdbcParameter || leftExpression instanceof Column) {
+            PlaceholderExpressionVisitor rightExpressionVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(baseFieldParseTable, placeholderColumnTableMap, leftExpression);
+            rightExpression.accept(rightExpressionVisitor);
+        }
+
+        //3.如果右表达式是 ? 或者 Column 则将右表达式作为上游对应字段，去解析左表达式
+        else if (rightExpression instanceof JdbcParameter || rightExpression instanceof Column) {
+            PlaceholderExpressionVisitor leftExpressionVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(baseFieldParseTable, placeholderColumnTableMap, rightExpression);
+            leftExpression.accept(leftExpressionVisitor);
         }
     }
 
@@ -595,8 +601,10 @@ public class JsqlparserUtil {
             //Column 是需要加密的字段则将非Column进行加密
             FieldEncryptor leftColumnFieldEncryptor = JsqlparserUtil.needEncryptFieldEncryptor(expression.getLeftExpression(), dbExpressionVisitor);
             if (leftColumnFieldEncryptor != null) {
-                Expression newRightExpression = EncryptorInstanceCache.<Expression>getInstance(leftColumnFieldEncryptor.value()).encryption(expression.getRightExpression());
-                expression.setRightExpression(newRightExpression);
+                //将左侧的表达式作为上游对应字段传递给下游的visitor
+                DBDecryptExpressionVisitor upstreamDbExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(dbExpressionVisitor, EncryptorFunctionEnum.UPSTREAM_COLUMN, leftColumnFieldEncryptor);
+                expression.getRightExpression().accept(upstreamDbExpressionVisitor);
+                expression.setRightExpression(Optional.ofNullable(upstreamDbExpressionVisitor.getProcessedExpression()).orElse(expression.getRightExpression()));
             }
             return;
         }
@@ -606,8 +614,10 @@ public class JsqlparserUtil {
             //Column 是需要加密的字段则将非Column进行加密
             FieldEncryptor rightColumnFieldEncryptor = JsqlparserUtil.needEncryptFieldEncryptor(expression.getRightExpression(), dbExpressionVisitor);
             if (rightColumnFieldEncryptor != null) {
-                Expression newLeftExpression = EncryptorInstanceCache.<Expression>getInstance(rightColumnFieldEncryptor.value()).encryption(expression.getLeftExpression());
-                expression.setLeftExpression(newLeftExpression);
+                //将右侧的表达式作为上游对应字段传递给下游的visitor
+                DBDecryptExpressionVisitor upstreamDbExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(dbExpressionVisitor, EncryptorFunctionEnum.UPSTREAM_COLUMN, rightColumnFieldEncryptor);
+                expression.getLeftExpression().accept(upstreamDbExpressionVisitor);
+                expression.setLeftExpression(Optional.ofNullable(upstreamDbExpressionVisitor.getProcessedExpression()).orElse(expression.getRightExpression()));
             }
             return;
         }

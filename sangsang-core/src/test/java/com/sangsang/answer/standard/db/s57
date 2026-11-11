@@ -1,0 +1,1 @@
+SELECT CAST(AES_DECRYPT(FROM_BASE64(tu.phone), '7uq?q8g3@q') AS CHAR) AS phone FROM tb_user tu WHERE CAST(AES_DECRYPT(FROM_BASE64(tu.phone), '7uq?q8g3@q') AS CHAR) > ANY(SELECT CAST(AES_DECRYPT(FROM_BASE64(tr.role_name), '测试秘钥') AS CHAR) AS role_name FROM tb_role tr)
