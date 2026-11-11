@@ -1,0 +1,1 @@
+SELECT count(*) FROM tb_user HAVING max(CAST(AES_DECRYPT(FROM_BASE64(phone), '7uq?q8g3@q') AS CHAR)) = ?

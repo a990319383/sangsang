@@ -196,6 +196,15 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
                 join.setOnExpressions(dencryptExpressions);
             }
         }
+
+        //8.对having条件后的进行解密
+        if (plainSelect.getHaving() != null) {
+            Expression having = plainSelect.getHaving();
+            DBDecryptExpressionVisitor sDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(this, EncryptorFunctionEnum.DEFAULT_DECRYPTION, null);
+            having.accept(sDecryptExpressionVisitor);
+            //处理后的条件赋值
+            plainSelect.setHaving(Optional.ofNullable(sDecryptExpressionVisitor.getProcessedExpression()).orElse(having));
+        }
     }
 
     /**

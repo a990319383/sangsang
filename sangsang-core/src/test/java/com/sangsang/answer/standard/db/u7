@@ -1,0 +1,1 @@
+UPDATE tb_user SET phone = TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q')) WHERE CAST(AES_DECRYPT(FROM_BASE64(phone), '7uq?q8g3@q') AS CHAR) BETWEEN ? AND ?
