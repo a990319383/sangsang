@@ -140,7 +140,7 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
         Table table = update.getTable();
         table.accept(fieldParseTableFromItemVisitor);
 
-        //2.2 直接jjoin的表
+        //2.2 直接join的表
         FieldParseVisitorUtil.joins(update.getStartJoins(), fieldParseTableFromItemVisitor);
 
         //2.3 join的表
@@ -158,10 +158,15 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
         //4.解析from后join的表及on条件的加密情况
         EncryptorPojoVisitorUtil.joins(update.getJoins(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
 
-        //5.解析where条件的加密情况
+        //5.解析from子查询中的占位符
+        if (fromItem != null) {
+            fromItem.accept(PlaceholderSelectFromItemVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap()));
+        }
+
+        //6.解析where条件的加密情况
         EncryptorPojoVisitorUtil.expression(update.getWhere(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
 
-        //6.解析set的加密情况
+        //7.解析set的加密情况
         EncryptorPojoVisitorUtil.updateSets(update.getUpdateSets(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
     }
 

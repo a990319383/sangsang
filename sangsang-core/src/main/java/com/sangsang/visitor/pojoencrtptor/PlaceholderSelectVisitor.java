@@ -186,19 +186,7 @@ public class PlaceholderSelectVisitor extends PlaceholderFieldParseTable impleme
         }
 
         //5.解析join
-        List<Join> joins = plainSelect.getJoins();
-        if (CollectionUtils.isNotEmpty(joins)) {
-            PlaceholderSelectFromItemVisitor phFromItemVisitor = PlaceholderSelectFromItemVisitor.newInstanceCurLayer(this);
-            for (Join join : joins) {
-                //5.1解析join的表
-                FromItem joinRightItem = join.getRightItem();
-                joinRightItem.accept(phFromItemVisitor);
-                //5.2解析on
-                for (Expression expression : join.getOnExpressions()) {
-                    expression.accept(PlaceholderExpressionVisitor.newInstanceCurLayer(this));
-                }
-            }
-        }
+        EncryptorPojoVisitorUtil.joins(plainSelect.getJoins(), this, this.getPlaceholderColumnTableMap());
 
         //6.解析having条件中的#{}占位符
         Expression having = plainSelect.getHaving();

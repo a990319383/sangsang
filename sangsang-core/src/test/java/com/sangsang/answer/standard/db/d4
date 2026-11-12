@@ -1,0 +1,1 @@
+DELETE tu FROM tb_user tu JOIN tb_role tr ON tr.role_name IN (SELECT TO_BASE64(AES_ENCRYPT(CAST(AES_DECRYPT(FROM_BASE64(phone), '7uq?q8g3@q') AS CHAR), '测试秘钥')) AS phone FROM tb_user WHERE phone = TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q'))) WHERE (tu.id = tr.id)

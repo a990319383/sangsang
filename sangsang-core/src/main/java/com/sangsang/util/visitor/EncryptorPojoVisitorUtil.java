@@ -11,11 +11,13 @@ import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import com.sangsang.visitor.pojoencrtptor.PlaceholderExpressionVisitor;
+import com.sangsang.visitor.pojoencrtptor.PlaceholderSelectFromItemVisitor;
 import com.sangsang.visitor.pojoencrtptor.PlaceholderSelectVisitor;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
+import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.Select;
@@ -156,8 +158,19 @@ public class EncryptorPojoVisitorUtil {
         if (CollectionUtils.isEmpty(joins)) {
             return;
         }
+        PlaceholderSelectFromItemVisitor placeholderSelectFromItemVisitor = PlaceholderSelectFromItemVisitor.newInstanceCurLayer(baseFieldParseTable, placeholderColumnTableMap);
         for (Join join : joins) {
-            for (Expression onExpression : Optional.ofNullable(join.getOnExpressions()).orElse((List<Expression>) CollectionUtils.EMPTY_LIST)) {
+            //1.解析join右表子查询中的占位符
+            FromItem rightItem = join.getRightItem();
+            if (rightItem != null) {
+                rightItem.accept(placeholderSelectFromItemVisitor);
+            }
+
+            //2.解析join的on条件中的占位符
+            if (CollectionUtils.isEmpty(join.getOnExpressions())) {
+                continue;
+            }
+            for (Expression onExpression : join.getOnExpressions()) {
                 EncryptorPojoVisitorUtil.expression(onExpression, baseFieldParseTable, placeholderColumnTableMap);
             }
         }

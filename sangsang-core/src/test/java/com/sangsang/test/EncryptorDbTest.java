@@ -190,7 +190,7 @@ public class EncryptorDbTest {
     String s56 = "SELECT phone FROM tb_user WHERE phone IS DISTINCT FROM ?";
 
     //any 语法，前面是大于等于这种加密后不满足原条件的关系表达式
-    String s57 = "SELECT tu.phone FROM tb_user tu WHERE tu.phone > ANY (SELECT ? FROM tb_role tr)";
+    String s57 = "SELECT tu.phone FROM tb_user tu WHERE tu.phone > ANY (SELECT tr.role_name FROM tb_role tr)";
 
     //any语法，前面是等于这种明文密文都满足一样的条件的关系表达式
     String s58 = "SELECT tu.phone FROM tb_user tu WHERE tu.phone = ANY (SELECT tr.role_name FROM tb_role tr)";
@@ -201,6 +201,18 @@ public class EncryptorDbTest {
     //全文搜索 这种语法无法兼容，密文存储后，和之前的明文检索出来的东西完全不相干，且 MATCH (phone)这种语法固定，没办法对phone字段解密后后检索
     @Deprecated
     String s60 = "SELECT phone AS phone FROM tb_user WHERE MATCH (phone) AGAINST (?)";
+
+    //括号包裹的join中，on条件存在密文字段和占位符
+    String s61 = "select * from (tb_user tu join tb_role tr on tu.phone = tr.role_name and tu.phone = ?)";
+
+    //多层括号join的派生表中存在密文字段占位符，on条件字段的加解密算法不同
+    String s62 = "select * from ((select * from tb_user where phone = ?) tu join tb_role tr on tu.phone = tr.role_name)";
+
+    //join的on条件中存在子查询，子查询条件包含密文字段占位符
+    String s63 = "select * from tb_user tu join tb_role tr on tr.role_name in (select phone from tb_user where phone = ?)";
+
+    //LATERAL子查询中存在密文字段占位符
+    String s64 = "select * from tb_user tu left join lateral (select * from tb_role tr where tr.role_name = tu.phone and tr.role_name = ?) x on (true)";
 
     //临时测试sql
     String s_test_tmp = "select phone ph ,id as iii,'?' from tb_user where phone = ?";
@@ -273,6 +285,15 @@ public class EncryptorDbTest {
     // delte 一张表
     String d2 = "delete from tb_user where phone like '%xxx%'";
 
+    //delete的join on条件中存在密文字段
+    String d3 = "DELETE t FROM tb_user t JOIN tb_user s ON t.phone = ? WHERE t.id = ?";
+
+    //delete的join on条件中存在子查询，子查询条件包含密文字段占位符
+    String d4 = "delete tu from tb_user tu join tb_role tr on tr.role_name in (select phone from tb_user where phone = ?) where (tu.id = tr.id)";
+
+    //delete join使用派生表，派生表中存在密文字段占位符
+    String d5 = "delete tu from tb_user tu join (select id, role_name from tb_role where role_name = ?) tr on tu.id = tr.id where (tu.id = ?)";
+
     // --------------update 测试语句 ---------------
 
     //update 联表  set的时候存在 其它表的值，也存在常量值
@@ -298,6 +319,18 @@ public class EncryptorDbTest {
     //update的where条件中使用BETWEEN
     String u7 = "UPDATE tb_user SET phone = ? WHERE phone BETWEEN ? AND ?";
 
+    //update的join on条件中存在密文字段
+    String u8 = "UPDATE tb_user t JOIN tb_user s ON t.phone = ? SET t.user_name = ? WHERE t.id = ?";
+
+    //update不带where条件，join的on条件中存在密文字段占位符
+    String u9 = "update tb_user t join tb_user s on t.phone = ? set t.user_name = concat(s.user_name, '')";
+
+    //UPDATE FROM后继续join，on条件的子查询中存在密文字段占位符
+    String u10 = "update tb_user tu set tu.user_name = su.user_name from tb_user su join tb_role tr on tr.role_name in (select phone from tb_user where phone = ?) where (tu.id = su.id)";
+
+    //UPDATE FROM使用派生表，派生表中存在密文字段占位符
+    String u11 = "update tb_user tu set tu.user_name = su.user_name from (select id, user_name from tb_user where phone = ?) su where (tu.id = su.id)";
+
     //MERGE的ON、UPDATE和INSERT分支
     String m1 = "MERGE INTO tb_user t USING tb_user s ON (t.phone = ?) WHEN MATCHED THEN UPDATE SET t.phone = ? WHEN NOT MATCHED THEN INSERT(id,phone) VALUES(?,?)";
 
@@ -318,7 +351,7 @@ public class EncryptorDbTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = s58;
+        String sql = u11;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -339,10 +372,10 @@ public class EncryptorDbTest {
     //需要测试的sql
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19,
             s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42,
-            s43, s44, s45, s46, s47, s48, s49, s50, s51, s52, s53, s54, s55, s56, s57, s58, s59,
+            s43, s44, s45, s46, s47, s48, s49, s50, s51, s52, s53, s54, s55, s56, s57, s58, s59, s61, s62, s63, s64,
             i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i18, up1, up2,//i17
-            d1, d2,
-            u1, u2, u3, u4, u5, u6, u7,
+            d1, d2, d3, d4, d5,
+            u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11,
             m1
     );
 

@@ -1,0 +1,1 @@
+UPDATE tb_user t JOIN tb_user s ON t.phone = TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q')) SET t.user_name = ? WHERE t.id = ?

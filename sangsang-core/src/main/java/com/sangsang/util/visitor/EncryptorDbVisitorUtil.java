@@ -6,15 +6,19 @@ import com.sangsang.domain.enums.EncryptorFunctionEnum;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.visitor.dbencrtptor.DBDecryptExpressionVisitor;
+import com.sangsang.visitor.dbencrtptor.DBDecryptFromItemVisitor;
 import com.sangsang.visitor.dbencrtptor.DBDecryptSelectVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.statement.select.FromItem;
+import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.WithItem;
 import net.sf.jsqlparser.statement.update.UpdateSet;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -116,5 +120,37 @@ public class EncryptorDbVisitorUtil {
                 null);
         expression.accept(expressionVisitor);
         return Optional.ofNullable(expressionVisitor.getProcessedExpression()).orElse(expression);
+    }
+
+    /**
+     * 对join的表和on条件进行处理
+     *
+     * @author liutangqi
+     * @date 2026/11/11 17:30
+     * @Param [joins, baseFieldParseTable]
+     **/
+    public static void joins(List<Join> joins,
+                             BaseFieldParseTable baseFieldParseTable) {
+        if (CollectionUtils.isEmpty(joins)) {
+            return;
+        }
+        DBDecryptFromItemVisitor dbDecryptFromItemVisitor = DBDecryptFromItemVisitor.newInstanceCurLayer(baseFieldParseTable);
+        for (Join join : joins) {
+            //1.处理join的表
+            FromItem rightItem = join.getRightItem();
+            if (rightItem != null) {
+                rightItem.accept(dbDecryptFromItemVisitor);
+            }
+
+            //2.处理join的on条件
+            if (CollectionUtils.isEmpty(join.getOnExpressions())) {
+                continue;
+            }
+            List<Expression> decryptExpressions = new ArrayList<>();
+            for (Expression expression : join.getOnExpressions()) {
+                decryptExpressions.add(EncryptorDbVisitorUtil.expressionDecryption(expression, baseFieldParseTable));
+            }
+            join.setOnExpressions(decryptExpressions);
+        }
     }
 }

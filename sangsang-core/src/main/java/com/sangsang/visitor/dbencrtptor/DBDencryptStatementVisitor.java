@@ -8,6 +8,7 @@ import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.ExpressionsUtil;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.visitor.EncryptorDbVisitorUtil;
+import com.sangsang.util.visitor.FieldParseVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +41,6 @@ import net.sf.jsqlparser.statement.merge.Merge;
 import net.sf.jsqlparser.statement.merge.MergeOperation;
 import net.sf.jsqlparser.statement.refresh.RefreshMaterializedViewStatement;
 import net.sf.jsqlparser.statement.select.FromItem;
-import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.show.ShowIndexStatement;
 import net.sf.jsqlparser.statement.show.ShowTablesStatement;
@@ -98,29 +98,28 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Delete delete) {
-        //1.where 条件 不存在，则不进行加密处理（delete语句主要对delete的条件进行加密）
-        Expression where = delete.getWhere();
-        if (where == null) {
-            return;
-        }
-
-        //2.解析涉及到的表拥有的全部字段信息
+        //1.解析涉及到的表拥有的全部字段信息
         FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        // from 后的表
+        //1.1 from 后的表
         Table table = delete.getTable();
-        table.accept(fieldParseTableFromItemVisitor);
+        Optional.ofNullable(table).ifPresent(p -> p.accept(fieldParseTableFromItemVisitor));
 
-        //join 的表
-        List<Join> joins = Optional.ofNullable(delete.getJoins()).orElse(new ArrayList<>());
-        for (Join join : joins) {
-            FromItem rightItem = join.getRightItem();
-            rightItem.accept(fieldParseTableFromItemVisitor);
-        }
+        //1.2 using 后的表
+        FieldParseVisitorUtil.usingList(delete.getUsingList(), fieldParseTableFromItemVisitor);
+
+        //1.3 join的表
+        FieldParseVisitorUtil.joins(delete.getJoins(), fieldParseTableFromItemVisitor);
+
+        //2.处理join右表的子查询和on条件
+        EncryptorDbVisitorUtil.joins(delete.getJoins(), fieldParseTableFromItemVisitor);
 
         //3.将where 条件进行解密
-        DBDecryptExpressionVisitor sDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor, EncryptorFunctionEnum.DEFAULT_DECRYPTION, null);
-        where.accept(sDecryptExpressionVisitor);
-        delete.setWhere(Optional.ofNullable(sDecryptExpressionVisitor.getProcessedExpression()).orElse(where));
+        Expression where = delete.getWhere();
+        if (where != null) {
+            DBDecryptExpressionVisitor sDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor, EncryptorFunctionEnum.DEFAULT_DECRYPTION, null);
+            where.accept(sDecryptExpressionVisitor);
+            delete.setWhere(Optional.ofNullable(sDecryptExpressionVisitor.getProcessedExpression()).orElse(where));
+        }
 
         //4.结果赋值
         this.resultSql = delete.toString();
@@ -131,17 +130,30 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
         //1.解析涉及到的表拥有的全部字段信息
         FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
 
-        //update的表
+        //1.1 update的表
         Table table = update.getTable();
         table.accept(fieldParseTableFromItemVisitor);
 
-        //join的表
-        List<Join> joins = Optional.ofNullable(update.getStartJoins()).orElse(new ArrayList<>());
-        for (Join join : joins) {
-            join.getRightItem().accept(fieldParseTableFromItemVisitor);
+        //1.2 join的表（不同数据库的join解析有些许差异，有的在startJoins中，有的在joins中）
+        FieldParseVisitorUtil.joins(update.getStartJoins(), fieldParseTableFromItemVisitor);
+        FieldParseVisitorUtil.joins(update.getJoins(), fieldParseTableFromItemVisitor);
+
+        //1.3 from后的表
+        FromItem fromItem = update.getFromItem();
+        if (fromItem != null) {
+            fromItem.accept(fieldParseTableFromItemVisitor);
         }
 
-        //2.解密where 条件的数据
+        //2.处理join右表的子查询和on条件
+        EncryptorDbVisitorUtil.joins(update.getStartJoins(), fieldParseTableFromItemVisitor);
+        EncryptorDbVisitorUtil.joins(update.getJoins(), fieldParseTableFromItemVisitor);
+
+        //3.处理from后的子查询
+        if (fromItem != null) {
+            fromItem.accept(DBDecryptFromItemVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor));
+        }
+
+        //4.解密where 条件的数据
         Expression where = update.getWhere();
         if (where != null) {
             DBDecryptExpressionVisitor expressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor, EncryptorFunctionEnum.DEFAULT_DECRYPTION, null);
@@ -150,10 +162,10 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
             update.setWhere(Optional.ofNullable(expressionVisitor.getProcessedExpression()).orElse(where));
         }
 
-        //3.加密处理set的数据
+        //5.加密处理set的数据
         EncryptorDbVisitorUtil.updateSets(update.getUpdateSets(), fieldParseTableFromItemVisitor);
 
-        //4.处理结果赋值
+        //6.处理结果赋值
         this.resultSql = update.toString();
 
     }

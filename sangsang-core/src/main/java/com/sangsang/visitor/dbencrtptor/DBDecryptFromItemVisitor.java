@@ -3,6 +3,8 @@ package com.sangsang.visitor.dbencrtptor;
 import com.sangsang.domain.annos.encryptor.FieldEncryptor;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
+import com.sangsang.util.visitor.EncryptorDbVisitorUtil;
+import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.*;
 
@@ -82,6 +84,13 @@ public class DBDecryptFromItemVisitor extends BaseFieldParseTable implements Fro
 
     @Override
     public void visit(LateralSubSelect lateralSubSelect) {
+        if (lateralSubSelect.getSelect() == null) {
+            return;
+        }
+        //LATERAL子查询可以访问外部作用域，但解析结果不能污染外部作用域，所以单独解析并处理
+        FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceIndividualMap(this);
+        lateralSubSelect.getSelect().accept(fieldParseTableSelectVisitor);
+        lateralSubSelect.getSelect().accept(DBDecryptSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor));
 
     }
 
@@ -93,6 +102,10 @@ public class DBDecryptFromItemVisitor extends BaseFieldParseTable implements Fro
 
     @Override
     public void visit(ParenthesedFromItem aThis) {
+        Optional.ofNullable(aThis.getFromItem()).ifPresent(p -> p.accept(this));
+
+        //处理括号里面的joins
+        EncryptorDbVisitorUtil.joins(aThis.getJoins(), this);
 
     }
 

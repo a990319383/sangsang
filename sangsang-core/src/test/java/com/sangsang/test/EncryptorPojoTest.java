@@ -206,6 +206,18 @@ public class EncryptorPojoTest {
     @Deprecated
     String s59 = "SELECT count(*) FROM tb_user HAVING max(phone) = ?";
 
+    //括号包裹的join中，on条件存在密文字段和占位符
+    String s61 = "select * from (tb_user tu join tb_role tr on tu.phone = tr.role_name and tu.phone = ?)";
+
+    //多层括号join的派生表中存在密文字段占位符，on条件字段的加解密算法不同
+    String s62 = "select * from ((select * from tb_user where phone = ?) tu join tb_role tr on tu.phone = tr.role_name)";
+
+    //join的on条件中存在子查询，子查询条件包含密文字段占位符
+    String s63 = "select * from tb_user tu join tb_role tr on tr.role_name in (select phone from tb_user where phone = ?)";
+
+    //LATERAL子查询中存在密文字段占位符
+    String s64 = "select * from tb_user tu left join lateral (select * from tb_role tr where tr.role_name = tu.phone and tr.role_name = ?) x on (true)";
+
     // -----------------insert 测试语句---------------------
     String i1 = "insert into tb_user(id, user_name ,phone) values(1,?,'18243512315'),(2,'南瓜',?)";
 
@@ -267,6 +279,12 @@ public class EncryptorPojoTest {
     // 测试DELETE USING来源表条件中的占位符能够关联到对应字段
     String d3 = "delete from tb_role r using tb_user u where r.id = u.id and u.phone = ?";
 
+    //delete的join on条件中存在子查询，子查询条件包含密文字段占位符
+    String d4 = "delete tu from tb_user tu join tb_role tr on tr.role_name in (select phone from tb_user where phone = ?) where (tu.id = tr.id)";
+
+    //delete join使用派生表，派生表中存在密文字段占位符
+    String d5 = "delete tu from tb_user tu join (select id, role_name from tb_role where role_name = ?) tr on tu.id = tr.id where (tu.id = ?)";
+
     // --------------update 测试语句 ---------------
 
     //update 联表  set的时候存在 其它表的值，也存在常量值
@@ -291,6 +309,18 @@ public class EncryptorPojoTest {
 
     //多值update
     String u7 = "UPDATE tb_user SET(phone, user_name) = (SELECT ?, ? FROM tb_role) WHERE id = ?";
+
+    //update的join on条件中存在密文字段占位符
+    String u8 = "UPDATE tb_user t JOIN tb_user s ON t.phone = ? SET t.user_name = ? WHERE t.id = ?";
+
+    //update不带where条件，join的on条件中存在密文字段占位符
+    String u9 = "update tb_user t join tb_user s on t.phone = ? set t.user_name = concat(s.user_name, '')";
+
+    //UPDATE FROM后继续join，on条件的子查询中存在密文字段占位符
+    String u10 = "update tb_user tu set tu.user_name = su.user_name from tb_user su join tb_role tr on tr.role_name in (select phone from tb_user where phone = ?) where (tu.id = su.id)";
+
+    //UPDATE FROM使用派生表，派生表中存在密文字段占位符
+    String u11 = "update tb_user tu set tu.user_name = su.user_name from (select id, user_name from tb_user where phone = ?) su where (tu.id = su.id)";
 
     // --------------merge 测试语句 ---------------
 
@@ -342,10 +372,10 @@ public class EncryptorPojoTest {
     //需要测试的sql
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19,
             s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42,
-            s43, s44, s45, s46, s47, s48, s49, s50, s51, s52, s53, s54, s55, s56, s57, s58,
+            s43, s44, s45, s46, s47, s48, s49, s50, s51, s52, s53, s54, s55, s56, s57, s58, s61, s62, s63, s64,
             i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i17,
-            d1, d2, d3,
-            u1, u2, u3, u4, u5, u6, u7,
+            d1, d2, d3, d4, d5,
+            u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11,
             m1,
             up1, up2
     );
@@ -434,6 +464,5 @@ public class EncryptorPojoTest {
             AnswerUtil.writePOJOAnswerToFile(this, sql, fieldEncryptorInfos, placeholderColumnTableMap);
         }
     }
-
 
 }

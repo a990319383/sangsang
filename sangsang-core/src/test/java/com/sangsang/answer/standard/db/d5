@@ -1,0 +1,1 @@
+DELETE tu FROM tb_user tu JOIN (SELECT id, CAST(AES_DECRYPT(FROM_BASE64(role_name), '测试秘钥') AS CHAR) AS role_name FROM tb_role WHERE role_name = TO_BASE64(AES_ENCRYPT(?, '测试秘钥'))) tr ON tu.id = tr.id WHERE (tu.id = ?)

@@ -4,7 +4,6 @@ import com.sangsang.domain.annos.encryptor.FieldEncryptor;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.enums.EncryptorFunctionEnum;
-import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.visitor.EncryptorDbVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
@@ -178,24 +177,7 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
         }
 
         //7.处理join
-        List<Join> joins = plainSelect.getJoins();
-        if (CollectionUtils.isNotEmpty(joins)) {
-            DBDecryptFromItemVisitor sDecryptFromItemVisitor = DBDecryptFromItemVisitor.newInstanceCurLayer(this);
-            for (Join join : joins) {
-                //7.1 处理join的表
-                FromItem joinRightItem = join.getRightItem();
-                joinRightItem.accept(sDecryptFromItemVisitor);
-                //7.2 处理 on
-                List<Expression> dencryptExpressions = new ArrayList<>();
-                for (Expression expression : join.getOnExpressions()) {
-                    DBDecryptExpressionVisitor sDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(this, EncryptorFunctionEnum.DEFAULT_DECRYPTION, null);
-                    expression.accept(sDecryptExpressionVisitor);
-                    dencryptExpressions.add(Optional.ofNullable(sDecryptExpressionVisitor.getProcessedExpression()).orElse(expression));
-                }
-                //处理后的结果赋值
-                join.setOnExpressions(dencryptExpressions);
-            }
-        }
+        EncryptorDbVisitorUtil.joins(plainSelect.getJoins(), this);
 
         //8.对having条件后的进行解密
         if (plainSelect.getHaving() != null) {

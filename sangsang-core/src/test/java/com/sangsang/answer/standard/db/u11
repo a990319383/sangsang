@@ -1,0 +1,1 @@
+UPDATE tb_user tu SET tu.user_name = su.user_name FROM (SELECT id, user_name FROM tb_user WHERE phone = TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q'))) su WHERE (tu.id = su.id)
