@@ -268,6 +268,12 @@ public class EncryptorPojoTest {
 
     //类似 i16 ,不过这里values后面是多组
     String i17 = "INSERT INTO tb_user(phone) VALUES (?),(?)";
+
+    //INSERT RETURNING形成结果集，返回密文字段
+    String i18 = "INSERT INTO tb_user(phone,user_name) VALUES (?,?) RETURNING phone";
+
+    //INSERT OUTPUT形成结果集，返回inserted伪表中的密文字段
+    String i19 = "INSERT INTO tb_user(phone,user_name) OUTPUT inserted.phone AS phone VALUES (?,?)";
     // --------------delete 测试语句 ---------------
 
     // delet join
@@ -284,6 +290,12 @@ public class EncryptorPojoTest {
 
     //delete join使用派生表，派生表中存在密文字段占位符
     String d5 = "delete tu from tb_user tu join (select id, role_name from tb_role where role_name = ?) tr on tu.id = tr.id where (tu.id = ?)";
+
+    //DELETE RETURNING形成结果集，返回目标表全部字段
+    String d6 = "DELETE FROM tb_user WHERE id = ? RETURNING *";
+
+    //DELETE OUTPUT形成结果集，返回deleted伪表全部字段
+    String d7 = "DELETE tb_user OUTPUT deleted.* FROM tb_user WHERE id = ?";
 
     // --------------update 测试语句 ---------------
 
@@ -322,6 +334,15 @@ public class EncryptorPojoTest {
     //UPDATE FROM使用派生表，派生表中存在密文字段占位符
     String u11 = "update tb_user tu set tu.user_name = su.user_name from (select id, user_name from tb_user where phone = ?) su where (tu.id = su.id)";
 
+    //UPDATE RETURNING形成结果集，返回带别名的密文字段
+    String u12 = "UPDATE tb_user SET user_name = ? WHERE id = ? RETURNING phone AS returnedPhone";
+
+    //UPDATE OUTPUT形成结果集，同时返回inserted和deleted伪表中的密文字段
+    String u13 = "UPDATE tb_user SET user_name = ? OUTPUT inserted.phone AS newPhone, deleted.phone AS oldPhone WHERE id = ?";
+
+    //UPDATE RETURNING INTO不形成普通结果集，pojo不维护返回字段信息
+    String u14 = "UPDATE tb_user SET user_name = ? WHERE id = ? RETURNING phone INTO out_phone";
+
     // --------------merge 测试语句 ---------------
 
     //测试MERGE的USING来源表条件、MATCHED UPDATE和NOT MATCHED INSERT分支中的占位符映射
@@ -353,7 +374,7 @@ public class EncryptorPojoTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = s58;
+        String sql = u13;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -373,9 +394,9 @@ public class EncryptorPojoTest {
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19,
             s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42,
             s43, s44, s45, s46, s47, s48, s49, s50, s51, s52, s53, s54, s55, s56, s57, s58, s61, s62, s63, s64,
-            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i17,
-            d1, d2, d3, d4, d5,
-            u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11,
+            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i17, i18, i19,
+            d1, d2, d3, d4, d5, d6, d7,
+            u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11, u12, u13, u14,
             m1,
             up1, up2
     );

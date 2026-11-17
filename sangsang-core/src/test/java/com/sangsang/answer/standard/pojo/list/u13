@@ -1,0 +1,1 @@
+[{"columnName":"newPhone","sourceColumn":"phone","sourceTableName":"tb_user","fieldEncryptor":{}},{"columnName":"oldPhone","sourceColumn":"phone","sourceTableName":"tb_user","fieldEncryptor":{}}]

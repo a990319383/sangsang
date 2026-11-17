@@ -1,0 +1,1 @@
+UPDATE tb_user SET user_name = ?, login_name = ?, login_pwd = ?, phone = TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q')), role_id = ? OUTPUT inserted.user_name, CAST(AES_DECRYPT(FROM_BASE64(inserted.phone), '7uq?q8g3@q') AS CHAR) INTO tb_user_bak (user_name, phone) WHERE id = ? 

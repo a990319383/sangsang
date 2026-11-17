@@ -1,0 +1,1 @@
+UPDATE tb_user SET user_name = ? OUTPUT CAST(AES_DECRYPT(FROM_BASE64(inserted.phone), '7uq?q8g3@q') AS CHAR) AS newPhone, CAST(AES_DECRYPT(FROM_BASE64(deleted.phone), '7uq?q8g3@q') AS CHAR) AS oldPhone WHERE id = ? 

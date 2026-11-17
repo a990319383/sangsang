@@ -2,6 +2,7 @@ package com.sangsang.visitor.dbencrtptor;
 
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.annos.encryptor.FieldEncryptor;
+import com.sangsang.domain.constants.SqlConstant;
 import com.sangsang.domain.enums.EncryptorFunctionEnum;
 import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
@@ -121,8 +122,15 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
             delete.setWhere(Optional.ofNullable(sDecryptExpressionVisitor.getProcessedExpression()).orElse(where));
         }
 
-        //4.结果赋值
-        this.resultSql = delete.toString();
+        //4.处理DML返回列
+        //注意：这里必须单独解析目标表。前面的字段作用域还包含USING、JOIN涉及的表，若直接复用，返回列出现*时会补全当前层全部表的字段，导致结果中混入非目标表字段
+        FieldParseParseTableFromItemVisitor returningFieldParseTable = FieldParseVisitorUtil.dmlResultTable(table);
+        EncryptorDbVisitorUtil.returning(delete.getReturningClause(), returningFieldParseTable);
+        FieldParseParseTableFromItemVisitor outputFieldParseTable = FieldParseVisitorUtil.dmlResultTable(table, SqlConstant.DELETED);
+        EncryptorDbVisitorUtil.output(delete.getOutputClause(), outputFieldParseTable);
+
+        //5.结果赋值
+        this.resultSql = EncryptorDbVisitorUtil.perfectOutputIntoSql(delete.toString(), delete.getOutputClause());
     }
 
     @Override
@@ -165,8 +173,15 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
         //5.加密处理set的数据
         EncryptorDbVisitorUtil.updateSets(update.getUpdateSets(), fieldParseTableFromItemVisitor);
 
-        //6.处理结果赋值
-        this.resultSql = update.toString();
+        //6.处理DML返回列 todo-ltq 这里统一看看，感觉没必要反复解析这个table，直接复用一个，补全*的时候加层过滤就行
+        //注意：这里必须单独解析目标表。前面的字段作用域还包含JOIN、FROM涉及的表，若直接复用，返回列出现*时会补全当前层全部表的字段，导致结果中混入非目标表字段
+        FieldParseParseTableFromItemVisitor returningFieldParseTable = FieldParseVisitorUtil.dmlResultTable(table);
+        EncryptorDbVisitorUtil.returning(update.getReturningClause(), returningFieldParseTable);
+        FieldParseParseTableFromItemVisitor outputFieldParseTable = FieldParseVisitorUtil.dmlResultTable(table, SqlConstant.INSERTED, SqlConstant.DELETED);
+        EncryptorDbVisitorUtil.output(update.getOutputClause(), outputFieldParseTable);
+
+        //7.处理结果赋值
+        this.resultSql = EncryptorDbVisitorUtil.perfectOutputIntoSql(update.toString(), update.getOutputClause());
 
     }
 
@@ -216,8 +231,13 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
         //5.3 处理 PostgreSQL ON CONFLICT DO UPDATE
         EncryptorDbVisitorUtil.updateSets(Optional.ofNullable(insert.getConflictAction()).map(InsertConflictAction::getUpdateSets).orElse(CollectionUtils.EMPTY_LIST), fieldParseTableFromItemVisitor);
 
-        //6.处理好的sql赋值
-        this.resultSql = insert.toString();
+        //6.处理DML返回列
+        EncryptorDbVisitorUtil.returning(insert.getReturningClause(), fieldParseTableFromItemVisitor);
+        FieldParseVisitorUtil.dmlResultTableAliases(fieldParseTableFromItemVisitor, table, SqlConstant.INSERTED);
+        EncryptorDbVisitorUtil.output(insert.getOutputClause(), fieldParseTableFromItemVisitor);
+
+        //7.处理好的sql赋值
+        this.resultSql = EncryptorDbVisitorUtil.perfectOutputIntoSql(insert.toString(), insert.getOutputClause());
     }
 
 

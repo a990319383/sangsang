@@ -1,0 +1,1 @@
+DELETE tb_user OUTPUT deleted.user_name, deleted.login_name, deleted.login_pwd, CAST(AES_DECRYPT(FROM_BASE64(deleted.phone), '7uq?q8g3@q') AS CHAR) AS phone, deleted.role_id, deleted.id, deleted.create_time, deleted.update_time FROM tb_user WHERE id = ? 

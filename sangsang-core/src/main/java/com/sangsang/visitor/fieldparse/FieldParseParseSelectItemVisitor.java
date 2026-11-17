@@ -34,7 +34,9 @@ public class FieldParseParseSelectItemVisitor extends BaseFieldParseTable implem
         );
     }
 
-    private FieldParseParseSelectItemVisitor(int layer, Map<Integer, Map<String, List<FieldInfoDto>>> layerSelectTableFieldMap, Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap) {
+    private FieldParseParseSelectItemVisitor(int layer,
+                                             Map<Integer, Map<String, List<FieldInfoDto>>> layerSelectTableFieldMap,
+                                             Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap) {
         super(layer, layerSelectTableFieldMap, layerFieldTableMap);
     }
 
