@@ -16,12 +16,15 @@ import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import com.sangsang.visitor.pojoencrtptor.PlaceholderExpressionVisitor;
 import com.sangsang.visitor.pojoencrtptor.PlaceholderSelectFromItemVisitor;
 import com.sangsang.visitor.pojoencrtptor.PlaceholderSelectVisitor;
+import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.OutputClause;
 import net.sf.jsqlparser.statement.ReturningClause;
+import net.sf.jsqlparser.statement.select.AllColumns;
+import net.sf.jsqlparser.statement.select.AllTableColumns;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
@@ -32,8 +35,10 @@ import net.sf.jsqlparser.statement.update.UpdateSet;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -48,69 +53,88 @@ public class EncryptorPojoVisitorUtil {
      * 解析DML RETURNING返回字段的加密信息
      *
      * @param returningClause     DML语句中的RETURNING语法对象
+     * @param table               DML语句操作的目标表
      * @param baseFieldParseTable DML目标表对应的字段解析结果
      * @author liutangqi & gpt-5.6-sol
      * @date 2026/11/12 19:20
      **/
     public static List<FieldEncryptorInfoDto> returning(ReturningClause returningClause,
+                                                        Table table,
                                                         BaseFieldParseTable baseFieldParseTable) {
         //1.RETURNING INTO只向变量赋值，不产生普通结果集，交由数据库模式处理
         if (returningClause == null || CollectionUtils.isNotEmpty(returningClause.getDataItems())) {
             return new ArrayList<>();
         }
         //2.解析普通RETURNING结果列对应的加密信息
-        return EncryptorPojoVisitorUtil.resultItems(returningClause, baseFieldParseTable);
+        return EncryptorPojoVisitorUtil.resultItems(returningClause, table, baseFieldParseTable);
     }
 
     /**
      * 解析DML OUTPUT返回字段的加密信息
      *
      * @param outputClause        DML语句中的OUTPUT语法对象
+     * @param table               DML语句操作的目标表
      * @param baseFieldParseTable DML目标表对应的字段解析结果
      * @author liutangqi & gpt-5.6-sol
      * @date 2026/11/12 19:20
      **/
     public static List<FieldEncryptorInfoDto> output(OutputClause outputClause,
+                                                     Table table,
                                                      BaseFieldParseTable baseFieldParseTable) {
         //1.OUTPUT INTO不产生供结果拦截器处理的普通结果集
         if (outputClause == null || outputClause.getTableVariable() != null || outputClause.getOutputTable() != null) {
             return new ArrayList<>();
         }
         //2.解析普通OUTPUT结果列对应的加密信息
-        return EncryptorPojoVisitorUtil.resultItems(outputClause.getSelectItemList(), baseFieldParseTable);
+        return EncryptorPojoVisitorUtil.resultItems(outputClause.getSelectItemList(), table, baseFieldParseTable);
     }
 
     /**
      * 解析DML结果字段的加密信息
      *
      * @param selectItems         DML语句中的返回字段列表
+     * @param table               DML语句操作的目标表
      * @param baseFieldParseTable DML目标表对应的字段解析结果
      * @author liutangqi & gpt-5.6-sol
      * @date 2026/11/12 19:20
      **/
     private static List<FieldEncryptorInfoDto> resultItems(List<SelectItem<?>> selectItems,
+                                                           Table table,
                                                            BaseFieldParseTable baseFieldParseTable) {
         //1.没有返回列时直接返回空结果
         if (CollectionUtils.isEmpty(selectItems)) {
             return new ArrayList<>();
         }
-        //2.展开*，得到需要映射的具体字段
+        //2.按照原字段解析结果的数据结构，构建只包含DML目标表的临时字段作用域
+        String tableName = Optional.ofNullable(table.getAlias()).map(Alias::getName).orElse(table.getName());
+        Map<String, List<FieldInfoDto>> curLayerFieldTableMap = baseFieldParseTable.getLayerFieldTableMap()
+                .getOrDefault(baseFieldParseTable.getLayer(), new FieldHashMapWrapper<>());
+        Map<String, List<FieldInfoDto>> dmlResultFieldTableMap = new FieldHashMapWrapper<>();
+        dmlResultFieldTableMap.put(tableName, curLayerFieldTableMap.getOrDefault(tableName, Collections.emptyList()));
+        Map<Integer, Map<String, List<FieldInfoDto>>> dmlResultLayerFieldTableMap = new LayerHashMapWrapper();
+        dmlResultLayerFieldTableMap.put(baseFieldParseTable.getLayer(), dmlResultFieldTableMap);
+
+        //3.无前缀*只使用目标表字段补全，带表名前缀的*继续使用完整作用域解析
         List<SelectItem<?>> resultItems = new ArrayList<>();
         for (SelectItem<?> selectItem : selectItems) {
+            Expression expression = selectItem.getExpression();
+            Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap = expression instanceof AllColumns && !(expression instanceof AllTableColumns)
+                    ? dmlResultLayerFieldTableMap
+                    : baseFieldParseTable.getLayerFieldTableMap();
             List<SelectItem> perfectSelectItems = JsqlparserUtil.perfectAllColumns(selectItem,
                     baseFieldParseTable.getLayer(),
-                    baseFieldParseTable.getLayerFieldTableMap(),
+                    layerFieldTableMap,
                     null);
             for (SelectItem perfectSelectItem : perfectSelectItems) {
                 resultItems.add(perfectSelectItem);
             }
         }
-        //3.逐列解析字段来源并匹配对应的加密注解
+        //4.逐列解析字段来源并匹配对应的加密注解
         FieldParseParseSelectItemVisitor fPSelectItemVisitor = FieldParseParseSelectItemVisitor.newInstanceCurLayer(baseFieldParseTable);
         for (SelectItem<?> selectItem : resultItems) {
             selectItem.accept(fPSelectItemVisitor);
         }
-        //4.获取整个sql当前查询的字段信息，并组装好结果集
+        //5.获取整个sql当前查询的字段信息，并组装好结果集
         return baseFieldParseTable.getLayerSelectTableFieldMap()
                 .getOrDefault(baseFieldParseTable.getLayer(), new FieldHashMapWrapper<>())
                 .values()

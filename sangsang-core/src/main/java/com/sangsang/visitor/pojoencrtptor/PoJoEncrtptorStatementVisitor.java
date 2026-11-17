@@ -129,11 +129,10 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
         EncryptorPojoVisitorUtil.expression(delete.getWhere(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
 
         //5.解析DML返回列
-        //注意：这里必须单独解析目标表。前面的字段作用域还包含USING、JOIN涉及的表，若直接复用，返回列出现*时会补全当前层全部表的字段，导致结果中混入非目标表字段
-        FieldParseParseTableFromItemVisitor returningFieldParseTable = FieldParseVisitorUtil.dmlResultTable(table);
-        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.returning(delete.getReturningClause(), returningFieldParseTable));
-        FieldParseParseTableFromItemVisitor outputFieldParseTable = FieldParseVisitorUtil.dmlResultTable(table, SqlConstant.DELETED);
-        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.output(delete.getOutputClause(), outputFieldParseTable));
+        //注意：复用前面包含USING、JOIN表的字段作用域，返回列中的无前缀*会在工具类中使用只包含目标表的临时作用域进行补全，避免混入非目标表字段
+        FieldParseVisitorUtil.dmlResultTableAliases(fieldParseTableFromItemVisitor, table, SqlConstant.DELETED);
+        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.returning(delete.getReturningClause(), table, fieldParseTableFromItemVisitor));
+        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.output(delete.getOutputClause(), table, fieldParseTableFromItemVisitor));
     }
 
     @Override
@@ -178,11 +177,10 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
         EncryptorPojoVisitorUtil.updateSets(update.getUpdateSets(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
 
         //8.解析DML返回列
-        //注意：这里必须单独解析目标表。前面的字段作用域还包含JOIN、FROM涉及的表，若直接复用，返回列出现*时会补全当前层全部表的字段，导致结果中混入非目标表字段
-        FieldParseParseTableFromItemVisitor returningFieldParseTable = FieldParseVisitorUtil.dmlResultTable(table);
-        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.returning(update.getReturningClause(), returningFieldParseTable));
-        FieldParseParseTableFromItemVisitor outputFieldParseTable = FieldParseVisitorUtil.dmlResultTable(table, SqlConstant.INSERTED, SqlConstant.DELETED);
-        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.output(update.getOutputClause(), outputFieldParseTable));
+        //注意：复用前面包含JOIN、FROM表的字段作用域，返回列中的无前缀*会在工具类中使用只包含目标表的临时作用域进行补全，避免混入非目标表字段
+        FieldParseVisitorUtil.dmlResultTableAliases(fieldParseTableFromItemVisitor, table, SqlConstant.INSERTED, SqlConstant.DELETED);
+        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.returning(update.getReturningClause(), table, fieldParseTableFromItemVisitor));
+        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.output(update.getOutputClause(), table, fieldParseTableFromItemVisitor));
     }
 
     @Override
@@ -252,9 +250,9 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
         }
 
         //9.解析DML返回列
-        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.returning(insert.getReturningClause(), insertFromItemVisitor));
+        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.returning(insert.getReturningClause(), table, insertFromItemVisitor));
         FieldParseVisitorUtil.dmlResultTableAliases(insertFromItemVisitor, table, SqlConstant.INSERTED);
-        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.output(insert.getOutputClause(), insertFromItemVisitor));
+        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.output(insert.getOutputClause(), table, insertFromItemVisitor));
     }
 
 
