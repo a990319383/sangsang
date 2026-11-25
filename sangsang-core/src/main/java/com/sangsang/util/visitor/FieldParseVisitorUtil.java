@@ -1,18 +1,19 @@
 package com.sangsang.util.visitor;
 
 import com.sangsang.domain.dto.BaseFieldParseTable;
-import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.util.CollectionUtils;
+import com.sangsang.util.JsqlparserUtil;
+import com.sangsang.visitor.fieldparse.FieldParseParseExpressionVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import net.sf.jsqlparser.expression.Alias;
+import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.Join;
+import net.sf.jsqlparser.statement.select.SelectItem;
 import net.sf.jsqlparser.statement.select.WithItem;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 /**
  * fieldParse visitor处理中的一些共有逻辑
@@ -23,37 +24,33 @@ import java.util.Optional;
 public class FieldParseVisitorUtil {
 
     /**
-     * 在已有DML返回列解析作用域中注册目标表的伪表别名
-     * 注意：直接复用已有的字段解析作用域，将目标表字段额外归属一份到tableAliases中
+     * 将selectItems 里面的字段解析到当前层的查询字段layerSelectTableFieldMap中
      *
-     * @param baseFieldParseTable 已有的DML返回列字段解析结果
-     * @param table               DML语句操作的目标表
-     * @param tableAliases        DML返回列引用目标表字段时使用的伪表别名
-     * @author liutangqi & gpt-5.6-sol
-     * @date 2026/11/17 16:00
+     * @param selectItems         由output 或者returning语法返回的具体列字段
+     * @param table               DML语句的主表，当出现带返回值的DML语句时，* 指代的就是这个主表的全部字段
+     * @param baseFieldParseTable 核心解析结果
+     * @param intoTargetTables    当前DML返回值的into的结果，当存在into时，这个sql其实是没有返回值的
+     * @author liutangqi
+     * @date 2026/11/18 14:28
      **/
-    public static void dmlResultTableAliases(BaseFieldParseTable baseFieldParseTable,
-                                             Table table,
-                                             String... tableAliases) {
-        //1.目标表、解析作用域或伪表别名为空时不处理
-        if (baseFieldParseTable == null || table == null || tableAliases == null) {
+    public static void dmlResultParseLayerSelect(List<SelectItem<?>> selectItems,
+                                                 Table table,
+                                                 BaseFieldParseTable baseFieldParseTable,
+                                                 List<?> intoTargetTables) {
+        //1.不存在DML返回值不处理 ，当前是into语法也不处理
+        if (CollectionUtils.isEmpty(selectItems) || CollectionUtils.isNotEmpty(intoTargetTables)) {
             return;
         }
 
-        //2.从已有解析作用域中获取目标表字段
-        String tableName = Optional.ofNullable(table.getAlias()).map(Alias::getName).orElse(table.getName());
-        Map<String, List<FieldInfoDto>> fieldTableMap = baseFieldParseTable.getLayerFieldTableMap().get(baseFieldParseTable.getLayer());
-        if (fieldTableMap == null) {
-            return;
-        }
-        List<FieldInfoDto> fieldInfoDtos = fieldTableMap.get(tableName);
-        if (CollectionUtils.isEmpty(fieldInfoDtos)) {
-            return;
-        }
+        //2.将* 完善成table的所有字段 （DML语句返回值的* 是指table表的全部字段，所以这里单独处理，不直接交给下游的visitor）
+        List<SelectItem<?>> perfectSelectItems = JsqlparserUtil.perfectDmlResultItems(selectItems, table);
 
-        //3.将目标表字段注册到DML返回列使用的伪表别名中
-        for (String tableAlias : tableAliases) {
-            fieldTableMap.put(tableAlias, fieldInfoDtos);
+        //3.依次解析每个selectItem
+        for (SelectItem<?> perfectSelectItem : perfectSelectItems) {
+            Alias alias = perfectSelectItem.getAlias();
+            Expression expression = perfectSelectItem.getExpression();
+            FieldParseParseExpressionVisitor fpExpressionVisitor = FieldParseParseExpressionVisitor.newInstanceCurLayer(baseFieldParseTable, alias, table);
+            expression.accept(fpExpressionVisitor);
         }
     }
 

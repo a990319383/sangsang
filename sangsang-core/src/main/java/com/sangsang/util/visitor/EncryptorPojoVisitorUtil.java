@@ -2,43 +2,25 @@ package com.sangsang.util.visitor;
 
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.constants.NumberConstant;
-import com.sangsang.domain.dto.BaseFieldParseTable;
-import com.sangsang.domain.dto.ColumnTableDto;
-import com.sangsang.domain.dto.FieldEncryptorInfoDto;
-import com.sangsang.domain.dto.FieldInfoDto;
-import com.sangsang.domain.dto.PlaceholderFieldParseTable;
+import com.sangsang.domain.dto.*;
 import com.sangsang.domain.wrapper.FieldHashMapWrapper;
-import com.sangsang.domain.wrapper.LayerHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
-import com.sangsang.visitor.fieldparse.FieldParseParseSelectItemVisitor;
-import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import com.sangsang.visitor.pojoencrtptor.PlaceholderExpressionVisitor;
 import com.sangsang.visitor.pojoencrtptor.PlaceholderSelectFromItemVisitor;
 import com.sangsang.visitor.pojoencrtptor.PlaceholderSelectVisitor;
-import net.sf.jsqlparser.expression.Alias;
+import net.sf.jsqlparser.expression.BinaryExpression;
 import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.JdbcParameter;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
-import net.sf.jsqlparser.schema.Table;
-import net.sf.jsqlparser.statement.OutputClause;
-import net.sf.jsqlparser.statement.ReturningClause;
-import net.sf.jsqlparser.statement.select.AllColumns;
-import net.sf.jsqlparser.statement.select.AllTableColumns;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
-import net.sf.jsqlparser.statement.select.Select;
-import net.sf.jsqlparser.statement.select.SelectItem;
 import net.sf.jsqlparser.statement.select.WithItem;
 import net.sf.jsqlparser.statement.update.UpdateSet;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -49,107 +31,101 @@ import java.util.stream.Collectors;
  */
 public class EncryptorPojoVisitorUtil {
 
+
     /**
-     * 解析DML RETURNING返回字段的加密信息
+     * 如果表达式的一边是Column 一边是我们的特殊表达式，则将他们的对应关系维护到placeholderColumnTableMap 中
      *
-     * @param returningClause     DML语句中的RETURNING语法对象
-     * @param table               DML语句操作的目标表
-     * @param baseFieldParseTable DML目标表对应的字段解析结果
-     * @author liutangqi & gpt-5.6-sol
-     * @date 2026/11/12 19:20
+     * @author liutangqi
+     * @date 2024/7/11 11:24
+     * @Param [layer 当前层数, layerFieldTableMap 当前层所有的字段信息,expression 表达式, placeholderColumnTableMap 存放结果集的map]
      **/
-    public static List<FieldEncryptorInfoDto> returning(ReturningClause returningClause,
-                                                        Table table,
-                                                        BaseFieldParseTable baseFieldParseTable) {
-        //1.RETURNING INTO只向变量赋值，不产生普通结果集，交由数据库模式处理
-        if (returningClause == null || CollectionUtils.isNotEmpty(returningClause.getDataItems())) {
-            return new ArrayList<>();
-        }
-        //2.解析普通RETURNING结果列对应的加密信息
-        return EncryptorPojoVisitorUtil.resultItems(returningClause, table, baseFieldParseTable);
+    public static void parseWhereColumTable(BaseFieldParseTable baseFieldParseTable, BinaryExpression expression, Map<String, ColumnTableDto> placeholderColumnTableMap) {
+        Expression leftExpression = expression.getLeftExpression();
+        Expression rightExpression = expression.getRightExpression();
+
+        EncryptorPojoVisitorUtil.parseWhereColumTable(baseFieldParseTable, leftExpression, rightExpression, placeholderColumnTableMap);
     }
 
     /**
-     * 解析DML OUTPUT返回字段的加密信息
+     * 将左右表达式的对应关系维护到placeholderColumnTableMap 中
      *
-     * @param outputClause        DML语句中的OUTPUT语法对象
-     * @param table               DML语句操作的目标表
-     * @param baseFieldParseTable DML目标表对应的字段解析结果
-     * @author liutangqi & gpt-5.6-sol
-     * @date 2026/11/12 19:20
+     * @author liutangqi
+     * @date 2026/11/20 13:57
+     * @Param [layer 当前层数, layerFieldTableMap 当前层所有的字段信息,leftExpression 左表达式,rightExpression右表达式, placeholderColumnTableMap 存放结果集的map]
      **/
-    public static List<FieldEncryptorInfoDto> output(OutputClause outputClause,
-                                                     Table table,
-                                                     BaseFieldParseTable baseFieldParseTable) {
-        //1.OUTPUT INTO不产生供结果拦截器处理的普通结果集
-        if (outputClause == null || outputClause.getTableVariable() != null || outputClause.getOutputTable() != null) {
-            return new ArrayList<>();
+    public static void parseWhereColumTable(BaseFieldParseTable baseFieldParseTable,
+                                            Expression leftExpression,
+                                            Expression rightExpression,
+                                            Map<String, ColumnTableDto> placeholderColumnTableMap) {
+        //1.异常数据过滤
+        if (leftExpression == null || rightExpression == null) {
+            return;
         }
-        //2.解析普通OUTPUT结果列对应的加密信息
-        return EncryptorPojoVisitorUtil.resultItems(outputClause.getSelectItemList(), table, baseFieldParseTable);
+        //2.构建成字段匹配后的表达式
+        UpstreamExpressionDto leftExpressionDto = JsqlparserUtil.buildUpstreamExpressionDto(baseFieldParseTable, leftExpression);
+        UpstreamExpressionDto rightExpressionDto = JsqlparserUtil.buildUpstreamExpressionDto(baseFieldParseTable, rightExpression);
+        //3.走真正解析的逻辑
+        EncryptorPojoVisitorUtil.parseWhereColumTable(baseFieldParseTable, leftExpressionDto, rightExpressionDto, placeholderColumnTableMap);
     }
 
     /**
-     * 解析DML结果字段的加密信息
+     * 将左右表达式的对应关系维护到placeholderColumnTableMap 中
      *
-     * @param selectItems         DML语句中的返回字段列表
-     * @param table               DML语句操作的目标表
-     * @param baseFieldParseTable DML目标表对应的字段解析结果
-     * @author liutangqi & gpt-5.6-sol
-     * @date 2026/11/12 19:20
+     * @author liutangqi
+     * @date 2024/7/11 11:24
+     * @Param [layer 当前层数, layerFieldTableMap 当前层所有的字段信息,leftExpression 左表达式,rightExpression右表达式, placeholderColumnTableMap 存放结果集的map]
      **/
-    private static List<FieldEncryptorInfoDto> resultItems(List<SelectItem<?>> selectItems,
-                                                           Table table,
-                                                           BaseFieldParseTable baseFieldParseTable) {
-        //1.没有返回列时直接返回空结果
-        if (CollectionUtils.isEmpty(selectItems)) {
-            return new ArrayList<>();
+    public static void parseWhereColumTable(BaseFieldParseTable baseFieldParseTable,
+                                            UpstreamExpressionDto leftExpression,
+                                            UpstreamExpressionDto rightExpression,
+                                            Map<String, ColumnTableDto> placeholderColumnTableMap) {
+        //1.异常数据过滤
+        if (leftExpression == null || rightExpression == null) {
+            return;
         }
-        //2.按照原字段解析结果的数据结构，构建只包含DML目标表的临时字段作用域
-        String tableName = Optional.ofNullable(table.getAlias()).map(Alias::getName).orElse(table.getName());
-        Map<String, List<FieldInfoDto>> curLayerFieldTableMap = baseFieldParseTable.getLayerFieldTableMap()
-                .getOrDefault(baseFieldParseTable.getLayer(), new FieldHashMapWrapper<>());
-        Map<String, List<FieldInfoDto>> dmlResultFieldTableMap = new FieldHashMapWrapper<>();
-        dmlResultFieldTableMap.put(tableName, curLayerFieldTableMap.getOrDefault(tableName, Collections.emptyList()));
-        Map<Integer, Map<String, List<FieldInfoDto>>> dmlResultLayerFieldTableMap = new LayerHashMapWrapper();
-        dmlResultLayerFieldTableMap.put(baseFieldParseTable.getLayer(), dmlResultFieldTableMap);
 
-        //3.无前缀*只使用目标表字段补全，带表名前缀的*继续使用完整作用域解析
-        List<SelectItem<?>> resultItems = new ArrayList<>();
-        for (SelectItem<?> selectItem : selectItems) {
-            Expression expression = selectItem.getExpression();
-            Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap = expression instanceof AllColumns && !(expression instanceof AllTableColumns)
-                    ? dmlResultLayerFieldTableMap
-                    : baseFieldParseTable.getLayerFieldTableMap();
-            List<SelectItem> perfectSelectItems = JsqlparserUtil.perfectAllColumns(selectItem,
-                    baseFieldParseTable.getLayer(),
-                    layerFieldTableMap,
-                    null);
-            for (SelectItem perfectSelectItem : perfectSelectItems) {
-                resultItems.add(perfectSelectItem);
-            }
+        //2.如果左表达式是 ? 或者 Column 则将左表达式作为上游对应字段，去解析右表达式
+        if (leftExpression.getUpstreamExpression() instanceof JdbcParameter || leftExpression.getUpstreamExpression() instanceof Column) {
+            PlaceholderExpressionVisitor rightExpressionVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(baseFieldParseTable, placeholderColumnTableMap, leftExpression);
+            rightExpression.getUpstreamExpression().accept(rightExpressionVisitor);
         }
-        //4.逐列解析字段来源并匹配对应的加密注解
-        FieldParseParseSelectItemVisitor fPSelectItemVisitor = FieldParseParseSelectItemVisitor.newInstanceCurLayer(baseFieldParseTable);
-        for (SelectItem<?> selectItem : resultItems) {
-            selectItem.accept(fPSelectItemVisitor);
+
+        //3.如果右表达式是 ? 或者 Column 则将右表达式作为上游对应字段，去解析左表达式
+        else if (rightExpression.getUpstreamExpression() instanceof JdbcParameter || rightExpression.getUpstreamExpression() instanceof Column) {
+            PlaceholderExpressionVisitor leftExpressionVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(baseFieldParseTable, placeholderColumnTableMap, rightExpression);
+            leftExpression.getUpstreamExpression().accept(leftExpressionVisitor);
         }
-        //5.获取整个sql当前查询的字段信息，并组装好结果集
-        return baseFieldParseTable.getLayerSelectTableFieldMap()
-                .getOrDefault(baseFieldParseTable.getLayer(), new FieldHashMapWrapper<>())
+    }
+
+    /**
+     * 将当前sql的最外层查询的字段，构建成List<FieldEncryptorInfoDto>的格式
+     *
+     * @author liutangqi
+     * @date 2026/11/25 14:18
+     * @Param [baseFieldParseTable]
+     **/
+    public static List<FieldEncryptorInfoDto> buildFirstLayerSelectTableFieldMap(BaseFieldParseTable baseFieldParseTable) {
+        //1. 获取最外层的所有查询字段
+        Map<Integer, Map<String, List<FieldInfoDto>>> layerSelectTableFieldMap = baseFieldParseTable.getLayerSelectTableFieldMap();
+        List<FieldInfoDto> selectFiles = layerSelectTableFieldMap.getOrDefault(NumberConstant.ONE, new FieldHashMapWrapper<>())
                 .values()
                 .stream()
                 .flatMap(Collection::stream)
+                .collect(Collectors.toList());
+
+        //2.将每个字段从实体类上找到标注的@FieldEncryptor 注解，并构建返回对象
+        return selectFiles.stream()
                 .map(m -> FieldEncryptorInfoDto.builder()
                         .columnName(m.getColumnName())
                         .sourceColumn(m.getSourceColumn())
                         .sourceTableName(m.getSourceTableName())
-                        .fieldEncryptor(TableCache.getTableFieldEncryptInfo()
-                                .getOrDefault(m.getSourceTableName(), new FieldHashMapWrapper<>())
+                        .fieldEncryptor(TableCache.getTableFieldEncryptInfo().getOrDefault(m.getSourceTableName(),
+                                        new FieldHashMapWrapper<>())
                                 .get(m.getSourceColumn()))
-                        .build())
-                .collect(Collectors.toList());
+                        .build()
+                ).collect(Collectors.toList());
     }
+
 
     /**
      * 解析updateSet中字段和占位符的对应关系
@@ -171,7 +147,8 @@ public class EncryptorPojoVisitorUtil {
             //处理 update set(xxx,xxx) = (select xxx,xxx from) 这种子查询
             if (updateSet.getValues().size() == 1 && updateSet.getValues().get(0) instanceof ParenthesedSelect) {
                 ParenthesedSelect parenthesedSelect = (ParenthesedSelect) updateSet.getValues().get(0);
-                PlaceholderSelectVisitor placeholderSelectVisitor = PlaceholderSelectVisitor.newInstanceCurLayer(baseFieldParseTable, placeholderColumnTableMap, updateSet.getColumns());
+                List<UpstreamExpressionDto> upstreamExpressionDtos = updateSet.getColumns().stream().map(m -> JsqlparserUtil.buildUpstreamExpressionDto(baseFieldParseTable, m)).collect(Collectors.toList());
+                PlaceholderSelectVisitor placeholderSelectVisitor = PlaceholderSelectVisitor.newInstanceCurLayer(baseFieldParseTable, placeholderColumnTableMap, upstreamExpressionDtos);
                 parenthesedSelect.accept(placeholderSelectVisitor);
             }
             //其它普通语法，一次将 Column和Value做对应即可
@@ -197,49 +174,11 @@ public class EncryptorPojoVisitorUtil {
             return;
         }
         for (int i = 0; i < columns.size(); i++) {
-            JsqlparserUtil.parseWhereColumTable(baseFieldParseTable,
+            EncryptorPojoVisitorUtil.parseWhereColumTable(baseFieldParseTable,
                     columns.get(i),
                     expressions.get(i),
                     placeholderColumnTableMap);
         }
-    }
-
-    /**
-     * 解析INSERT类语法中目标字段和VALUES/SELECT占位符的对应关系
-     *
-     * @author liutangqi
-     * @date 2026/11/4 20:50
-     * @Param [select, table, columns, placeholderColumnTableMap]
-     **/
-    public static void insertSelect(Select select,
-                                    Table table,
-                                    List<Column> columns,
-                                    Map<String, ColumnTableDto> placeholderColumnTableMap) {
-        if (select == null || CollectionUtils.isEmpty(columns)) {
-            return;
-        }
-
-        //1.把目标字段整理成字段解析结果，VALUES中的值才能按位置找到目标表字段
-        List<FieldInfoDto> fieldInfoDtos = new ArrayList<>();
-        for (Column column : columns) {
-            fieldInfoDtos.add(FieldInfoDto.builder()
-                    .columnName(column.getColumnName())
-                    .sourceColumn(column.getColumnName())
-                    .sourceTableName(table.getName())
-                    .fromSourceTable(true)
-                    .rowNumber(false)
-                    .build());
-        }
-        Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap = new LayerHashMapWrapper();
-        Map<String, List<FieldInfoDto>> fieldTableMap = new FieldHashMapWrapper<>();
-        fieldTableMap.put(table.getName(), fieldInfoDtos);
-        layerFieldTableMap.put(NumberConstant.ONE, fieldTableMap);
-
-        //2.合并目标字段和来源查询的解析结果，再按目标字段顺序解析占位符
-        FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer(null, layerFieldTableMap);
-        select.accept(fieldParseTableSelectVisitor);
-        PlaceholderSelectVisitor placeholderSelectVisitor = PlaceholderSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, placeholderColumnTableMap, columns);
-        select.accept(placeholderSelectVisitor);
     }
 
     /**
@@ -315,18 +254,21 @@ public class EncryptorPojoVisitorUtil {
      * @Param [upstreamExpressionList, expressionList]
      **/
     public static void expressionList(PlaceholderFieldParseTable placeholderFieldParseTable,
-                                      List<? extends Expression> upstreamExpressionList,
+                                      List<UpstreamExpressionDto> upstreamExpressionList,
                                       ExpressionList<Expression> expressionList) {
         if (CollectionUtils.isEmpty(upstreamExpressionList) || CollectionUtils.isEmpty(expressionList) || upstreamExpressionList.size() != expressionList.size()) {
             return;
         }
         for (int i = 0; i < expressionList.size(); i++) {
             Expression curExp = expressionList.get(i);
-            Expression upstreamExpression = upstreamExpressionList.get(i);
-            JsqlparserUtil.parseWhereColumTable(placeholderFieldParseTable,
+            UpstreamExpressionDto curExpressionDto = JsqlparserUtil.buildUpstreamExpressionDto(placeholderFieldParseTable, curExp);
+            UpstreamExpressionDto upstreamExpression = upstreamExpressionList.get(i);
+            EncryptorPojoVisitorUtil.parseWhereColumTable(placeholderFieldParseTable,
                     upstreamExpression,
-                    curExp,
+                    curExpressionDto,
                     placeholderFieldParseTable.getPlaceholderColumnTableMap());
         }
     }
+
+
 }

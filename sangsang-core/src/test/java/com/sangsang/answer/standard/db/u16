@@ -1,0 +1,1 @@
+UPDATE TB_USER tu SET user_name = ? WHERE tu.id = ? RETURNING user_name, login_name, login_pwd, CAST(AES_DECRYPT(FROM_BASE64(phone), '7uq?q8g3@q') AS CHAR) AS phone, role_id, id, create_time, update_time

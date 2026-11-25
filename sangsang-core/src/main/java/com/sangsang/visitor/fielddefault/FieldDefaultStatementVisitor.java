@@ -8,9 +8,11 @@ import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.enums.SqlCommandEnum;
 import com.sangsang.util.CollectionUtils;
+import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.visitor.FieldDefaultVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
+import com.sangsang.visitor.fieldparse.FieldParseStatementVisitor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jsqlparser.schema.Table;
@@ -92,20 +94,11 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
     @Override
     public void visit(Update update) {
         //1.解析涉及到的表拥有的全部字段信息
-        FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-
-        //update的表
-        Table table = update.getTable();
-        table.accept(fieldParseTableFromItemVisitor);
-
-        //join的表
-        List<Join> joins = Optional.ofNullable(update.getStartJoins()).orElse(new ArrayList<>());
-        for (Join join : joins) {
-            join.getRightItem().accept(fieldParseTableFromItemVisitor);
-        }
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        update.accept(fpStatementVisitor);
 
         //2. 处理updateSet语句
-        FieldDefaultVisitorUtil.updateSets(update.getUpdateSets(), fieldParseTableFromItemVisitor.getLayerFieldTableMap().get(NumberConstant.ONE), SqlCommandEnum.UPDATE);
+        FieldDefaultVisitorUtil.updateSets(update.getUpdateSets(), fpStatementVisitor, SqlCommandEnum.UPDATE);
 
         //3.处理结果赋值
         this.resultSql = update.toString();
@@ -113,53 +106,35 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Insert insert) {
-        //1.获取insert的表
-        Table table = insert.getTable();
+        //1.特殊语法处理,完善并校验insert语句缺失的字段
+        JsqlparserUtil.perfectColumn(insert);
 
-        //2.获取当前表字段需要设置默认值的字段信息
-        Map<String, FieldDefault> stringFieldDefaultMap = TableCache.getTableFieldDefaultInfo().get(table.getName());
-
-        //3.不处理的场景校验
-        //3.1当前insert的表不涉及维护默认值，则不做处理
-        if (CollectionUtil.isEmpty(stringFieldDefaultMap)) {
-            return;
-        }
-        //3.2 sql中存在 * 不做处理  (insert into table (xxx) (select * from) 这里* 没办法做字段对应)
-        //备注：其实开启了自动获取表结构，但是下游的select * from的表的表结构目前是没有存储的，如果要兼容这种语法需要花费较大空间存储全库表结构，目前暂不支持
-        if (insert.toString().contains(SymbolConstant.START)) {
-            log.warn("【sangsang】insert 存在*。此情况无法设置默认值!!!请规范语法!!!  原sql:{}", insert.toString());
-            return;
-        }
+        //2.解析insert的表
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        insert.accept(fpStatementVisitor);
 
         //4.处理insert into table(字段) 语法中的字段部分, (依次解析获取每个字段上面标注的@FieldDefault信息，如果设置了默认值的字段没有在insert into(字段) 中出现，则手动添加) 标准的insert语法才做处理 （备注：insert into set这种非标准的sql的话，insert.getSelect()是null ）
         //下标是字段的顺序，从0开始，存的值是对应字段头上的@FieldDefault
-        List<FieldDefault> insertFieldDefaultColumns = FieldDefaultVisitorUtil.insertFieldDefaultColumns(insert, stringFieldDefaultMap);
+        List<FieldDefault> insertFieldDefaultColumns = FieldDefaultVisitorUtil.insertFieldDefaultColumns(insert.getColumns(), insert.getTable());
 
         //5.处理select的部分（insert into table(xxx) values (values值的部分)）
-        Select select = insert.getSelect();
-        if (select != null) {
-            //5.1 解析select部分
-            FieldParseParseTableSelectVisitor fPSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
-            select.accept(fPSelectVisitor);
-            //5.2.处理默认值
-            FieldDefaultSelectVisitor fdSelectVisitor = FieldDefaultSelectVisitor.newInstanceCurLayer(fPSelectVisitor, insertFieldDefaultColumns, true);
-            select.accept(fdSelectVisitor);
-        }
+        Optional.ofNullable(insert.getSelect())
+                .ifPresent(p -> p.accept(FieldDefaultSelectVisitor.newInstanceCurLayer(fpStatementVisitor, insertFieldDefaultColumns, true)));
 
         //6. 解析出insert的表的字段信息
         FieldParseParseTableFromItemVisitor insertFPFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
         insert.getTable().accept(insertFPFromItemVisitor);
 
         //7. 基于insert的表字段信息，处理ON DUPLICATE KEY UPDATE 部分 （注意：这里的部分其实是进行了数据修改的，不是新增）
-        FieldDefaultVisitorUtil.updateSets(insert.getDuplicateUpdateSets(), insertFPFromItemVisitor.getLayerFieldTableMap().get(NumberConstant.ONE), SqlCommandEnum.UPDATE);
+        FieldDefaultVisitorUtil.updateSets(insert.getDuplicateUpdateSets(), insertFPFromItemVisitor, SqlCommandEnum.UPDATE);
 
         //8.基于insert的表字段信息，处理 insert set语法部分 （注意：这里的部分其实还是进行的数据新增）
-        FieldDefaultVisitorUtil.updateSets(insert.getSetUpdateSets(), insertFPFromItemVisitor.getLayerFieldTableMap().get(NumberConstant.ONE), SqlCommandEnum.INSERT);
+        FieldDefaultVisitorUtil.updateSets(insert.getSetUpdateSets(), insertFPFromItemVisitor, SqlCommandEnum.INSERT);
 
         //9.基于insert的表字段信息，处理 ON CONFLICT UPDATE (注意：这里的部分其实也是数据修改，不是新增)
         InsertConflictAction conflictAction = insert.getConflictAction();
         if (conflictAction != null) {
-            FieldDefaultVisitorUtil.updateSets(conflictAction.getUpdateSets(), insertFPFromItemVisitor.getLayerFieldTableMap().get(NumberConstant.ONE), SqlCommandEnum.UPDATE);
+            FieldDefaultVisitorUtil.updateSets(conflictAction.getUpdateSets(), insertFPFromItemVisitor, SqlCommandEnum.UPDATE);
         }
 
         //10.结果集赋值
@@ -263,8 +238,7 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
         table.accept(fieldParseTable);
 
         //4.分别按UPDATE和INSERT语义处理matched/not matched分支
-        FieldDefaultMergeOperationVisitor mergeOperationVisitor = new FieldDefaultMergeOperationVisitor(
-                fieldParseTable.getLayerFieldTableMap().get(NumberConstant.ONE), stringFieldDefaultMap);
+        FieldDefaultMergeOperationVisitor mergeOperationVisitor = FieldDefaultMergeOperationVisitor.newInstanceCurLayer(fieldParseTable, stringFieldDefaultMap);
         List<MergeOperation> operations = Optional.ofNullable(merge.getOperations()).orElse(CollectionUtils.EMPTY_LIST);
         for (MergeOperation operation : operations) {
             operation.accept(mergeOperationVisitor);
@@ -290,24 +264,21 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
             return;
         }
 
-        //2.按INSERT语义处理UPSERT VALUES/SELECT中的字段和值
+        //2.解析upsert语句
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        upsert.accept(fpStatementVisitor);
+
+        //3.按INSERT语义处理UPSERT VALUES/SELECT中的字段和值
         List<FieldDefault> insertFieldDefaultColumns = FieldDefaultVisitorUtil.upsertFieldDefaultColumns(upsert, stringFieldDefaultMap);
         Select select = upsert.getSelect();
         if (select != null) {
-            FieldParseParseTableSelectVisitor fPSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
-            select.accept(fPSelectVisitor);
-            FieldDefaultSelectVisitor fdSelectVisitor = FieldDefaultSelectVisitor.newInstanceCurLayer(fPSelectVisitor, insertFieldDefaultColumns, true);
+            FieldDefaultSelectVisitor fdSelectVisitor = FieldDefaultSelectVisitor.newInstanceCurLayer(fpStatementVisitor, insertFieldDefaultColumns, true);
             select.accept(fdSelectVisitor);
         }
 
-        //3.解析目标表字段，用于处理REPLACE SET及冲突更新分支
-        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        table.accept(fieldParseTable);
-        Map<String, List<FieldInfoDto>> fieldInfoDtoMap = fieldParseTable.getLayerFieldTableMap().get(NumberConstant.ONE);
-
         //4.REPLACE SET属于数据新增，显式冲突更新分支属于数据修改
-        FieldDefaultVisitorUtil.updateSets(upsert.getUpdateSets(), fieldInfoDtoMap, SqlCommandEnum.INSERT);
-        FieldDefaultVisitorUtil.updateSets(upsert.getDuplicateUpdateSets(), fieldInfoDtoMap, SqlCommandEnum.UPDATE);
+        FieldDefaultVisitorUtil.updateSets(upsert.getUpdateSets(), fpStatementVisitor, SqlCommandEnum.INSERT);
+        FieldDefaultVisitorUtil.updateSets(upsert.getDuplicateUpdateSets(), fpStatementVisitor, SqlCommandEnum.UPDATE);
 
         //5.处理结果赋值
         this.resultSql = upsert.toString();

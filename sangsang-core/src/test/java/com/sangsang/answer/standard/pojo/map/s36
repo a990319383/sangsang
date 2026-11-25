@@ -1,1 +1,1 @@
-{"encryptor_placeholder_0":{"tableAliasName":"tm","sourceTableName":"tb_menu","sourceColumn":"path","fromSourceTable":true,"rowNumber":false}}
+{"encryptor_placeholder_0":{"upstreamExpression":{"table":{},"columnName":"path"},"tableAliasName":"tm","sourceTableName":"tb_menu","sourceColumn":"path","fromSourceTable":true,"rowNumber":false}}

@@ -3,7 +3,6 @@ package com.sangsang.util;
 import cn.hutool.core.lang.Pair;
 import cn.hutool.core.util.ObjectUtil;
 import com.sangsang.cache.SqlParseCache;
-import com.sangsang.cache.encryptor.EncryptorInstanceCache;
 import com.sangsang.cache.fielddefault.FieldDefaultInstanceCache;
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.cache.isolation.IsolationInstanceCache;
@@ -16,6 +15,7 @@ import com.sangsang.domain.dto.*;
 import com.sangsang.domain.enums.EncryptorFunctionEnum;
 import com.sangsang.domain.enums.IsolationConditionalRelationEnum;
 import com.sangsang.domain.enums.SqlCommandEnum;
+import com.sangsang.domain.exception.FieldException;
 import com.sangsang.domain.strategy.isolation.DataIsolationStrategy;
 import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.domain.wrapper.LayerHashMapWrapper;
@@ -33,11 +33,15 @@ import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.AllColumns;
 import net.sf.jsqlparser.statement.select.AllTableColumns;
 import net.sf.jsqlparser.statement.select.SelectItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 /**
@@ -47,6 +51,9 @@ import java.util.stream.Collectors;
  * @date 2024/2/1 14:14
  */
 public class JsqlparserUtil {
+
+
+    private static final Logger log = LoggerFactory.getLogger(JsqlparserUtil.class);
 
     /**
      * Jsqlparser解析的统一入口，不直接使用原生的CCJSqlParserUtil.parse()
@@ -145,64 +152,6 @@ public class JsqlparserUtil {
     }
 
     /**
-     * 单纯将select * 或者select 别名.* 转换为select 具体的字段
-     *
-     * @param selectItem
-     * @param layer                 当前sql层数
-     * @param sqlLayerFieldTableMap 当前sql每层拥有的表字段信息
-     * @author liutangqi
-     * @date 2026/3/6 10:24
-     **/
-    public static List<SelectItem<?>> perfectAllColumns(SelectItem<?> selectItem, Integer layer, Map<Integer, Map<String, List<FieldInfoDto>>> sqlLayerFieldTableMap) {
-        //1.获取sql本层的所有的表字段（不包含上游作用域的字段），因为上游作用域的字段一般是不在select * 中的
-        Map<String, List<FieldInfoDto>> layerFieldTableMap = sqlLayerFieldTableMap.get(layer);
-        if (sqlLayerFieldTableMap instanceof LayerHashMapWrapper) {
-            layerFieldTableMap = ((LayerHashMapWrapper) sqlLayerFieldTableMap).getExclusiveUpstreamScope(layer);
-        }
-
-        //2. select 别名.*  （注意：AllColumns AllTableColumns 有继承关系，这里判断顺序不能改）
-        Expression expression = selectItem.getExpression();
-        if (expression instanceof AllTableColumns) {
-            String tableName = ((AllTableColumns) expression).getTable().getName();
-            List<FieldInfoDto> fieldInfoSet = layerFieldTableMap.get(tableName);
-            //2.1没有配置此表的字段信息，返回原表达式
-            if (CollectionUtils.isEmpty(fieldInfoSet)) {
-                return Arrays.asList(selectItem);
-            }
-            //2.2配置了此表的字段信息，将配置的所有字段去替换*
-            fieldInfoSet.stream().map(m -> {
-                Column column = new Column(m.getColumnName());
-                column.setTable(new Table(tableName));
-                return SelectItem.from(column);
-            }).collect(Collectors.toList());
-        }
-
-        //3. select *  未指定别名，将当前层的全部字段作为结果集返回
-        if (expression instanceof AllColumns) {
-            List<SelectItem<?>> selectItems = new ArrayList<>();
-            for (Map.Entry<String, List<FieldInfoDto>> fieldInfoEntry : layerFieldTableMap.entrySet()) {
-                //3.1 此表字段没有配置拥有哪些字段，则使用 别名.*
-                if (CollectionUtils.isEmpty(fieldInfoEntry.getValue())) {
-                    SelectItem<?> item = SelectItem.from(new AllTableColumns(new Table(fieldInfoEntry.getKey())));
-                    selectItems.add(item);
-                }
-                //3.2 此表配置了表字段信息，使用配置的字段替换*
-                else {
-                    for (FieldInfoDto fieldInfoDto : fieldInfoEntry.getValue()) {
-                        Column column = new Column(fieldInfoDto.getColumnName());
-                        column.setTable(new Table(fieldInfoEntry.getKey()));
-                        selectItems.add(SelectItem.from(column));
-                    }
-                }
-            }
-            return selectItems;
-        }
-
-        //4. 不包含*
-        return Arrays.asList(selectItem);
-    }
-
-    /**
      * 从layerFieldTableMap中解析当前字段所属表的信息
      * 注意：layerFieldTableMap结果集中存储的columName是源字段名，和字段别名无关，所以这里解析的时候直接用Column的名字去匹配
      *
@@ -257,7 +206,7 @@ public class JsqlparserUtil {
                                               Map<Integer, Map<String, List<FieldInfoDto>>> fieldTableMap) {
         //key: 字段所属的表的别名(from 后面接的表的别名)  value: 匹配成功的字段
         Pair<String, FieldInfoDto> pair = null;
-        //1.字段没有所属的表名，则从解析结果集中找命名一样的字段
+        //1.字段没有所属的表名，则从解析结果集中找命名一样的字段，如果字段没有别名，不从某些数据库的默认归属表里面找（注意：这里前提是没有别名，说明这些伪表别名就只能是数据库自己的，不是用户的sql取的别名）
         if (StringUtils.isBlank(tableName)) {
             pair = fieldTableMap.getOrDefault(layer, new FieldHashMapWrapper<>())
                     .entrySet().stream()
@@ -290,36 +239,6 @@ public class JsqlparserUtil {
                         .rowNumber(m.getValue().isRowNumber())
                         .build())
                 .orElse(ColumnTableDto.DEAFAULT);
-    }
-
-    /**
-     * 判断当前column 是否是表字段还是常量
-     * 主要用于语法转换时 ` " ‘ 符号的取舍
-     * 当这个方法返回的是true时，说明这个字段不是常量，可能来自某张虚拟表或者真实表的字段
-     * 注意：来自虚拟表的字段，哪怕这个字段在原虚拟表中属于常量，这个也是表字段
-     *
-     * @author liutangqi
-     * @date 2025/5/27 13:08
-     * @Param [column, layer, layerFieldTableMap]
-     **/
-    public static boolean isTableFiled(Column column, int layer, Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap) {
-        //字段名
-        String columName = column.getColumnName();
-        //字段所属表 （只有select 别名.字段名 时这个才有值，其它的为null）
-        Table table = column.getTable();
-
-        //1.没有指定表名时，从当前层的表的所有字段里面找到这个名字的表( select 字段)
-        if (table == null) {
-            for (Map.Entry<String, List<FieldInfoDto>> entry : layerFieldTableMap.getOrDefault(layer, new FieldHashMapWrapper<>()).entrySet()) {
-                //任意的表有一个字段符合，则返回true，表示是个表字段
-                if (entry.getValue().stream().anyMatch(m -> StringUtils.fieldEquals(m.getColumnName(), columName))) {
-                    return true;
-                }
-            }
-        }
-
-        //2.有指定表名时，说明肯定来自某张表，哪怕是虚拟表
-        return table != null;
     }
 
     /**
@@ -413,18 +332,6 @@ public class JsqlparserUtil {
         return result;
     }
 
-    /**
-     * 根据当前sql的查询字段和表拥有字段的集合，判断当前sql是否存在需要加密的表
-     *
-     * @author liutangqi
-     * @date 2024/3/20 15:08
-     * @Param [layerSelectTableFieldMap, layerFieldTableMap]
-     **/
-    public static boolean needEncrypt(Map<Integer, Map<String, List<FieldInfoDto>>> layerSelectTableFieldMap, Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap) {
-        List<FieldInfoDto> selectFieldInfoDtos = layerSelectTableFieldMap.values().stream().flatMap(f -> f.values().stream()).flatMap(Collection::stream).filter(f -> TableCache.getFieldEncryptTable().contains(f.getSourceTableName())).collect(Collectors.toList());
-        List<FieldInfoDto> fieldInfoDtos = layerFieldTableMap.values().stream().flatMap(f -> f.values().stream()).flatMap(Collection::stream).filter(f -> TableCache.getFieldEncryptTable().contains(f.getSourceTableName())).collect(Collectors.toList());
-        return CollectionUtils.isNotEmpty(selectFieldInfoDtos) || CollectionUtils.isNotEmpty(fieldInfoDtos);
-    }
 
     /**
      * 根据表和字段信息，从缓存中找到对应字段上面标注的注解
@@ -438,46 +345,6 @@ public class JsqlparserUtil {
         return stringFieldEncryptorMap.get(dto.getSourceColumn());
     }
 
-    /**
-     * 如果表达式的一边是Column 一边是我们的特殊表达式，则将他们的对应关系维护到placeholderColumnTableMap 中
-     *
-     * @author liutangqi
-     * @date 2024/7/11 11:24
-     * @Param [layer 当前层数, layerFieldTableMap 当前层所有的字段信息,expression 表达式, placeholderColumnTableMap 存放结果集的map]
-     **/
-    public static void parseWhereColumTable(BaseFieldParseTable baseFieldParseTable, BinaryExpression expression, Map<String, ColumnTableDto> placeholderColumnTableMap) {
-        Expression leftExpression = expression.getLeftExpression();
-        Expression rightExpression = expression.getRightExpression();
-
-        parseWhereColumTable(baseFieldParseTable, leftExpression, rightExpression, placeholderColumnTableMap);
-    }
-
-
-    /**
-     * 将左右表达式的对应关系维护到placeholderColumnTableMap 中
-     *
-     * @author liutangqi
-     * @date 2024/7/11 11:24
-     * @Param [layer 当前层数, layerFieldTableMap 当前层所有的字段信息,leftExpression 左表达式,rightExpression右表达式, placeholderColumnTableMap 存放结果集的map]
-     **/
-    public static void parseWhereColumTable(BaseFieldParseTable baseFieldParseTable, Expression leftExpression, Expression rightExpression, Map<String, ColumnTableDto> placeholderColumnTableMap) {
-        //1.异常数据过滤
-        if (leftExpression == null || rightExpression == null) {
-            return;
-        }
-
-        //2.如果左表达式是 ? 或者 Column 则将左表达式作为上游对应字段，去解析右表达式
-        if (leftExpression instanceof JdbcParameter || leftExpression instanceof Column) {
-            PlaceholderExpressionVisitor rightExpressionVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(baseFieldParseTable, placeholderColumnTableMap, leftExpression);
-            rightExpression.accept(rightExpressionVisitor);
-        }
-
-        //3.如果右表达式是 ? 或者 Column 则将右表达式作为上游对应字段，去解析左表达式
-        else if (rightExpression instanceof JdbcParameter || rightExpression instanceof Column) {
-            PlaceholderExpressionVisitor leftExpressionVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(baseFieldParseTable, placeholderColumnTableMap, rightExpression);
-            leftExpression.accept(leftExpressionVisitor);
-        }
-    }
 
     /**
      * 构建出pojo模式?占位符
@@ -850,4 +717,149 @@ public class JsqlparserUtil {
     }
 
 
+    /**
+     * 解析expression归属的表信息，并构建成UpstreamExpressionDto
+     * 一般情况下用于将这个表达式传递给下游，但是下游又需要知道这个表达式的归属字段信息的时候使用
+     * 因为到了下游可能和当前处于一层作用域，也可能处于不同层，所以这里提前解析好了再传递
+     *
+     * @author liutangqi
+     * @date 2026/11/20 11:07
+     * @Param [baseFieldParseTable, expression]
+     **/
+    public static UpstreamExpressionDto buildUpstreamExpressionDto(BaseFieldParseTable baseFieldParseTable, Expression expression) {
+        //不是Column直接返回原表达式
+        if (!(expression instanceof Column)) {
+            return UpstreamExpressionDto.newInstance(expression);
+        }
+        ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn((Column) expression, baseFieldParseTable);
+        return UpstreamExpressionDto.newInstance(expression, columnTableDto);
+    }
+
+    /**
+     * 解析expression归属的表信息，并构建成UpstreamExpressionDto
+     * 一般情况下用于将这个表达式传递给下游，但是下游又需要知道这个表达式的归属字段信息的时候使用
+     * 因为到了下游可能和当前处于一层作用域，也可能处于不同层，所以这里提前解析好了再传递
+     *
+     * @author liutangqi
+     * @date 2026/11/20 11:07
+     * @Param [baseFieldParseTable, expression]
+     **/
+    public static List<UpstreamExpressionDto> buildUpstreamExpressionDto(BaseFieldParseTable baseFieldParseTable, List<? extends Expression> expressions) {
+        return expressions.stream().map(m -> buildUpstreamExpressionDto(baseFieldParseTable, m)).collect(Collectors.toList());
+    }
+
+
+    /**
+     * 特殊语法处理
+     * 如果insert into 后面的表没有跟具体字段的话，根据情况将字段进行补全或者不符合的话进行报错处理
+     * 注意：insert set语法是不需要补全的，因为这种语法是在updateSet中处理的，是一个字段对应一个值
+     *
+     * @author liutangqi
+     * @date 2026/11/24 15:00
+     * @Param []
+     **/
+    public static void perfectColumn(Insert insert) {
+        Table table = insert.getTable();
+        //1.insert set这种语法，不涉及字段补全
+        if (insert.getSelect() == null) {
+            return;
+        }
+
+        //2.当前表在本项目功能中不涉及的话，则不处理
+        if (!TableCache.getCurConfigTable().contains(table.getName())) {
+            return;
+        }
+
+        //3.特殊语法校验
+        //insert into 表  values( ?,?,?,?,?,?,?,?) 这种语法，表后面没有跟具体的字段顺序
+        //下面获取到的columns 就是空的 ，如果当前配置开启了自动读取表结构的话，我们是能获取到表字段顺序的，这里可以自动填充，否则拿不到表字段顺序，我们没办法知道第几个字段进行加密处理的
+        //遇到了这种语法，且未开启自动读取表结构，抛出异常，告知用户手动调整
+        List<Column> columns = insert.getColumns();
+        if (CollectionUtils.isEmpty(columns) && !TableCache.getCurConfig().isAutoFill()) {
+            log.error("【sangsang】insert 语句未指定表字段顺序，且当前未开启自动读取表结构，无法获取表字段顺序。此情况无法处理！！！请规范语法，在表名后指定字段或开启 sangsang.autoFill=true  原sql:{}", insert.toString());
+            throw new FieldException("insert 语句未指定表字段顺序，且当前未开启自动读取表结构，无法获取表字段顺序。此情况无法处理！！！请规范语法，在表名后指定字段或开启 sangsang.autoFill=true");
+        }
+
+        //4.当前配置了自动读取表结构，这种情况下才能拿到真实的字段顺序，此时根据缓存的顺序把字段补齐
+        if (CollectionUtils.isEmpty(columns) && TableCache.getCurConfig().isAutoFill()) {
+            List<String> fieldLinkedList = TableCache.getTableFieldMap().get(table.getName());
+            columns = fieldLinkedList.stream().map(m -> ExpressionsUtil.buildColumn(m, table.getName())).collect(Collectors.toList());
+            insert.setColumns(new ExpressionList(columns));
+        }
+    }
+
+    /**
+     * 解析insert语句的每个 column 实体类字段上存在的@FieldEncryptor
+     * 注意:这里需要区别于JsqlparserUtil#needEncryptFieldEncryptor()
+     * 当前语法的insert的columns是不存在别名的，所以这里直接简单从缓存中获取就行，上面的方法还存在了别名的复杂处理
+     *
+     * @author liutangqi
+     * @date 2026/11/23 13:41
+     * @Param [insert]
+     **/
+    public static List<FieldEncryptor> parseInsertFieldEncryptor(Table table, List<Column> columns) {
+        List<FieldEncryptor> needEncryptFieldEncryptor = new ArrayList<>();
+        //1 * 不处理
+        if (CollectionUtils.isEmpty(columns)) {
+            return needEncryptFieldEncryptor;
+        }
+
+        //2 从表结构缓存中获取insert 表的密文存储字段信息
+        Map<String, FieldEncryptor> fieldEncryptMap = TableCache.getTableFieldEncryptInfo().getOrDefault(table.getName(), new FieldHashMapWrapper<>());
+
+        //3.将每个column对应的@FieldEncryptor的关系维护到结果集中
+        for (int i = 0; i < columns.size(); i++) {
+            Column column = columns.get(i);
+            //注意：因为这里是insert语句，不存在别名，所以这里直接从缓存的Map中通过字段名获取头上@FieldEncryptor即可，而不是走JsqlparserUtil.needEncryptFieldEncryptor
+            FieldEncryptor leftFieldEncryptor = fieldEncryptMap.get(column.getColumnName());
+            needEncryptFieldEncryptor.add(i, leftFieldEncryptor);
+        }
+        return needEncryptFieldEncryptor;
+    }
+
+    /**
+     * 展开DML返回列中的*，并保留原返回列顺序
+     * 注意：这里的* 是只包含主表table的全部字段
+     *
+     * @param selectItems DML语句中的返回字段列表
+     * @param table       当前DML语句主表（PS：如果DML返回的是*的话，有点特殊，这里的*是只包含这个主表的字段，而不是当前作用域这层的所有字段）
+     * @author liutangqi & gpt-5.6-sol
+     * @date 2026/11/17 15:20
+     **/
+    public static List<SelectItem<?>> perfectDmlResultItems(List<SelectItem<?>> selectItems,
+                                                            Table table) {
+        List<SelectItem<?>> resultItems = new ArrayList<>();
+        for (SelectItem<?> selectItem : selectItems) {
+            Expression expression = selectItem.getExpression();
+            //1.不存在*就不处理
+            if (!(expression instanceof AllTableColumns) && !(expression instanceof AllColumns)) {
+                resultItems.add(selectItem);
+                continue;
+            }
+
+            //2.当前table不需要密文存储也不需要处理
+            if (!TableCache.getFieldEncryptTable().contains(table.getName())) {
+                resultItems.add(selectItem);
+                continue;
+            }
+
+            //3. *转换后的字段归属的表，如果原来的字段有别名归属（别名.*），这里就有值
+            AtomicReference<Table> affiliationTable = new AtomicReference<>();
+
+            //4. 处理 别名.* 的字段归属
+            if (expression instanceof AllTableColumns) {
+                AllTableColumns exp = (AllTableColumns) expression;
+                affiliationTable.set(exp.getTable());
+            }
+
+            //5.表结构缓存中拿到对应表字段顺序，替换*
+            List<String> fieldLinkedList = TableCache.getTableFieldMap().get(table.getName());
+            List<SelectItem<?>> columnsItems = fieldLinkedList.stream()
+                    .map(m -> ExpressionsUtil.buildColumn(m, affiliationTable.get()))
+                    .map(SelectItem::new)
+                    .collect(Collectors.toList());
+            resultItems.addAll(columnsItems);
+        }
+        return resultItems;
+    }
 }

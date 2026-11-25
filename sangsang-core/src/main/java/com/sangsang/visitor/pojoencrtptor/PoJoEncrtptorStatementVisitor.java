@@ -1,25 +1,17 @@
 package com.sangsang.visitor.pojoencrtptor;
 
-import com.sangsang.cache.fieldparse.TableCache;
-import com.sangsang.domain.constants.NumberConstant;
-import com.sangsang.domain.constants.SqlConstant;
 import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.domain.dto.FieldEncryptorInfoDto;
-import com.sangsang.domain.dto.FieldInfoDto;
-import com.sangsang.domain.wrapper.FieldHashMapWrapper;
-import com.sangsang.domain.wrapper.LayerHashMapWrapper;
+import com.sangsang.domain.dto.UpstreamExpressionDto;
 import com.sangsang.util.CollectionUtils;
-import com.sangsang.util.ExpressionsUtil;
+import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.visitor.EncryptorPojoVisitorUtil;
-import com.sangsang.util.visitor.FieldParseVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
-import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
+import com.sangsang.visitor.fieldparse.FieldParseStatementVisitor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
-import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.*;
 import net.sf.jsqlparser.statement.alter.Alter;
 import net.sf.jsqlparser.statement.alter.AlterSession;
@@ -74,7 +66,7 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
 
     /**
      * 当前占位符对应的数据库表，字段信息
-     * key: 占位符FieldConstant.PLACEHOLDER + 0开始的自增序号  （这个在解析前，我们会将？的占位符统一替换成这个格式的占位符）
+     * key: 占位符FieldConstant.PLACEHOLDER + 0开始的自增序号
      * value: 这个字段所属的表字段
      */
     @Getter
@@ -111,28 +103,17 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
         this.placeholderColumnTableMap = new HashMap<>();
 
         //2.解析涉及到的表拥有的全部字段信息
-        FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        //2.1 from 后的表
-        Table table = delete.getTable();
-        table.accept(fieldParseTableFromItemVisitor);
-
-        //2.2 using 后的表
-        FieldParseVisitorUtil.usingList(delete.getUsingList(), fieldParseTableFromItemVisitor);
-
-        //2.3 join的表
-        FieldParseVisitorUtil.joins(delete.getJoins(), fieldParseTableFromItemVisitor);
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        delete.accept(fpStatementVisitor);
 
         //3.处理join占位符
-        EncryptorPojoVisitorUtil.joins(delete.getJoins(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
+        EncryptorPojoVisitorUtil.joins(delete.getJoins(), fpStatementVisitor, this.getPlaceholderColumnTableMap());
 
         //4.处理where条件中的占位符
-        EncryptorPojoVisitorUtil.expression(delete.getWhere(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
+        EncryptorPojoVisitorUtil.expression(delete.getWhere(), fpStatementVisitor, this.getPlaceholderColumnTableMap());
 
-        //5.解析DML返回列
-        //注意：复用前面包含USING、JOIN表的字段作用域，返回列中的无前缀*会在工具类中使用只包含目标表的临时作用域进行补全，避免混入非目标表字段
-        FieldParseVisitorUtil.dmlResultTableAliases(fieldParseTableFromItemVisitor, table, SqlConstant.DELETED);
-        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.returning(delete.getReturningClause(), table, fieldParseTableFromItemVisitor));
-        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.output(delete.getOutputClause(), table, fieldParseTableFromItemVisitor));
+        //5.存储最外层DML返回结果
+        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.buildFirstLayerSelectTableFieldMap(fpStatementVisitor));
     }
 
     @Override
@@ -141,118 +122,73 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
         this.placeholderColumnTableMap = new HashMap<>();
 
         //2.解析涉及到的表拥有的全部字段信息
-        FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-
-        //2.1 update的表
-        Table table = update.getTable();
-        table.accept(fieldParseTableFromItemVisitor);
-
-        //2.2 直接join的表
-        FieldParseVisitorUtil.joins(update.getStartJoins(), fieldParseTableFromItemVisitor);
-
-        //2.3 join的表
-        FieldParseVisitorUtil.joins(update.getJoins(), fieldParseTableFromItemVisitor);
-
-        //2.4 from后的表
-        FromItem fromItem = update.getFromItem();
-        if (fromItem != null) {
-            fromItem.accept(fieldParseTableFromItemVisitor);
-        }
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        update.accept(fpStatementVisitor);
 
         //3.解析update后直接join的表及on条件的加密情况
-        EncryptorPojoVisitorUtil.joins(update.getStartJoins(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
+        EncryptorPojoVisitorUtil.joins(update.getStartJoins(), fpStatementVisitor, this.getPlaceholderColumnTableMap());
 
         //4.解析from后join的表及on条件的加密情况
-        EncryptorPojoVisitorUtil.joins(update.getJoins(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
+        EncryptorPojoVisitorUtil.joins(update.getJoins(), fpStatementVisitor, this.getPlaceholderColumnTableMap());
 
         //5.解析from子查询中的占位符
-        if (fromItem != null) {
-            fromItem.accept(PlaceholderSelectFromItemVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap()));
-        }
+        Optional.ofNullable(update.getFromItem())
+                .ifPresent(p -> p.accept(PlaceholderSelectFromItemVisitor.newInstanceCurLayer(fpStatementVisitor, this.getPlaceholderColumnTableMap())));
 
         //6.解析where条件的加密情况
-        EncryptorPojoVisitorUtil.expression(update.getWhere(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
+        EncryptorPojoVisitorUtil.expression(update.getWhere(), fpStatementVisitor, this.getPlaceholderColumnTableMap());
 
         //7.解析set的加密情况
-        EncryptorPojoVisitorUtil.updateSets(update.getUpdateSets(), fieldParseTableFromItemVisitor, this.getPlaceholderColumnTableMap());
+        EncryptorPojoVisitorUtil.updateSets(update.getUpdateSets(), fpStatementVisitor, this.getPlaceholderColumnTableMap());
 
-        //8.解析DML返回列
-        //注意：复用前面包含JOIN、FROM表的字段作用域，返回列中的无前缀*会在工具类中使用只包含目标表的临时作用域进行补全，避免混入非目标表字段
-        FieldParseVisitorUtil.dmlResultTableAliases(fieldParseTableFromItemVisitor, table, SqlConstant.INSERTED, SqlConstant.DELETED);
-        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.returning(update.getReturningClause(), table, fieldParseTableFromItemVisitor));
-        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.output(update.getOutputClause(), table, fieldParseTableFromItemVisitor));
+        //8.存储最外层DML返回结果
+        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.buildFirstLayerSelectTableFieldMap(fpStatementVisitor));
     }
 
     @Override
     public void visit(Insert insert) {
-        //1.insert 的表
-        Table table = insert.getTable();
+        //1.特殊语法处理，如果insert into 后面的表没有跟具体字段的话，根据情况进行完善
+        JsqlparserUtil.perfectColumn(insert);
 
-        //2.解析当前insert字段所属的表结构信息
-        //2.1 获取当前insert语句中的所有字段
-        List<Column> columns = insert.getColumns();
-        //2.2 当遇到了insert into 表 values(xxx)这种语法的时候，如果没有开启自动补全表结构的话，我们是无法得知字段顺序，是无法处理这种表结构的，输出警告日志，便于客户快速定位
-        if (CollectionUtils.isEmpty(columns) && !TableCache.getCurConfig().isAutoFill()) {
-            log.warn("【sangsang】insert 语句未指定表字段顺序，且当前未开启自动读取表结构，无法获取表字段顺序。此情况可能导致数据错误！！！请规范语法或开启 sangsang.autoFill=true  原sql:{}", insert.toString());
-            return;
-        }
-        //2.3 如果是insert into 表 values(xxx)这种语法 并且开启了自动补全，我们将表字段进行补全
-        if (CollectionUtils.isEmpty(columns) && TableCache.getCurConfig().isAutoFill()) {
-            List<String> fieldLinkedList = TableCache.getTableFieldMap().get(table.getName());
-            columns = fieldLinkedList.stream().map(m -> ExpressionsUtil.buildColumn(m, table.getName())).collect(Collectors.toList());
-            insert.setColumns(new ExpressionList(columns));
-        }
-        //2.4 将insert的所有字段格式进行转换
-        List<FieldInfoDto> fieldInfoDtos = columns.stream().map(m -> FieldInfoDto.builder().columnName(m.getColumnName()).sourceColumn(m.getColumnName()).sourceTableName(table.getName()).fromSourceTable(true).rowNumber(false).build()).collect(Collectors.toList());
-        //2.5 将转换后的字段信息维护成 layerFieldTableMap 的数据格式
-        Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap = new LayerHashMapWrapper();
-        Map<String, List<FieldInfoDto>> fieldTableMap = new FieldHashMapWrapper<>();
-        fieldTableMap.put(table.getName(), fieldInfoDtos);
-        layerFieldTableMap.put(NumberConstant.ONE, fieldTableMap);
+        //2.解析sql
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        insert.accept(fpStatementVisitor);
 
         //3.存放占位符信息的Map初始化
         this.placeholderColumnTableMap = new HashMap<>();
 
-        //4.处理select
+        //5. 处理占位符信息（注意1：insert 语句的前后字段有对应关系，所以这里把insert前面的字段传递给后面的visitor 注意2：这里select是子查询，属于下一层作用域）
         Select select = insert.getSelect();
         if (select != null) {
-            //4.1 解析当前查询语句的每层表的全部字段(注意：将insert的表的字段解析结果和select的表字段合并在一起，这样下游根据上游字段进行对比时，才知道占位符对应的具体的字段所属表信息)
-            FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer(null, layerFieldTableMap);
-            select.accept(fieldParseTableSelectVisitor);
-
-            //4.2 处理占位符信息（注意：insert 语句的前后字段有对应关系，所以这里把insert前面的字段传递给后面的visitor）
-            PlaceholderSelectVisitor selectVisitor = PlaceholderSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, this.getPlaceholderColumnTableMap(), columns);
+            List<Column> columns = insert.getColumns().stream().collect(Collectors.toList());
+            List<UpstreamExpressionDto> upstreamExpressionDtos = JsqlparserUtil.buildUpstreamExpressionDto(fpStatementVisitor, columns);
+            //注意：这里是下一层，因为fieldParser解析的时候，将这里的select作为下一层来解析的
+            PlaceholderSelectVisitor selectVisitor = PlaceholderSelectVisitor.newInstanceNextLayer(fpStatementVisitor, this.getPlaceholderColumnTableMap(), upstreamExpressionDtos);
             select.accept(selectVisitor);
         }
 
-        //5.解析insert目标表拥有的全部字段信息
-        FieldParseParseTableFromItemVisitor insertFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        table.accept(insertFromItemVisitor);
-
         //6.处理 insert into set
-        EncryptorPojoVisitorUtil.updateSets(insert.getSetUpdateSets(), insertFromItemVisitor, this.getPlaceholderColumnTableMap());
+        EncryptorPojoVisitorUtil.updateSets(insert.getSetUpdateSets(), fpStatementVisitor, this.getPlaceholderColumnTableMap());
 
         //7.处理MySQL ON DUPLICATE KEY UPDATE分支中的占位符
-        EncryptorPojoVisitorUtil.updateSets(insert.getDuplicateUpdateSets(), insertFromItemVisitor, this.getPlaceholderColumnTableMap());
+        EncryptorPojoVisitorUtil.updateSets(insert.getDuplicateUpdateSets(), fpStatementVisitor, this.getPlaceholderColumnTableMap());
 
         //8.处理PostgreSQL ON CONFLICT DO UPDATE分支中的占位符
         InsertConflictAction conflictAction = insert.getConflictAction();
         if (conflictAction != null) {
             //8.1 处理 DO UPDATE分支
-            EncryptorPojoVisitorUtil.updateSets(conflictAction.getUpdateSets(), insertFromItemVisitor, this.getPlaceholderColumnTableMap());
+            EncryptorPojoVisitorUtil.updateSets(conflictAction.getUpdateSets(), fpStatementVisitor, this.getPlaceholderColumnTableMap());
 
             //8.2 DO UPDATE分支可以继续携带where条件，该条件中的占位符同样需要解析
             Expression conflictWhere = conflictAction.getWhereExpression();
             if (conflictWhere != null) {
-                PlaceholderExpressionVisitor conflictWhereVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(insertFromItemVisitor, this.getPlaceholderColumnTableMap());
+                PlaceholderExpressionVisitor conflictWhereVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(fpStatementVisitor, this.getPlaceholderColumnTableMap());
                 conflictWhere.accept(conflictWhereVisitor);
             }
         }
 
-        //9.解析DML返回列
-        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.returning(insert.getReturningClause(), table, insertFromItemVisitor));
-        FieldParseVisitorUtil.dmlResultTableAliases(insertFromItemVisitor, table, SqlConstant.INSERTED);
-        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.output(insert.getOutputClause(), table, insertFromItemVisitor));
+        //9.存储最外层DML返回结果
+        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.buildFirstLayerSelectTableFieldMap(fpStatementVisitor));
     }
 
 
@@ -368,38 +304,18 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
     @Override
     public void visit(Select select) {
         //1.解析select拥有的字段对应的表结构信息
-        //1.1解析当前sql拥有的全部字段信息
-        FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
-        select.accept(fieldParseTableSelectVisitor);
-
-        //1.2.获取sql 查询的所有字段
-        Map<Integer, Map<String, List<FieldInfoDto>>> layerSelectTableFieldMap = fieldParseTableSelectVisitor.getLayerSelectTableFieldMap();
-        List<FieldInfoDto> selectFiles = layerSelectTableFieldMap.getOrDefault(NumberConstant.ONE, new FieldHashMapWrapper<>())
-                .values()
-                .stream()
-                .flatMap(Collection::stream)
-                .collect(Collectors.toList());
-
-        //1.3.将每个字段从实体类上找到标注的@FieldEncryptor 注解
-        List<FieldEncryptorInfoDto> fieldInfos = selectFiles.stream()
-                .map(m -> FieldEncryptorInfoDto.builder()
-                        .columnName(m.getColumnName())
-                        .sourceColumn(m.getSourceColumn())
-                        .sourceTableName(m.getSourceTableName())
-                        .fieldEncryptor(TableCache.getTableFieldEncryptInfo().getOrDefault(m.getSourceTableName(), new FieldHashMapWrapper<>()).get(m.getSourceColumn()))
-                        .build()
-                ).collect(Collectors.toList());
-
-        //1.4.结果集赋值
-        this.fieldEncryptorInfos.addAll(fieldInfos);
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        select.accept(fpStatementVisitor);
 
         //2.将#{}占位符和数据库表结构字段对应起来
         //2.1开始解析
-        PlaceholderSelectVisitor placeholderSelectVisitor = PlaceholderSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, null);
+        PlaceholderSelectVisitor placeholderSelectVisitor = PlaceholderSelectVisitor.newInstanceCurLayer(fpStatementVisitor, null);
         select.accept(placeholderSelectVisitor);
         //2.2结果赋值
         this.placeholderColumnTableMap = placeholderSelectVisitor.getPlaceholderColumnTableMap();
 
+        //3.存储最外层的返回结果
+        this.fieldEncryptorInfos.addAll(EncryptorPojoVisitorUtil.buildFirstLayerSelectTableFieldMap(fpStatementVisitor));
     }
 
     @Override
@@ -408,18 +324,22 @@ public class PoJoEncrtptorStatementVisitor implements StatementVisitor {
         this.placeholderColumnTableMap = new HashMap<>();
 
         //2.解析目标表拥有的全部字段信息
-        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        upsert.getTable().accept(fieldParseTable);
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        upsert.accept(fpStatementVisitor);
 
         //3.处理REPLACE SET及冲突更新分支中的占位符
-        EncryptorPojoVisitorUtil.updateSets(upsert.getUpdateSets(), fieldParseTable, this.getPlaceholderColumnTableMap());
-        EncryptorPojoVisitorUtil.updateSets(upsert.getDuplicateUpdateSets(), fieldParseTable, this.getPlaceholderColumnTableMap());
+        EncryptorPojoVisitorUtil.updateSets(upsert.getUpdateSets(), fpStatementVisitor, this.getPlaceholderColumnTableMap());
+        EncryptorPojoVisitorUtil.updateSets(upsert.getDuplicateUpdateSets(), fpStatementVisitor, this.getPlaceholderColumnTableMap());
 
         //4.处理UPSERT VALUES/SELECT语法中的占位符
         List<Column> columns = upsert.getColumns();
         Select select = upsert.getSelect();
         if (CollectionUtils.isNotEmpty(columns) && select != null) {
-            EncryptorPojoVisitorUtil.insertSelect(select, upsert.getTable(), columns, this.getPlaceholderColumnTableMap());
+            //4.1 构建上游对应表达式
+            List<UpstreamExpressionDto> upstreamExpressionDtos = JsqlparserUtil.buildUpstreamExpressionDto(fpStatementVisitor, columns);
+            //4.2 开始解析select的占位符情况
+            PlaceholderSelectVisitor placeholderSelectVisitor = PlaceholderSelectVisitor.newInstanceCurLayer(fpStatementVisitor, placeholderColumnTableMap, upstreamExpressionDtos);
+            select.accept(placeholderSelectVisitor);
         }
 
     }

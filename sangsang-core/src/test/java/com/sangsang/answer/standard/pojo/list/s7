@@ -1,1 +1,0 @@
-[{"columnName":"ph","sourceColumn":"phone","sourceTableName":"tb_user","fieldEncryptor":{}},{"columnName":"btime","sourceColumn":"create_time","sourceTableName":"tb_menu"}]

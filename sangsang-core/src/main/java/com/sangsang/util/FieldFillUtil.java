@@ -34,7 +34,7 @@ public class FieldFillUtil {
     public static void fieldFill(List<DataSource> dataSources, SangSangProperties sangSangProperties) {
         try {
             long t1 = System.currentTimeMillis();
-            log.info("【sangsang】开始自动填充数据库表字段");
+//            log.info("【sangsang】开始自动填充数据库表字段");
             //1.当前项目没有可用datasource，不进行自动填充
             if (CollectionUtils.isEmpty(dataSources)) {
                 log.warn("【sangsang】自动填充数据库表字段，当前无可用DataSource，不进行自动填充");

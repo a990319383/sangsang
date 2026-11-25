@@ -8,6 +8,7 @@ import com.sangsang.domain.dto.ColumnTransformationDto;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
+import com.sangsang.util.visitor.TransformationVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import com.sangsang.visitor.transformation.wrap.ExpressionWrapper;
 import net.sf.jsqlparser.expression.*;
@@ -397,7 +398,7 @@ public class TransformationExpressionVisitor extends BaseFieldParseTable impleme
     @Override
     public void visit(Column tableColumn) {
         //1.解析当前列属于哪张表，虚拟表的也算，用于区分这个是表字段还是常量
-        boolean tableFiled = JsqlparserUtil.isTableFiled(tableColumn, this.getLayer(), this.getLayerFieldTableMap());
+        boolean tableFiled = TransformationVisitorUtil.isTableFiled(tableColumn, this.getLayer(), this.getLayerFieldTableMap());
 
         //2.解析这个字段是否属于真实表
         ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn(tableColumn, this);

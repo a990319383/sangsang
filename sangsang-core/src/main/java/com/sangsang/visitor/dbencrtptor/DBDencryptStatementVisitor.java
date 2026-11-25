@@ -1,22 +1,15 @@
 package com.sangsang.visitor.dbencrtptor;
 
-import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.annos.encryptor.FieldEncryptor;
-import com.sangsang.domain.constants.SqlConstant;
 import com.sangsang.domain.enums.EncryptorFunctionEnum;
-import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
-import com.sangsang.util.ExpressionsUtil;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.visitor.EncryptorDbVisitorUtil;
-import com.sangsang.util.visitor.FieldParseVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
-import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
+import com.sangsang.visitor.fieldparse.FieldParseStatementVisitor;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
-import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.*;
 import net.sf.jsqlparser.statement.alter.Alter;
 import net.sf.jsqlparser.statement.alter.AlterSession;
@@ -49,9 +42,7 @@ import net.sf.jsqlparser.statement.truncate.Truncate;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.statement.upsert.Upsert;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -100,33 +91,23 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
     @Override
     public void visit(Delete delete) {
         //1.解析涉及到的表拥有的全部字段信息
-        FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        //1.1 from 后的表
-        Table table = delete.getTable();
-        Optional.ofNullable(table).ifPresent(p -> p.accept(fieldParseTableFromItemVisitor));
-
-        //1.2 using 后的表
-        FieldParseVisitorUtil.usingList(delete.getUsingList(), fieldParseTableFromItemVisitor);
-
-        //1.3 join的表
-        FieldParseVisitorUtil.joins(delete.getJoins(), fieldParseTableFromItemVisitor);
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        delete.accept(fpStatementVisitor);
 
         //2.处理join右表的子查询和on条件
-        EncryptorDbVisitorUtil.joins(delete.getJoins(), fieldParseTableFromItemVisitor);
+        EncryptorDbVisitorUtil.joins(delete.getJoins(), fpStatementVisitor);
 
         //3.将where 条件进行解密
         Expression where = delete.getWhere();
         if (where != null) {
-            DBDecryptExpressionVisitor sDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor, EncryptorFunctionEnum.DEFAULT_DECRYPTION, null);
+            DBDecryptExpressionVisitor sDecryptExpressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(fpStatementVisitor, EncryptorFunctionEnum.DEFAULT_DECRYPTION, null);
             where.accept(sDecryptExpressionVisitor);
             delete.setWhere(Optional.ofNullable(sDecryptExpressionVisitor.getProcessedExpression()).orElse(where));
         }
 
         //4.处理DML返回列
-        //注意：复用前面包含USING、JOIN表的字段作用域，返回列中的无前缀*会在工具类中使用只包含目标表的临时作用域进行补全，避免混入非目标表字段
-        FieldParseVisitorUtil.dmlResultTableAliases(fieldParseTableFromItemVisitor, table, SqlConstant.DELETED);
-        EncryptorDbVisitorUtil.returning(delete.getReturningClause(), table, fieldParseTableFromItemVisitor);
-        EncryptorDbVisitorUtil.output(delete.getOutputClause(), table, fieldParseTableFromItemVisitor);
+        EncryptorDbVisitorUtil.returning(delete.getReturningClause(), delete.getTable(), fpStatementVisitor);
+        EncryptorDbVisitorUtil.output(delete.getOutputClause(), delete.getTable(), fpStatementVisitor);
 
         //5.结果赋值
         this.resultSql = EncryptorDbVisitorUtil.perfectOutputIntoSql(delete.toString(), delete.getOutputClause());
@@ -135,48 +116,32 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
     @Override
     public void visit(Update update) {
         //1.解析涉及到的表拥有的全部字段信息
-        FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-
-        //1.1 update的表
-        Table table = update.getTable();
-        table.accept(fieldParseTableFromItemVisitor);
-
-        //1.2 join的表（不同数据库的join解析有些许差异，有的在startJoins中，有的在joins中）
-        FieldParseVisitorUtil.joins(update.getStartJoins(), fieldParseTableFromItemVisitor);
-        FieldParseVisitorUtil.joins(update.getJoins(), fieldParseTableFromItemVisitor);
-
-        //1.3 from后的表
-        FromItem fromItem = update.getFromItem();
-        if (fromItem != null) {
-            fromItem.accept(fieldParseTableFromItemVisitor);
-        }
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        update.accept(fpStatementVisitor);
 
         //2.处理join右表的子查询和on条件
-        EncryptorDbVisitorUtil.joins(update.getStartJoins(), fieldParseTableFromItemVisitor);
-        EncryptorDbVisitorUtil.joins(update.getJoins(), fieldParseTableFromItemVisitor);
+        EncryptorDbVisitorUtil.joins(update.getStartJoins(), fpStatementVisitor);
+        EncryptorDbVisitorUtil.joins(update.getJoins(), fpStatementVisitor);
 
         //3.处理from后的子查询
-        if (fromItem != null) {
-            fromItem.accept(DBDecryptFromItemVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor));
-        }
+        Optional.ofNullable(update.getFromItem())
+                .ifPresent(p -> p.accept(DBDecryptFromItemVisitor.newInstanceCurLayer(fpStatementVisitor)));
 
         //4.解密where 条件的数据
         Expression where = update.getWhere();
         if (where != null) {
-            DBDecryptExpressionVisitor expressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor, EncryptorFunctionEnum.DEFAULT_DECRYPTION, null);
+            DBDecryptExpressionVisitor expressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(fpStatementVisitor, EncryptorFunctionEnum.DEFAULT_DECRYPTION, null);
             where.accept(expressionVisitor);
             //修改后的where赋值
             update.setWhere(Optional.ofNullable(expressionVisitor.getProcessedExpression()).orElse(where));
         }
 
         //5.加密处理set的数据
-        EncryptorDbVisitorUtil.updateSets(update.getUpdateSets(), fieldParseTableFromItemVisitor);
+        EncryptorDbVisitorUtil.updateSets(update.getUpdateSets(), fpStatementVisitor);
 
         //6.处理DML返回列
-        //注意：复用前面包含JOIN、FROM表的字段作用域，返回列中的无前缀*会在工具类中使用只包含目标表的临时作用域进行补全，避免混入非目标表字段
-        FieldParseVisitorUtil.dmlResultTableAliases(fieldParseTableFromItemVisitor, table, SqlConstant.INSERTED, SqlConstant.DELETED);
-        EncryptorDbVisitorUtil.returning(update.getReturningClause(), table, fieldParseTableFromItemVisitor);
-        EncryptorDbVisitorUtil.output(update.getOutputClause(), table, fieldParseTableFromItemVisitor);
+        EncryptorDbVisitorUtil.returning(update.getReturningClause(), update.getTable(), fpStatementVisitor);
+        EncryptorDbVisitorUtil.output(update.getOutputClause(), update.getTable(), fpStatementVisitor);
 
         //7.处理结果赋值
         this.resultSql = EncryptorDbVisitorUtil.perfectOutputIntoSql(update.toString(), update.getOutputClause());
@@ -185,54 +150,30 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
 
     @Override
     public void visit(Insert insert) {
-        //1. insert 的表
-        Table table = insert.getTable();
-        Map<String, FieldEncryptor> fieldEncryptMap = TableCache.getTableFieldEncryptInfo().getOrDefault(table.getName(), new FieldHashMapWrapper<>());
+        //1.特殊语法处理，如果insert into 后面的表没有跟具体字段的话，根据情况进行完善
+        JsqlparserUtil.perfectColumn(insert);
 
-        //2.通过获取insert的字段信息，解析出每个字段所对应的@FieldEncryptor，方便对插入字段需要加密的进行处理
-        List<FieldEncryptor> needEncryptFieldEncryptor = new ArrayList<>();
-        // insert into 表  values( ?,?,?,?,?,?,?,?) 这种语法时，这里的 columns 就是空的 ，如果当前配置开启了自动读取表结构的话，我们是能获取到表字段顺序的，这里可以自动填充，否则拿不到表字段顺序，无法兼容此语法
-        List<Column> columns = insert.getColumns();
-        //2.1 遇到了这种语法，且未开启自动读取表结构，给用户警告日志，让用户自行调整
-        if (CollectionUtils.isEmpty(columns) && !TableCache.getCurConfig().isAutoFill()) {
-            //单纯给提示，方便使用方快速定位问题
-            log.warn("【sangsang】insert 语句未指定表字段顺序，且当前未开启自动读取表结构，无法获取表字段顺序。此情况可能导致加解密处理错误！！！请规范语法或开启 sangsang.autoFill=true  原sql:{}", insert.toString());
-        }
-        //2.2 当前配置了自动读取表结构，这种情况下才能拿到真实的字段顺序，此时把字段进行补齐
-        if (CollectionUtils.isEmpty(columns) && TableCache.getCurConfig().isAutoFill()) {
-            List<String> fieldLinkedList = TableCache.getTableFieldMap().get(table.getName());
-            columns = fieldLinkedList.stream().map(m -> ExpressionsUtil.buildColumn(m, table.getName())).collect(Collectors.toList());
-            insert.setColumns(new ExpressionList(columns));
-        }
+        //2.解析sql
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        insert.accept(fpStatementVisitor);
 
-        for (int i = 0; i < columns.size(); i++) {
-            Column column = columns.get(i);
-            FieldEncryptor leftFieldEncryptor = fieldEncryptMap.get(column.getColumnName());
-            needEncryptFieldEncryptor.add(i, leftFieldEncryptor);
-        }
+        //3.获取每个Column字段对应的@FieldEncryptor 注解信息
+        List<FieldEncryptor> needEncryptFieldEncryptor = JsqlparserUtil.parseInsertFieldEncryptor(insert.getTable(), insert.getColumns());
 
-        //3.解析sql
-        Select select = insert.getSelect();
-        FieldParseParseTableSelectVisitor fPSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
-        select.accept(fPSelectVisitor);
+        //4.select进行加解密处理
+        Optional.ofNullable(insert.getSelect())
+                .ifPresent(p -> p.accept(DBDecryptSelectVisitor.newInstanceNextLayer(fpStatementVisitor, needEncryptFieldEncryptor)));
 
-        //4.进行加解密处理
-        DBDecryptSelectVisitor dbDecryptSelectVisitor = DBDecryptSelectVisitor.newInstanceCurLayer(fPSelectVisitor, needEncryptFieldEncryptor);
-        select.accept(dbDecryptSelectVisitor);
 
         //5.处理冲突时需要更新的数据
-        //5.1 解析当前insert的表结构信息
-        FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        table.accept(fieldParseTableFromItemVisitor);
-        //5.2 处理 mysql 的 DuplicateUpdateSets
-        EncryptorDbVisitorUtil.updateSets(insert.getDuplicateUpdateSets(), fieldParseTableFromItemVisitor);
-        //5.3 处理 PostgreSQL ON CONFLICT DO UPDATE
-        EncryptorDbVisitorUtil.updateSets(Optional.ofNullable(insert.getConflictAction()).map(InsertConflictAction::getUpdateSets).orElse(CollectionUtils.EMPTY_LIST), fieldParseTableFromItemVisitor);
+        //5.1 处理 mysql 的 DuplicateUpdateSets
+        EncryptorDbVisitorUtil.updateSets(insert.getDuplicateUpdateSets(), fpStatementVisitor);
+        //5.2 处理 PostgreSQL ON CONFLICT DO UPDATE
+        EncryptorDbVisitorUtil.updateSets(Optional.ofNullable(insert.getConflictAction()).map(InsertConflictAction::getUpdateSets).orElse(CollectionUtils.EMPTY_LIST), fpStatementVisitor);
 
         //6.处理DML返回列
-        EncryptorDbVisitorUtil.returning(insert.getReturningClause(), table, fieldParseTableFromItemVisitor);
-        FieldParseVisitorUtil.dmlResultTableAliases(fieldParseTableFromItemVisitor, table, SqlConstant.INSERTED);
-        EncryptorDbVisitorUtil.output(insert.getOutputClause(), table, fieldParseTableFromItemVisitor);
+        EncryptorDbVisitorUtil.returning(insert.getReturningClause(), insert.getTable(), fpStatementVisitor);
+        EncryptorDbVisitorUtil.output(insert.getOutputClause(), insert.getTable(), fpStatementVisitor);
 
         //7.处理好的sql赋值
         this.resultSql = EncryptorDbVisitorUtil.perfectOutputIntoSql(insert.toString(), insert.getOutputClause());
@@ -370,11 +311,11 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
     @Override
     public void visit(Select select) {
         //1.解析当前sql拥有的全部字段信息
-        FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
-        select.accept(fieldParseTableSelectVisitor);
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        select.accept(fpStatementVisitor);
 
         //2.将需要加密的字段进行加密处理
-        DBDecryptSelectVisitor sDecryptSelectVisitor = DBDecryptSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor);
+        DBDecryptSelectVisitor sDecryptSelectVisitor = DBDecryptSelectVisitor.newInstanceCurLayer(fpStatementVisitor);
         select.accept(sDecryptSelectVisitor);
 
         //3.处理后的结果赋值
@@ -384,23 +325,21 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
     @Override
     public void visit(Upsert upsert) {
         //1.解析目标表拥有的全部字段信息
-        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        upsert.getTable().accept(fieldParseTable);
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        upsert.accept(fpStatementVisitor);
 
         //2.处理REPLACE SET语法
-        EncryptorDbVisitorUtil.updateSets(upsert.getUpdateSets(), fieldParseTable);
-        EncryptorDbVisitorUtil.updateSets(upsert.getDuplicateUpdateSets(), fieldParseTable);
+        EncryptorDbVisitorUtil.updateSets(upsert.getUpdateSets(), fpStatementVisitor);
+        EncryptorDbVisitorUtil.updateSets(upsert.getDuplicateUpdateSets(), fpStatementVisitor);
 
         //3.处理UPSERT VALUES/SELECT语法
         List<Column> columns = upsert.getColumns();
         Select select = upsert.getSelect();
         if (CollectionUtils.isNotEmpty(columns) && select != null) {
             List<FieldEncryptor> fieldEncryptors = columns.stream()
-                    .map(m -> JsqlparserUtil.needEncryptFieldEncryptor(m, fieldParseTable))
+                    .map(m -> JsqlparserUtil.needEncryptFieldEncryptor(m, fpStatementVisitor))
                     .collect(Collectors.toList());
-            FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
-            select.accept(fieldParseTableSelectVisitor);
-            select.accept(DBDecryptSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor, fieldEncryptors));
+            select.accept(DBDecryptSelectVisitor.newInstanceCurLayer(fpStatementVisitor, fieldEncryptors));
         }
 
         //4.处理结果赋值

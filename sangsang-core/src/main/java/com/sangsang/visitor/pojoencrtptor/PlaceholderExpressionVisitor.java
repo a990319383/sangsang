@@ -1,11 +1,12 @@
 package com.sangsang.visitor.pojoencrtptor;
 
-import com.sangsang.domain.constants.FieldConstant;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.domain.dto.PlaceholderFieldParseTable;
+import com.sangsang.domain.dto.UpstreamExpressionDto;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
+import com.sangsang.util.visitor.EncryptorPojoVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import lombok.Getter;
 import net.sf.jsqlparser.expression.*;
@@ -35,7 +36,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
      * 例如：  case 字段 when xxx    的when语句的时候，需要知道这个when语句所属的case后面的字段，这个变量是存储这种情况的case字段的
      */
     @Getter
-    private Expression upstreamExpression;
+    private UpstreamExpressionDto upstreamExpression;
 
     /**
      * 获取当前层解析对象
@@ -45,7 +46,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
      * @Param [placeholderFieldParseTable]
      **/
     public static PlaceholderExpressionVisitor newInstanceCurLayer(PlaceholderFieldParseTable placeholderFieldParseTable,
-                                                                   Expression upstreamExpression) {
+                                                                   UpstreamExpressionDto upstreamExpression) {
         return new PlaceholderExpressionVisitor(placeholderFieldParseTable,
                 placeholderFieldParseTable.getPlaceholderColumnTableMap(),
                 upstreamExpression);
@@ -88,7 +89,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
      **/
     public static PlaceholderExpressionVisitor newInstanceCurLayer(BaseFieldParseTable baseFieldParseTable,
                                                                    Map<String, ColumnTableDto> placeholderColumnTableMap,
-                                                                   Expression upstreamExpression) {
+                                                                   UpstreamExpressionDto upstreamExpression) {
         return new PlaceholderExpressionVisitor(baseFieldParseTable,
                 placeholderColumnTableMap,
                 upstreamExpression);
@@ -96,7 +97,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
 
     private PlaceholderExpressionVisitor(BaseFieldParseTable baseFieldParseTable,
                                          Map<String, ColumnTableDto> placeholderColumnTableMap,
-                                         Expression upstreamExpression) {
+                                         UpstreamExpressionDto upstreamExpression) {
         super(baseFieldParseTable, placeholderColumnTableMap);
         this.upstreamExpression = upstreamExpression;
     }
@@ -130,8 +131,8 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(JdbcParameter jdbcParameter) {
         //当上游字段是Column时，构建占位符字段对应信息
-        if (this.upstreamExpression instanceof Column) {
-            ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn((Column) this.upstreamExpression, this);
+        if (this.upstreamExpression.getUpstreamExpression() instanceof Column) {
+            ColumnTableDto columnTableDto = this.upstreamExpression;
             this.getPlaceholderColumnTableMap().put(JsqlparserUtil.buildPlaceholder(jdbcParameter), columnTableDto);
         }
     }
@@ -237,11 +238,11 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(Between between) {
         //between 前面的字段分别和范围的开始、结束表达式进行匹配
-        JsqlparserUtil.parseWhereColumTable(this,
+        EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                 between.getLeftExpression(),
                 between.getBetweenExpressionStart(),
                 this.getPlaceholderColumnTableMap());
-        JsqlparserUtil.parseWhereColumTable(this,
+        EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                 between.getLeftExpression(),
                 between.getBetweenExpressionEnd(),
                 this.getPlaceholderColumnTableMap());
@@ -262,7 +263,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(EqualsTo equalsTo) {
         //如果有一边表达式是 特殊的占位符，则维护占位符对应的表字段信息
-        JsqlparserUtil.parseWhereColumTable(this,
+        EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                 equalsTo,
                 this.getPlaceholderColumnTableMap());
     }
@@ -270,7 +271,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(GreaterThan greaterThan) {
         //如果有一边表达式是特殊的占位符，则维护占位符对应的表字段信息
-        JsqlparserUtil.parseWhereColumTable(this,
+        EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                 greaterThan,
                 this.getPlaceholderColumnTableMap());
     }
@@ -278,7 +279,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(GreaterThanEquals greaterThanEquals) {
         //如果有一边表达式是特殊的占位符，则维护占位符对应的表字段信息
-        JsqlparserUtil.parseWhereColumTable(this,
+        EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                 greaterThanEquals,
                 this.getPlaceholderColumnTableMap());
     }
@@ -331,7 +332,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
                     //找出对应的左边的表达式
                     Expression leftExp = leftExpressionList.get(i);
                     //解析占位符
-                    JsqlparserUtil.parseWhereColumTable(this,
+                    EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                             leftExp,
                             expList.get(i),
                             this.getPlaceholderColumnTableMap());
@@ -345,7 +346,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
                 //找出对应的左边的表达式（语法1中左表达式集合长度肯定为1，所以get(0)，语法6这种不兼容，所以直接返回null）
                 Expression leftExp = CollectionUtils.isNotEmpty(leftExpressionList) ? leftExpressionList.get(0) : null;
                 //解析占位符
-                JsqlparserUtil.parseWhereColumTable(this,
+                EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                         leftExp,
                         rightExpressionList.get(i),
                         this.getPlaceholderColumnTableMap());
@@ -360,7 +361,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
             //用这个解析的结果集解析where后面的占位符
             PlaceholderSelectVisitor placeholderSelectVisitor = PlaceholderSelectVisitor.newInstanceCurLayer(fPTableSelectVisitor,
                     this.getPlaceholderColumnTableMap(),
-                    leftExpressionList);
+                    JsqlparserUtil.buildUpstreamExpressionDto(fPTableSelectVisitor, leftExpressionList));
             rightSelect.accept(placeholderSelectVisitor);
         }
     }
@@ -383,7 +384,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(LikeExpression likeExpression) {
         //如果有一边表达式是 特殊的占位符，则维护占位符对应的表字段信息
-        JsqlparserUtil.parseWhereColumTable(this,
+        EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                 likeExpression,
                 this.getPlaceholderColumnTableMap());
     }
@@ -391,7 +392,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(MinorThan minorThan) {
         //如果有一边表达式是特殊的占位符，则维护占位符对应的表字段信息
-        JsqlparserUtil.parseWhereColumTable(this,
+        EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                 minorThan,
                 this.getPlaceholderColumnTableMap());
     }
@@ -399,7 +400,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(MinorThanEquals minorThanEquals) {
         //如果有一边表达式是特殊的占位符，则维护占位符对应的表字段信息
-        JsqlparserUtil.parseWhereColumTable(this,
+        EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                 minorThanEquals,
                 this.getPlaceholderColumnTableMap());
     }
@@ -407,7 +408,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(NotEqualsTo notEqualsTo) {
         //如果有一边表达式是 特殊的占位符，则维护占位符对应的表字段信息
-        JsqlparserUtil.parseWhereColumTable(this,
+        EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                 notEqualsTo,
                 this.getPlaceholderColumnTableMap());
     }
@@ -434,9 +435,9 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(Column column) {
         //当上游字段是jdbcParameter时，构建占位符字段对应信息
-        if (this.upstreamExpression instanceof JdbcParameter) {
+        if (this.upstreamExpression != null && this.upstreamExpression.getUpstreamExpression() instanceof JdbcParameter) {
             ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn(column, this);
-            this.getPlaceholderColumnTableMap().put(JsqlparserUtil.buildPlaceholder((JdbcParameter) upstreamExpression), columnTableDto);
+            this.getPlaceholderColumnTableMap().put(JsqlparserUtil.buildPlaceholder((JdbcParameter) upstreamExpression.getUpstreamExpression()), columnTableDto);
         }
     }
 
@@ -469,13 +470,15 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(CaseExpression caseExpression) {
         //记录当前的case 后面的所属字段，如果when 语句后面是表达式的话，需要知道case后面的所属字段，才知道是否需要加密
-        Expression upstreamExpression = caseExpression.getSwitchExpression();
+        Expression switchExpression = caseExpression.getSwitchExpression();
 
         //处理when条件
         if (CollectionUtils.isNotEmpty(caseExpression.getWhenClauses())) {
             for (WhenClause whenClause : caseExpression.getWhenClauses()) {
+                //解析表达式，传递给下游
+                UpstreamExpressionDto upstreamExpDto = JsqlparserUtil.buildUpstreamExpressionDto(this, switchExpression);
                 //这里处理的逻辑在下面的public void visit(WhenClause whenClause)会处理
-                PlaceholderExpressionVisitor placeholderWhereExpressionVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(this, upstreamExpression);
+                PlaceholderExpressionVisitor placeholderWhereExpressionVisitor = PlaceholderExpressionVisitor.newInstanceCurLayer(this, upstreamExpDto);
                 whenClause.accept(placeholderWhereExpressionVisitor);
             }
         }
@@ -484,7 +487,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
         Expression elseExpression = caseExpression.getElseExpression();
         if (elseExpression instanceof BinaryExpression) {
             //如果有一边表达式是 特殊的占位符，则维护占位符对应的表字段信息
-            JsqlparserUtil.parseWhereColumTable(this,
+            EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                     (BinaryExpression) elseExpression,
                     this.getPlaceholderColumnTableMap());
         }
@@ -501,9 +504,9 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(WhenClause whenClause) {
         //对应case when的情况1： case 表字段  when ?占位符 then xxx
-        if (this.upstreamExpression != null) {
-            JsqlparserUtil.parseWhereColumTable(this,
-                    this.upstreamExpression,
+        if (this.upstreamExpression != null && this.upstreamExpression.getUpstreamExpression() != null) {
+            EncryptorPojoVisitorUtil.parseWhereColumTable(this,
+                    this.upstreamExpression.getUpstreamExpression(),
                     whenClause.getWhenExpression(),
                     this.getPlaceholderColumnTableMap());
         }
@@ -511,7 +514,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
         //对应case when 的情况2： case  when 表字段=?占位符 then
         if (whenClause.getWhenExpression() instanceof BinaryExpression) {
             //如果有一边表达式是 特殊的占位符，则维护占位符对应的表字段信息
-            JsqlparserUtil.parseWhereColumTable(this,
+            EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                     (BinaryExpression) whenClause.getWhenExpression(),
                     this.getPlaceholderColumnTableMap());
         }
@@ -520,7 +523,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
         Expression thenExpression = whenClause.getThenExpression();
         if (thenExpression instanceof BinaryExpression) {
             //如果有一边表达式是 特殊的占位符，则维护占位符对应的表字段信息
-            JsqlparserUtil.parseWhereColumTable(this,
+            EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                     (BinaryExpression) thenExpression,
                     this.getPlaceholderColumnTableMap());
         }
@@ -761,7 +764,7 @@ public class PlaceholderExpressionVisitor extends PlaceholderFieldParseTable imp
     @Override
     public void visit(IsDistinctExpression isDistinctExpression) {
         //对应测试用例s56
-        JsqlparserUtil.parseWhereColumTable(this,
+        EncryptorPojoVisitorUtil.parseWhereColumTable(this,
                 isDistinctExpression,
                 this.getPlaceholderColumnTableMap());
     }

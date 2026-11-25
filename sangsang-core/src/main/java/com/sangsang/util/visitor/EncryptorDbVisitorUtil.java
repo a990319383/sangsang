@@ -3,25 +3,20 @@ package com.sangsang.util.visitor;
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.annos.encryptor.FieldEncryptor;
 import com.sangsang.domain.dto.BaseFieldParseTable;
-import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.enums.EncryptorFunctionEnum;
 import com.sangsang.domain.wrapper.FieldHashMapWrapper;
-import com.sangsang.domain.wrapper.LayerHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.visitor.dbencrtptor.DBDecryptExpressionVisitor;
 import com.sangsang.visitor.dbencrtptor.DBDecryptFromItemVisitor;
 import com.sangsang.visitor.dbencrtptor.DBDecryptSelectVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
-import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.OutputClause;
 import net.sf.jsqlparser.statement.ReturningClause;
-import net.sf.jsqlparser.statement.select.AllColumns;
-import net.sf.jsqlparser.statement.select.AllTableColumns;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.Select;
@@ -57,7 +52,7 @@ public class EncryptorDbVisitorUtil {
         if (returningClause == null) {
             return;
         }
-        //2.根据是否存在INTO数据项，区分普通结果集和变量赋值语法
+        //2.根据是否存在INTO数据项，区分普通结果集和变量赋值语法，into的语法这里是不能出现别名的
         boolean resultSet = CollectionUtils.isEmpty(returningClause.getDataItems());
         //3.解析并改写RETURNING字段
         List<SelectItem<?>> selectItems = EncryptorDbVisitorUtil.resultItems(returningClause, table, baseFieldParseTable, resultSet);
@@ -111,7 +106,7 @@ public class EncryptorDbVisitorUtil {
                                    Table table,
                                    BaseFieldParseTable baseFieldParseTable) {
         //1.展开OUTPUT表达式中的*，得到实际写入INTO目标表的字段列表
-        List<SelectItem<?>> outputItems = EncryptorDbVisitorUtil.perfectResultItems(outputClause.getSelectItemList(), table, baseFieldParseTable);
+        List<SelectItem<?>> outputItems = JsqlparserUtil.perfectDmlResultItems(outputClause.getSelectItemList(), table);
         List<String> outputColumns = outputClause.getColumnList();
 
         //2.OUTPUT表达式和INTO目标列必须按位置一一对应，无法对应时不进行改写
@@ -132,7 +127,8 @@ public class EncryptorDbVisitorUtil {
             Expression expression = outputItem.getExpression();
             DBDecryptExpressionVisitor expressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(baseFieldParseTable,
                     EncryptorFunctionEnum.UPSTREAM_COLUMN,
-                    upstreamFieldEncryptors.get(i));
+                    upstreamFieldEncryptors.get(i),
+                    table);
             expression.accept(expressionVisitor);
             outputItem.setExpression(Optional.ofNullable(expressionVisitor.getProcessedExpression()).orElse(expression));
         }
@@ -159,14 +155,15 @@ public class EncryptorDbVisitorUtil {
         }
 
         //2.展开*并保留当前DML返回列的字段顺序
-        List<SelectItem<?>> resultItems = EncryptorDbVisitorUtil.perfectResultItems(selectItems, table, baseFieldParseTable);
+        List<SelectItem<?>> resultItems = JsqlparserUtil.perfectDmlResultItems(selectItems, table);
 
-        //3.逐列生成数据库解密表达式
+        //3.逐列生成数据库解密表达式，注意：这里语法特殊，SqlServer里面有专门的关键字 inserted deleted ，其实指向的是table主表的数据，所以这里去匹配关系的时候，所属的表使用table
         for (SelectItem selectItem : resultItems) {
             Expression expression = selectItem.getExpression();
             DBDecryptExpressionVisitor expressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(baseFieldParseTable,
                     EncryptorFunctionEnum.DEFAULT_DECRYPTION,
-                    null);
+                    null,
+                    table);
             expression.accept(expressionVisitor);
             //如果形成普通结果集，形成结果集时需要保留处理前的字段别名
             if (resultSet) {
@@ -178,44 +175,6 @@ public class EncryptorDbVisitorUtil {
         return resultItems;
     }
 
-    /**
-     * 展开DML返回列中的*，并保留原返回列顺序
-     * 注意：这里的* 是只包含主表table的全部字段
-     *
-     * @param selectItems         DML语句中的返回字段列表
-     * @param table               当前DML语句主表（PS：如果DML返回的是*的话，有点特殊，这里的*是只包含这个主表的字段）
-     * @param baseFieldParseTable DML目标表对应的字段解析结果
-     * @author liutangqi & gpt-5.6-sol
-     * @date 2026/11/17 15:20
-     **/
-    private static List<SelectItem<?>> perfectResultItems(List<SelectItem<?>> selectItems,
-                                                          Table table,
-                                                          BaseFieldParseTable baseFieldParseTable) {
-        //1.按照原字段解析结果的数据结构，构建只包含table的临时字段作用域
-        String tableName = Optional.ofNullable(table.getAlias()).map(Alias::getName).orElse(table.getName());
-        Map<String, List<FieldInfoDto>> curLayerFieldTableMap = baseFieldParseTable.getLayerFieldTableMap()
-                .getOrDefault(baseFieldParseTable.getLayer(), new FieldHashMapWrapper<>());
-        Map<String, List<FieldInfoDto>> dmlResultFieldTableMap = new FieldHashMapWrapper<>();
-        dmlResultFieldTableMap.put(tableName, curLayerFieldTableMap.getOrDefault(tableName, new ArrayList<>()));
-        Map<Integer, Map<String, List<FieldInfoDto>>> dmlResultLayerFieldTableMap = new LayerHashMapWrapper();
-        dmlResultLayerFieldTableMap.put(baseFieldParseTable.getLayer(), dmlResultFieldTableMap);
-
-        //2.无前缀*只使用目标表字段补全，带表名前缀的*继续使用完整作用域解析
-        List<SelectItem<?>> resultItems = new ArrayList<>();
-        for (SelectItem<?> selectItem : selectItems) {
-            Expression expression = selectItem.getExpression();
-            //2.1 无前缀* 使用目标表字段，带表名前缀的*返回完整作用域表字段信息
-            Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap = expression instanceof AllColumns && !(expression instanceof AllTableColumns)
-                    ? dmlResultLayerFieldTableMap
-                    : baseFieldParseTable.getLayerFieldTableMap();
-            //2.2 根据上面获取的作用域的表字段信息，补全*
-            List<SelectItem> perfectSelectItems = JsqlparserUtil.perfectAllColumns(selectItem, baseFieldParseTable.getLayer(), layerFieldTableMap, null);
-            for (SelectItem perfectSelectItem : perfectSelectItems) {
-                resultItems.add(perfectSelectItem);
-            }
-        }
-        return resultItems;
-    }
 
     /**
      * 修正JSqlParser 4.9序列化OUTPUT INTO语法时目标字段格式错误的问题

@@ -3,12 +3,14 @@ package com.sangsang.visitor.dbencrtptor;
 import com.sangsang.cache.encryptor.EncryptorInstanceCache;
 import com.sangsang.domain.annos.encryptor.FieldEncryptor;
 import com.sangsang.domain.constants.NumberConstant;
+import com.sangsang.domain.constants.SqlConstant;
 import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.dto.BaseDEcryptParseTable;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.enums.EncryptorFunctionEnum;
 import com.sangsang.util.CollectionUtils;
+import com.sangsang.util.ExpressionsUtil;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import lombok.Getter;
@@ -19,6 +21,7 @@ import net.sf.jsqlparser.expression.operators.conditional.OrExpression;
 import net.sf.jsqlparser.expression.operators.conditional.XorExpression;
 import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.AllColumns;
 import net.sf.jsqlparser.statement.select.AllTableColumns;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
@@ -53,6 +56,25 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
 
     /**
      * 获取当前层的解析对象
+     * 只有DML有返回值的时候才会调用这个
+     *
+     * @author liutangqi
+     * @date 2026/11/20 16:39
+     * @Param [baseFieldParseTable, encryptorFunctionEnum, upstreamFieldEncryptor]
+     **/
+    public static DBDecryptExpressionVisitor newInstanceCurLayer(BaseFieldParseTable baseFieldParseTable,
+                                                                 EncryptorFunctionEnum encryptorFunctionEnum,
+                                                                 FieldEncryptor upstreamFieldEncryptor,
+                                                                 Table returnTable) {
+        return new DBDecryptExpressionVisitor(baseFieldParseTable.getLayer(),
+                encryptorFunctionEnum,
+                upstreamFieldEncryptor,
+                baseFieldParseTable.getLayerSelectTableFieldMap(),
+                baseFieldParseTable.getLayerFieldTableMap(),
+                returnTable);
+    }
+    /**
+     * 获取当前层的解析对象
      * （一般是上层节点调用）
      *
      * @author liutangqi
@@ -66,7 +88,8 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
                 encryptorFunctionEnum,
                 upstreamFieldEncryptor,
                 baseFieldParseTable.getLayerSelectTableFieldMap(),
-                baseFieldParseTable.getLayerFieldTableMap());
+                baseFieldParseTable.getLayerFieldTableMap(),
+                null);
     }
 
     /**
@@ -85,15 +108,18 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
                 //注意：baseDEcryptParseTable的上游对应字段，到这里了就不是当前表达式的上游对应字段了，所以这里进行了清空
                 null,
                 baseDEcryptParseTable.getLayerSelectTableFieldMap(),
-                baseDEcryptParseTable.getLayerFieldTableMap());
+                baseDEcryptParseTable.getLayerFieldTableMap(),
+                //这里注意一下，一旦有一层里面出现了outputTable，说明当前sql涉及到了DML 返回值的，所以需要一直传递下去
+                baseDEcryptParseTable.getOutputTable());
     }
 
     private DBDecryptExpressionVisitor(int layer,
                                        EncryptorFunctionEnum encryptorFunctionEnum,
                                        FieldEncryptor upstreamFieldEncryptor,
                                        Map<Integer, Map<String, List<FieldInfoDto>>> layerSelectTableFieldMap,
-                                       Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap) {
-        super(layer, encryptorFunctionEnum, upstreamFieldEncryptor, layerSelectTableFieldMap, layerFieldTableMap);
+                                       Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap,
+                                       Table outputTable) {
+        super(layer, encryptorFunctionEnum, upstreamFieldEncryptor, layerSelectTableFieldMap, layerFieldTableMap, outputTable);
     }
 
     @Override
@@ -507,8 +533,14 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
      **/
     @Override
     public void visit(Column column) {
+        //0.如果当前是DML的返回值的字段,做字段匹配的时候，不使用伪表的伪别名，而用table的别名去做字段匹配，密文存储判断
+        Column matchColumn = column;
+        if (this.getOutputTable() != null && column.getTable() != null && SqlConstant.SQL_SERVER_RETURN_TABLES.contains(column.getTable().getName().toLowerCase(Locale.ROOT))) {
+            matchColumn = ExpressionsUtil.buildColumn(column.getColumnName(), this.getOutputTable());
+        }
+
         //1.判断当前列是否需要密文存储
-        FieldEncryptor currentFieldEncryptor = JsqlparserUtil.needEncryptFieldEncryptor(column, this);
+        FieldEncryptor currentFieldEncryptor = JsqlparserUtil.needEncryptFieldEncryptor(matchColumn, this);
 
         //2.获取上游列是否需要密文存储
         FieldEncryptor upstreamFieldEncryptor = this.getUpstreamFieldEncryptor();

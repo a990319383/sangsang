@@ -5,6 +5,7 @@ import com.sangsang.cache.fielddefault.FieldDefaultInstanceCache;
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.annos.fielddefault.FieldDefault;
 import com.sangsang.domain.constants.SymbolConstant;
+import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.ColumnUniqueDto;
 import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.enums.SqlCommandEnum;
@@ -50,11 +51,15 @@ public class FieldDefaultVisitorUtil {
      * @date 2026/10/10 18:26
      * @Param [updateSets, fieldInfoDtoMap ：当前层拥有的字段信息，sqlCommandEnum：当前属于数据新增还是数据修改的语法]
      **/
-    public static void updateSets(List<UpdateSet> updateSets, Map<String, List<FieldInfoDto>> fieldInfoDtoMap, SqlCommandEnum sqlCommandEnum) {
+    public static void updateSets(List<UpdateSet> updateSets,
+                                  BaseFieldParseTable baseFieldParseTable,
+                                  SqlCommandEnum sqlCommandEnum) {
         //1. 没有updateSet语句，不处理
         if (CollectionUtils.isEmpty(updateSets)) {
             return;
         }
+
+        Map<String, List<FieldInfoDto>> fieldInfoDtoMap = baseFieldParseTable.getLayerFieldTableMap().get(baseFieldParseTable.getLayer());
 
         //2.获取当前sql涉及到的表字段需要设置默认值的字段信息
         Map<ColumnUniqueDto, FieldDefault> columnFieldDefaultMap = JsqlparserUtil.filterFieldDefault(fieldInfoDtoMap, sqlCommandEnum);
@@ -208,7 +213,7 @@ public class FieldDefaultVisitorUtil {
     }
 
 
-    /**
+    /* *//**
      * 依次解析获取每个字段上面标注的@FieldDefault信息，如果设置了默认值的字段没有在insert into(字段) 中出现，则手动添加
      * 注意：标准的insert语法才做处理
      * 备注：只处理处理insert into table(字段) 语法中的字段部分, insert into set这种非标准的sql的话，insert.getSelect()是null
@@ -216,7 +221,7 @@ public class FieldDefaultVisitorUtil {
      * @author liutangqi
      * @date 2026/10/13 13:35
      * @Param [insert, stringFieldDefaultMap :此表字段对应的@FieldDefault 的信息]
-     **/
+     **//*
     public static List<FieldDefault> insertFieldDefaultColumns(Insert insert, Map<String, FieldDefault> stringFieldDefaultMap) {
         List<FieldDefault> insertFieldDefaultColumns = new ArrayList<>();
         //1. 非标准的insert 语法，比如 insert into set 语法，不做处理，直接返回空结果集
@@ -243,7 +248,7 @@ public class FieldDefaultVisitorUtil {
 
         //5.处理字段列表并返回每个字段对应的默认值注解信息
         return FieldDefaultVisitorUtil.insertFieldDefaultColumns(columns, stringFieldDefaultMap);
-    }
+    }*/
 
     /**
      * 依次解析获取UPSERT字段上面标注的@FieldDefault信息，如果设置了默认值的字段没有出现，则手动添加
@@ -276,7 +281,7 @@ public class FieldDefaultVisitorUtil {
         }
 
         //4.处理字段列表并返回每个字段对应的默认值注解信息
-        return FieldDefaultVisitorUtil.insertFieldDefaultColumns(columns, stringFieldDefaultMap);
+        return FieldDefaultVisitorUtil.insertFieldDefaultColumns(columns, table);
     }
 
     /**
@@ -302,14 +307,40 @@ public class FieldDefaultVisitorUtil {
 
     /**
      * 处理INSERT类语法的字段列表，返回字段顺序对应的@FieldDefault信息
+     * 注意：会根据情况进行字段补齐
+     * 注意：insert set这种语法不在 select 和columns都是空的，真正处理的地方在updateSet
+     *
+     * @author liutangqi
+     * @date 2026/11/25 16:51
+     * @Param [columns, table]
+     **/
+    public static List<FieldDefault> insertFieldDefaultColumns(ExpressionList<Column> columns,
+                                                               Table table) {
+        //1.从缓存中获取到当前表字段的@FieldDefault信息
+        Map<String, FieldDefault> stringFieldDefaultMap = TableCache.getTableFieldDefaultInfo().get(table.getName());
+        //2.执行具体逻辑
+        return FieldDefaultVisitorUtil.insertFieldDefaultColumns(columns, stringFieldDefaultMap);
+    }
+
+    /**
+     * 处理INSERT类语法的字段列表，返回字段顺序对应的@FieldDefault信息
+     * 注意：会根据情况进行字段补齐
+     * 注意：insert set这种语法不在 select 和columns都是空的，真正处理的地方在updateSet
      *
      * @author liutangqi
      * @date 2026/11/4 20:20
      * @Param [columns, stringFieldDefaultMap]
      **/
-    private static List<FieldDefault> insertFieldDefaultColumns(ExpressionList<Column> columns,
-                                                                Map<String, FieldDefault> stringFieldDefaultMap) {
+    public static List<FieldDefault> insertFieldDefaultColumns(ExpressionList<Column> columns,
+                                                               Map<String, FieldDefault> stringFieldDefaultMap) {
         List<FieldDefault> insertFieldDefaultColumns = new ArrayList<>();
+        //0.columns是空的，无法处理
+        // 为空的具体情况：
+        // 情况1：是insert set这种语法，这种语法无需处理，真正处理事在updateSet中处理的，是一个字段对应一个值的
+        // 情况2：insert into table的table后面没有跟字段顺序，我们执行前都会先对字段进行补全，如果这里是空的，说明无法补全，是无法处理的，在前面的程序就会被拦截
+        if (CollectionUtils.isEmpty(columns)) {
+            return insertFieldDefaultColumns;
+        }
 
         //1.把存储当前表的默认值设置信息深克隆一份，避免对缓存数据的影响
         Map<String, FieldDefault> cloneFieldDefaultMap = ObjectUtil.cloneByStream(stringFieldDefaultMap);
@@ -330,7 +361,7 @@ public class FieldDefaultVisitorUtil {
         if (CollectionUtils.isNotEmpty(cloneFieldDefaultMap)) {
             for (Map.Entry<String, FieldDefault> entry : cloneFieldDefaultMap.entrySet()) {
                 if (entry.getValue() != null) {
-                    Column column = ExpressionsUtil.buildColumn(entry.getKey(), null);
+                    Column column = ExpressionsUtil.buildColumn(entry.getKey());
                     columns.add(column);
                     insertFieldDefaultColumns.add(entry.getValue());
                 }

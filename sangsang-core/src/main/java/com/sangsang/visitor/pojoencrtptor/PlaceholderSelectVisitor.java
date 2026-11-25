@@ -1,9 +1,6 @@
 package com.sangsang.visitor.pojoencrtptor;
 
-import com.sangsang.domain.dto.BaseFieldParseTable;
-import com.sangsang.domain.dto.ColumnTableDto;
-import com.sangsang.domain.dto.FieldInfoDto;
-import com.sangsang.domain.dto.PlaceholderFieldParseTable;
+import com.sangsang.domain.dto.*;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.visitor.EncryptorPojoVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
@@ -27,14 +24,14 @@ public class PlaceholderSelectVisitor extends PlaceholderFieldParseTable impleme
      * 需要和上游关联时的上游的表达式
      * 例如： ? in (select xxx from table) 这种场景，这里存储的就是上游的表达式
      **/
-    private List<? extends Expression> upstreamExpressionList;
+    private List<UpstreamExpressionDto> upstreamExpressionList;
 
 
     private PlaceholderSelectVisitor(int layer,
                                      Map<Integer, Map<String, List<FieldInfoDto>>> layerSelectTableFieldMap,
                                      Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap,
                                      Map<String, ColumnTableDto> placeholderColumnTableMap,
-                                     List<? extends Expression> upstream) {
+                                     List<UpstreamExpressionDto> upstream) {
         super(layer, layerSelectTableFieldMap, layerFieldTableMap, placeholderColumnTableMap);
         this.upstreamExpressionList = Optional.ofNullable(upstream).orElse(new ArrayList<>());
     }
@@ -59,7 +56,7 @@ public class PlaceholderSelectVisitor extends PlaceholderFieldParseTable impleme
      * @Param [placeholderFieldParseTable]
      **/
     public static PlaceholderSelectVisitor newInstanceCurLayer(PlaceholderFieldParseTable placeholderFieldParseTable,
-                                                               List<? extends Expression> upstreamExpressionList) {
+                                                               List<UpstreamExpressionDto> upstreamExpressionList) {
         return PlaceholderSelectVisitor.newInstanceCurLayer(placeholderFieldParseTable, placeholderFieldParseTable.getPlaceholderColumnTableMap(), upstreamExpressionList);
     }
 
@@ -73,7 +70,7 @@ public class PlaceholderSelectVisitor extends PlaceholderFieldParseTable impleme
      **/
     public static PlaceholderSelectVisitor newInstanceCurLayer(BaseFieldParseTable fpt,
                                                                Map<String, ColumnTableDto> placeholderColumnTableMap,
-                                                               List<? extends Expression> upstream) {
+                                                               List<UpstreamExpressionDto> upstream) {
         return new PlaceholderSelectVisitor(
                 fpt.getLayer(),
                 fpt.getLayerSelectTableFieldMap(),
@@ -122,12 +119,31 @@ public class PlaceholderSelectVisitor extends PlaceholderFieldParseTable impleme
      * @Param [placeholderFieldParseTable, upstreamExpressionList]
      **/
     public static PlaceholderSelectVisitor newInstanceNextLayer(PlaceholderFieldParseTable placeholderFieldParseTable,
-                                                                List<? extends Expression> upstreamExpressionList) {
+                                                                List<UpstreamExpressionDto> upstreamExpressionList) {
         return new PlaceholderSelectVisitor((placeholderFieldParseTable.getLayer() + 1),
                 placeholderFieldParseTable.getLayerSelectTableFieldMap(),
                 placeholderFieldParseTable.getLayerFieldTableMap(),
                 placeholderFieldParseTable.getPlaceholderColumnTableMap(),
                 upstreamExpressionList);
+    }
+
+    /**
+     * 返回下一层实例
+     *
+     * @author liutangqi
+     * @date 2026/11/19 17:21
+     * @Param [fpt, placeholderColumnTableMap, upstream]
+     **/
+    public static PlaceholderSelectVisitor newInstanceNextLayer(BaseFieldParseTable fpt,
+                                                                Map<String, ColumnTableDto> placeholderColumnTableMap,
+                                                                List<UpstreamExpressionDto> upstream) {
+        return new PlaceholderSelectVisitor(
+                (fpt.getLayer() + 1),
+                fpt.getLayerSelectTableFieldMap(),
+                fpt.getLayerFieldTableMap(),
+                placeholderColumnTableMap,
+                upstream
+        );
     }
 
     /**

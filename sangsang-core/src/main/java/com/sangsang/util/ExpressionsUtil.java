@@ -23,10 +23,7 @@ import net.sf.jsqlparser.statement.update.UpdateSet;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 /**
  * 表达式工具类
@@ -173,6 +170,37 @@ public class ExpressionsUtil {
             column.setTable(table);
         }
         return column;
+    }
+
+    /**
+     * 构建Column
+     * 注意：正常解析的Column归属的Table对象是不可能能存在别名的，所以，如果table对象存在别名的话，就用别名创建一个新的table作为column的归属
+     *
+     * @author liutangqi
+     * @date 2026/11/20 16:52
+     * @Param [columnName, tableName]
+     **/
+    public static Column buildColumn(String columnName, Table table) {
+        Column column = new Column(columnName);
+        // table存在别名，就用table的别名建个新table，作为Column的归属，column的归属的table正常情况下是不会出现有别名的
+        Table columnTable = Optional.ofNullable(table)
+                .map(Table::getAlias)
+                .map(Alias::getName)
+                .map(Table::new)
+                .orElse(table);
+        column.setTable(columnTable);
+        return column;
+    }
+
+    /**
+     * 构建Column
+     *
+     * @author liutangqi
+     * @date 2026/11/20 16:52
+     * @Param [columnName, tableName]
+     **/
+    public static Column buildColumn(String columnName) {
+        return new Column(columnName);
     }
 
 

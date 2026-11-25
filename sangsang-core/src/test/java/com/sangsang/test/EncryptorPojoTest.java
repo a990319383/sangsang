@@ -9,6 +9,7 @@ import com.sangsang.util.*;
 import com.sangsang.visitor.pojoencrtptor.PoJoEncrtptorStatementVisitor;
 import net.sf.jsqlparser.statement.Statement;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.BeanUtils;
 
 import java.util.Arrays;
 import java.util.List;
@@ -43,6 +44,7 @@ public class EncryptorPojoTest {
     // union
     String s6 = "select * from tb_user tu where tu.phone = ? union all select * from tb_user tu2 where tu2.phone = ? union select * from tb_user tu3 where tu3.phone = ?";
 
+    //这里和s3重复了，后面换成其它的
     String s7 = "select b.ph, b.create_time as btime from ( select menuName, login_name, ph, a.create_time from ( select phone as ph, tu.login_name, tm.create_time, tm.menu_name as menuName from tb_user tu left join tb_menu tm on tu.id = tm.id) a where ph = ? ) b";
 
     // 同一张表一个字段出现多次，但别名不同  （tb_menu 表的 mmenu_name）
@@ -272,8 +274,8 @@ public class EncryptorPojoTest {
     //INSERT RETURNING形成结果集，返回密文字段
     String i18 = "INSERT INTO tb_user(phone,user_name) VALUES (?,?) RETURNING phone";
 
-    //INSERT OUTPUT形成结果集，返回inserted伪表中的密文字段
-    String i19 = "INSERT INTO tb_user(phone,user_name) OUTPUT inserted.phone AS phone VALUES (?,?)";
+    //INSERT OUTPUT形成结果集，返回inserted伪表中的密文字段，并带别名
+    String i19 = "INSERT INTO tb_user(phone,user_name) OUTPUT inserted.phone AS ph VALUES (?,?)";
     // --------------delete 测试语句 ---------------
 
     // delet join
@@ -343,6 +345,12 @@ public class EncryptorPojoTest {
     //UPDATE RETURNING INTO不形成普通结果集，pojo不维护返回字段信息
     String u14 = "UPDATE tb_user SET user_name = ? WHERE id = ? RETURNING phone INTO out_phone";
 
+    //UPDATE RETURNING INTO 存在别名
+    String u15 = "UPDATE TB_USER tu SET user_name = ? WHERE tu.id = ? RETURNING user_name as um ";
+
+    //UPDATE OUTPUT 存在别名
+    String u16 = "UPDATE TB_USER tu SET user_name = ? OUTPUT inserted.* WHERE tu.id = ?";
+
     // --------------merge 测试语句 ---------------
 
     //测试MERGE的USING来源表条件、MATCHED UPDATE和NOT MATCHED INSERT分支中的占位符映射
@@ -374,7 +382,7 @@ public class EncryptorPojoTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = u13;
+        String sql = up1;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -396,7 +404,7 @@ public class EncryptorPojoTest {
             s43, s44, s45, s46, s47, s48, s49, s50, s51, s52, s53, s54, s55, s56, s57, s58, s61, s62, s63, s64,
             i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i17, i18, i19,
             d1, d2, d3, d4, d5, d6, d7,
-            u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11, u12, u13, u14,
+            u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11, u12, u13, u14, u15, u16,
             m1,
             up1, up2
     );
@@ -425,7 +433,6 @@ public class EncryptorPojoTest {
             statement.accept(poJoEncrtptorStatementVisitor);
             List<FieldEncryptorInfoDto> fieldEncryptorInfos = poJoEncrtptorStatementVisitor.getFieldEncryptorInfos();
             Map<String, ColumnTableDto> placeholderColumnTableMap = poJoEncrtptorStatementVisitor.getPlaceholderColumnTableMap();
-
 
             //找答案
             Pair<String, String> answer = AnswerUtil.readPOJOAnswerToFile(this, sql);

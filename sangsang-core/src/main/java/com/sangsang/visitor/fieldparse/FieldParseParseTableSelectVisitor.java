@@ -38,11 +38,27 @@ public class FieldParseParseTableSelectVisitor extends BaseFieldParseTable imple
     }
 
 
-    public static FieldParseParseTableSelectVisitor newInstanceFirstLayer(Map<Integer, Map<String, List<FieldInfoDto>>> layerSelectTableFieldMap, Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap) {
+    public static FieldParseParseTableSelectVisitor newInstanceFirstLayer(Map<Integer, Map<String, List<FieldInfoDto>>> layerSelectTableFieldMap,
+                                                                          Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap) {
         return new FieldParseParseTableSelectVisitor(
                 NumberConstant.ONE,
                 layerSelectTableFieldMap,
                 layerFieldTableMap
+        );
+    }
+
+    /**
+     * 获取当前层解析对象
+     *
+     * @author liutangqi
+     * @date 2026/11/18 16:03
+     * @Param [baseFieldParseTable]
+     **/
+    public static FieldParseParseTableSelectVisitor newInstanceCurLayer(BaseFieldParseTable baseFieldParseTable) {
+        return new FieldParseParseTableSelectVisitor(
+                baseFieldParseTable.getLayer(),
+                baseFieldParseTable.getLayerSelectTableFieldMap(),
+                baseFieldParseTable.getLayerFieldTableMap()
         );
     }
 

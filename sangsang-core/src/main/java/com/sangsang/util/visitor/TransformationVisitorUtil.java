@@ -3,7 +3,10 @@ package com.sangsang.util.visitor;
 import com.sangsang.cache.transformation.TransformationInstanceCache;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.ColumnTransformationDto;
+import com.sangsang.domain.dto.FieldInfoDto;
+import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
+import com.sangsang.util.StringUtils;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import com.sangsang.visitor.transformation.TransformationExpressionVisitor;
 import com.sangsang.visitor.transformation.TransformationSelectVisitor;
@@ -11,11 +14,13 @@ import com.sangsang.visitor.transformation.wrap.ExpressionWrapper;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.WithItem;
 import net.sf.jsqlparser.statement.update.UpdateSet;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -25,6 +30,36 @@ import java.util.Optional;
  * @date 2026/11/4 20:40
  */
 public class TransformationVisitorUtil {
+
+    /**
+     * 判断当前column 是否是表字段还是常量
+     * 主要用于语法转换时 ` " ‘ 符号的取舍
+     * 当这个方法返回的是true时，说明这个字段不是常量，可能来自某张虚拟表或者真实表的字段
+     * 注意：来自虚拟表的字段，哪怕这个字段在原虚拟表中属于常量，这个也是表字段
+     *
+     * @author liutangqi
+     * @date 2025/5/27 13:08
+     * @Param [column, layer, layerFieldTableMap]
+     **/
+    public static boolean isTableFiled(Column column, int layer, Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap) {
+        //字段名
+        String columName = column.getColumnName();
+        //字段所属表 （只有select 别名.字段名 时这个才有值，其它的为null）
+        Table table = column.getTable();
+
+        //1.没有指定表名时，从当前层的表的所有字段里面找到这个名字的表( select 字段)
+        if (table == null) {
+            for (Map.Entry<String, List<FieldInfoDto>> entry : layerFieldTableMap.getOrDefault(layer, new FieldHashMapWrapper<>()).entrySet()) {
+                //任意的表有一个字段符合，则返回true，表示是个表字段
+                if (entry.getValue().stream().anyMatch(m -> StringUtils.fieldEquals(m.getColumnName(), columName))) {
+                    return true;
+                }
+            }
+        }
+
+        //2.有指定表名时，说明肯定来自某张表，哪怕是虚拟表
+        return table != null;
+    }
 
     /**
      * 对表达式进行语法转换

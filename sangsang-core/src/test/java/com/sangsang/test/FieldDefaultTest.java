@@ -121,7 +121,7 @@ public class FieldDefaultTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要的sql
-        String sql = m1;
+        String sql = i11;
 
         //开始进行数据隔离
         Statement statement = JsqlparserUtil.parse(sql);

@@ -1,1 +1,1 @@
-INSERT INTO tb_user (phone, user_name) OUTPUT CAST(AES_DECRYPT(FROM_BASE64(inserted.phone), '7uq?q8g3@q') AS CHAR) AS phone VALUES (TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q')), ?) 
+INSERT INTO tb_user (phone, user_name) OUTPUT CAST(AES_DECRYPT(FROM_BASE64(inserted.phone), '7uq?q8g3@q') AS CHAR) AS ph VALUES (TO_BASE64(AES_ENCRYPT(?, '7uq?q8g3@q')), ?)

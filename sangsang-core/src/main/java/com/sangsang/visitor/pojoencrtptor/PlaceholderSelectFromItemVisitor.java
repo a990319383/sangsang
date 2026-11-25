@@ -3,6 +3,7 @@ package com.sangsang.visitor.pojoencrtptor;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.ColumnTableDto;
 import com.sangsang.domain.dto.PlaceholderFieldParseTable;
+import com.sangsang.domain.dto.UpstreamExpressionDto;
 import com.sangsang.util.visitor.EncryptorPojoVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import net.sf.jsqlparser.expression.Expression;
@@ -25,12 +26,12 @@ public class PlaceholderSelectFromItemVisitor extends PlaceholderFieldParseTable
      * 需要和上游关联时的上游的表达式
      * 例如： ? in (select xxx from table) 这种场景，这里存储的就是上游的表达式
      **/
-    private List<? extends Expression> upstreamExpressionList;
+    private List<UpstreamExpressionDto> upstreamExpressionList;
 
 
     private PlaceholderSelectFromItemVisitor(BaseFieldParseTable baseFieldParseTable,
                                              Map<String, ColumnTableDto> placeholderColumnTableMap,
-                                             List<? extends Expression> upstreamExpressionList) {
+                                             List<UpstreamExpressionDto> upstreamExpressionList) {
         super(baseFieldParseTable, placeholderColumnTableMap);
         this.upstreamExpressionList = upstreamExpressionList;
     }
@@ -42,7 +43,7 @@ public class PlaceholderSelectFromItemVisitor extends PlaceholderFieldParseTable
      * @date 2025/12/23 10:29
      * @Param [placeholderFieldParseTable, upstreamExpressionList]
      **/
-    public static PlaceholderSelectFromItemVisitor newInstanceCurLayer(PlaceholderFieldParseTable placeholderFieldParseTable, List<? extends Expression> upstreamExpressionList) {
+    public static PlaceholderSelectFromItemVisitor newInstanceCurLayer(PlaceholderFieldParseTable placeholderFieldParseTable, List<UpstreamExpressionDto> upstreamExpressionList) {
         return new PlaceholderSelectFromItemVisitor(placeholderFieldParseTable, placeholderFieldParseTable.getPlaceholderColumnTableMap(), upstreamExpressionList);
     }
 
@@ -65,7 +66,7 @@ public class PlaceholderSelectFromItemVisitor extends PlaceholderFieldParseTable
      * @Param [baseFieldParseTable, placeholderColumnTableMap]
      **/
     public static PlaceholderSelectFromItemVisitor newInstanceCurLayer(BaseFieldParseTable baseFieldParseTable,
-                                                                        Map<String, ColumnTableDto> placeholderColumnTableMap) {
+                                                                       Map<String, ColumnTableDto> placeholderColumnTableMap) {
         return new PlaceholderSelectFromItemVisitor(baseFieldParseTable, placeholderColumnTableMap, null);
     }
 

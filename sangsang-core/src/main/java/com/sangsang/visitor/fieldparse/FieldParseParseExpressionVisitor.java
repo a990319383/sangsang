@@ -1,6 +1,7 @@
 package com.sangsang.visitor.fieldparse;
 
 import com.sangsang.domain.constants.FieldConstant;
+import com.sangsang.domain.constants.SqlConstant;
 import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.dto.ColumnTableDto;
@@ -8,6 +9,7 @@ import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.wrapper.FieldHashMapWrapper;
 import com.sangsang.domain.wrapper.LayerHashMapWrapper;
 import com.sangsang.util.CollectionUtils;
+import com.sangsang.util.ExpressionsUtil;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.StringUtils;
 import net.sf.jsqlparser.expression.*;
@@ -17,6 +19,7 @@ import net.sf.jsqlparser.expression.operators.conditional.OrExpression;
 import net.sf.jsqlparser.expression.operators.conditional.XorExpression;
 import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.AllColumns;
 import net.sf.jsqlparser.statement.select.AllTableColumns;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
@@ -36,6 +39,12 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
      * 当前字段拥有的别名
      */
     private Alias alias;
+    /**
+     * 某些DML语法中，可以支持特定伪表来输出返回值，比如SqlServer 的OUTPUT语法 (注意：PostgreSQL 的 RETURNING 语法是不存在伪表的，直接就是字段名，所以不需要额外处理)
+     * 此时可以通过特别的伪表的伪别名获取表字段信息，FieldParser解析的信息里面是没有伪表的数据的，伪表的字段其实就是所属Table的字段
+     * 这种情况下，就需要上游把所属的表给传递过来
+     */
+    private Table outputTable;
 
     /**
      * 获取当前层实例对象
@@ -46,15 +55,40 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
      **/
     public static FieldParseParseExpressionVisitor newInstanceCurLayer(BaseFieldParseTable baseFieldParseTable, Alias alias) {
         return new FieldParseParseExpressionVisitor(alias,
+                null,
                 baseFieldParseTable.getLayer(),
                 baseFieldParseTable.getLayerSelectTableFieldMap(),
                 baseFieldParseTable.getLayerFieldTableMap()
         );
     }
 
-    private FieldParseParseExpressionVisitor(Alias alias, int layer, Map<Integer, Map<String, List<FieldInfoDto>>> layerSelectTableFieldMap, Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap) {
+    /**
+     * 获得当前层实例，DML 带返回值的语法中才使用
+     * 传入的Table是DML的主表
+     *
+     * @author liutangqi
+     * @date 2026/11/25 13:49
+     * @Param [baseFieldParseTable, alias, outputTable]
+     **/
+    public static FieldParseParseExpressionVisitor newInstanceCurLayer(BaseFieldParseTable baseFieldParseTable,
+                                                                       Alias alias,
+                                                                       Table outputTable) {
+        return new FieldParseParseExpressionVisitor(alias,
+                outputTable,
+                baseFieldParseTable.getLayer(),
+                baseFieldParseTable.getLayerSelectTableFieldMap(),
+                baseFieldParseTable.getLayerFieldTableMap()
+        );
+    }
+
+    private FieldParseParseExpressionVisitor(Alias alias,
+                                             Table outputTable,
+                                             int layer,
+                                             Map<Integer, Map<String, List<FieldInfoDto>>> layerSelectTableFieldMap,
+                                             Map<Integer, Map<String, List<FieldInfoDto>>> layerFieldTableMap) {
         super(layer, layerSelectTableFieldMap, layerFieldTableMap);
         this.alias = alias;
+        this.outputTable = outputTable;
     }
 
 
@@ -289,24 +323,30 @@ public class FieldParseParseExpressionVisitor extends BaseFieldParseTable implem
 
     @Override
     public void visit(Column tableColumn) {
-        //1.解析当前字段所属的表信息
-        ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn(tableColumn, this);
+        //1.如果当前是DML的返回值的字段,做字段匹配的时候，则不使用伪表的伪别名，而用table的别名去做字段匹配，密文存储判断
+        Column matchColumn = tableColumn;
+        if (this.outputTable != null && SqlConstant.SQL_SERVER_RETURN_TABLES.contains(Optional.ofNullable(tableColumn.getTable()).map(Table::getName).map(m -> m.toLowerCase(Locale.ROOT)).orElse(null))) {
+            matchColumn = ExpressionsUtil.buildColumn(tableColumn.getColumnName(), this.outputTable);
+        }
+
+        //2.解析当前字段所属的表信息
+        ColumnTableDto columnTableDto = JsqlparserUtil.parseColumn(matchColumn, this);
         //当前字段别名，别名没有取库字段名
         String aliasColumName = Optional.ofNullable(alias).map(Alias::getName).orElse(tableColumn.getColumnName());
 
-        //2.匹配到了真实表名，则将此字段存入 layerSelectTableFieldMap
+        //3.匹配到了真实表名，则将此字段存入 layerSelectTableFieldMap
         if (StringUtils.isNotBlank(columnTableDto.getSourceTableName())) {
             FieldInfoDto fieldInfoDto = FieldInfoDto.builder().columnName(aliasColumName).sourceTableName(columnTableDto.getSourceTableName()).sourceColumn(columnTableDto.getSourceColumn()).fromSourceTable(columnTableDto.isFromSourceTable()).rowNumber(false).build();
 
             //将此字段存入 layerSelectTableFieldMap 中
             JsqlparserUtil.putFieldInfo(this.getLayerSelectTableFieldMap(), this.getLayer(), columnTableDto.getTableAliasName(), fieldInfoDto);
         }
-        //3.未匹配到真实表名，但是存在所属表别名，说明这个字段是属于内层嵌套的常量字段
+        //4.未匹配到真实表名，但是存在所属表别名，说明这个字段是属于内层嵌套的常量字段
         else if (StringUtils.isNotBlank(columnTableDto.getTableAliasName())) {
             FieldInfoDto fieldInfoDto = FieldInfoDto.builder().columnName(aliasColumName).sourceTableName(null).sourceColumn(null).fromSourceTable(false).rowNumber(false).build();
             JsqlparserUtil.putFieldInfo(this.getLayerSelectTableFieldMap(), this.getLayer(), columnTableDto.getTableAliasName(), fieldInfoDto);
         }
-        //4.如果当前字段没有匹配到真实表名，则此字段可能是个常量或者是数据库自带的一些属性字段，这个时候把这个字段挂虚拟表上去，存到layerSelectTableFieldMap和 layerFieldTableMap中
+        //5.如果当前字段没有匹配到真实表名，则此字段可能是个常量或者是数据库自带的一些属性字段，这个时候把这个字段挂虚拟表上去，存到layerSelectTableFieldMap和 layerFieldTableMap中
         else {
             //判断当前列是否属于行号字段
             boolean rowNumber = JsqlparserUtil.rowNumber(tableColumn);

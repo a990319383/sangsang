@@ -36,6 +36,7 @@ public class EncryptorDbTest {
     // union
     String s6 = "select * from tb_user tu where tu.phone = ? union all select * from tb_user tu2 where tu2.phone = ? union select * from tb_user tu3 where tu3.phone = ?";
 
+    //这里和s3重复了，后面换成其它的
     String s7 = "select b.ph, b.create_time as btime from ( select menuName, login_name, ph, a.create_time from ( select phone as ph, tu.login_name, tm.create_time, tm.menu_name as menuName from tb_user tu left join tb_menu tm on tu.id = tm.id) a where ph = ? ) b";
 
     // 同一张表一个字段出现多次，但别名不同  （tb_menu 表的 mmenu_name）
@@ -275,8 +276,11 @@ public class EncryptorDbTest {
     //INSERT RETURNING返回密文字段
     String i19 = "INSERT INTO tb_user(phone,user_name) VALUES (?,?) RETURNING phone";
 
-    //INSERT OUTPUT返回inserted伪表中的密文字段
-    String i20 = "INSERT INTO tb_user(phone,user_name) OUTPUT inserted.phone AS phone VALUES (?,?)";
+    //INSERT OUTPUT返回inserted伪表中的密文字段，并带别名
+    String i20 = "INSERT INTO tb_user(phone,user_name) OUTPUT inserted.phone AS ph VALUES (?,?)";
+
+    //INSERT OUTPUT返回inserted伪表中的密文字段，并且通过了函数处理
+    String i21 = "INSERT INTO tb_user(phone,user_name) OUTPUT concat(inserted.phone,'--') AS phone VALUES (?,?)";
 
     //UPSERT VALUES语法
     String up1 = "UPSERT INTO tb_user(id,phone) VALUES(?,?)";
@@ -355,8 +359,14 @@ public class EncryptorDbTest {
     //UPDATE OUTPUT INTO 到具体的一张表里面
     String u15 = "UPDATE tb_user SET user_name = ?, login_name = ?, login_pwd = ?, phone = ?, role_id = ? OUTPUT inserted.user_name, inserted.phone INTO tb_user_bak (user_name, phone) WHERE id = ?";
 
+    //UPDATE RETURNING INTO 存在别名
+    String u16 = "UPDATE TB_USER tu SET user_name = ? WHERE tu.id = ? RETURNING *";
+
+    //UPDATE OUTPUT 存在别名
+    String u17 = "UPDATE TB_USER tu SET user_name = ? OUTPUT inserted.* WHERE tu.id = ?";
+
     //MERGE的ON、UPDATE和INSERT分支
-    String m1 = "MERGE INTO tb_user t USING tb_user s ON (t.phone = ?) WHEN MATCHED THEN UPDATE SET t.phone = ? WHEN NOT MATCHED THEN INSERT(id,phone) VALUES(?,?)";
+    String m1 = "MERGE INTO tb_user AS t USING tb_user AS s ON(t.phone = ?) WHEN MATCHED THEN UPDATE SET phone = ? WHEN NOT MATCHED THEN INSERT (id, phone) VALUES (?, ?)";
 
 //----------------------------------------测试单条sql分割线---------------------------------------------------------
 
@@ -397,9 +407,10 @@ public class EncryptorDbTest {
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19,
             s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42,
             s43, s44, s45, s46, s47, s48, s49, s50, s51, s52, s53, s54, s55, s56, s57, s58, s59, s61, s62, s63, s64,
-            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i18, i19, i20, up1, up2,//i17
+            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i18, i19, i20, i21,//i17
+            up1, up2,
             d1, d2, d3, d4, d5, d6, d7,
-            u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11, u12, u13, u14, u15,
+            u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11, u12, u13, u14, u15, u16, u17,
             m1
     );
 
