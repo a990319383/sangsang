@@ -2,6 +2,7 @@ package com.sangsang.util.visitor;
 
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.annos.encryptor.FieldEncryptor;
+import com.sangsang.domain.dto.BaseDEcryptParseTable;
 import com.sangsang.domain.dto.BaseFieldParseTable;
 import com.sangsang.domain.enums.EncryptorFunctionEnum;
 import com.sangsang.domain.wrapper.FieldHashMapWrapper;
@@ -18,7 +19,9 @@ import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.OutputClause;
 import net.sf.jsqlparser.statement.ReturningClause;
 import net.sf.jsqlparser.statement.select.FromItem;
+import net.sf.jsqlparser.statement.select.GroupByElement;
 import net.sf.jsqlparser.statement.select.Join;
+import net.sf.jsqlparser.statement.select.OrderByElement;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.SelectItem;
 import net.sf.jsqlparser.statement.select.WithItem;
@@ -263,6 +266,79 @@ public class EncryptorDbVisitorUtil {
         DBDecryptExpressionVisitor expressionVisitor = DBDecryptExpressionVisitor.newInstanceCurLayer(baseFieldParseTable, EncryptorFunctionEnum.DEFAULT_DECRYPTION, null);
         expression.accept(expressionVisitor);
         return Optional.ofNullable(expressionVisitor.getProcessedExpression()).orElse(expression);
+    }
+
+    /**
+     * 根据上游字段的密文存储要求，对完整表达式结果进行处理
+     *
+     * @author liutangqi & gpt-5.6-sol
+     * @date 2026/11/26 10:30
+     * @Param [expression, baseDEcryptParseTable]
+     **/
+    public static Expression upstreamExpressionDispose(Expression expression,
+                                                       BaseDEcryptParseTable baseDEcryptParseTable) {
+        if (baseDEcryptParseTable.getUpstreamFieldEncryptor() == null) {
+            return null;
+        }
+        return baseDEcryptParseTable.getEncryptorFunctionEnum()
+                .getFun()
+                .dispose(baseDEcryptParseTable.getUpstreamFieldEncryptor(), null, expression);
+    }
+
+    /**
+     * 不考虑上游对应字段，对ExpressionList中的表达式进行解密处理
+     *
+     * @author liutangqi & gpt-5.6-sol
+     * @date 2026/11/26 10:20
+     * @Param [expressionList, baseFieldParseTable]
+     **/
+    public static void expressionListDecryption(ExpressionList expressionList,
+                                                BaseFieldParseTable baseFieldParseTable) {
+        if (CollectionUtils.isEmpty(expressionList)) {
+            return;
+        }
+        for (int i = 0; i < expressionList.size(); i++) {
+            Expression expression = (Expression) expressionList.get(i);
+            expressionList.set(i, EncryptorDbVisitorUtil.expressionDecryption(expression, baseFieldParseTable));
+        }
+    }
+
+    /**
+     * 对ORDER BY中的表达式进行解密处理，保证按照明文语义排序
+     *
+     * @author liutangqi & gpt-5.6-sol
+     * @date 2026/11/26 10:20
+     * @Param [orderByElements, baseFieldParseTable]
+     **/
+    public static void orderByElements(List<OrderByElement> orderByElements,
+                                       BaseFieldParseTable baseFieldParseTable) {
+        if (CollectionUtils.isEmpty(orderByElements)) {
+            return;
+        }
+        for (OrderByElement orderByElement : orderByElements) {
+            orderByElement.setExpression(EncryptorDbVisitorUtil.expressionDecryption(orderByElement.getExpression(), baseFieldParseTable));
+        }
+    }
+
+    /**
+     * 对GROUP BY中的表达式进行解密处理，保证按照明文语义分组
+     * 对于加解密这种场景，不考虑密文冲突和随机加密的情况下，密文分组还是明文分组没有任何区别，所以这里不对group by进行处理
+     *
+     * @author liutangqi & gpt-5.6-sol
+     * @date 2026/11/26 10:20
+     * @Param [groupByElement, baseFieldParseTable]
+     **/
+    public static void groupByElement(GroupByElement groupByElement,
+                                      BaseFieldParseTable baseFieldParseTable) {
+        if (groupByElement == null) {
+            return;
+        }
+        expressionListDecryption(groupByElement.getGroupByExpressionList(), baseFieldParseTable);
+        if (!CollectionUtils.isEmpty(groupByElement.getGroupingSets())) {
+            for (ExpressionList groupingSet : groupByElement.getGroupingSets()) {
+                EncryptorDbVisitorUtil.expressionListDecryption(groupingSet, baseFieldParseTable);
+            }
+        }
     }
 
     /**

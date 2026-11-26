@@ -187,6 +187,12 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
             //处理后的条件赋值
             plainSelect.setHaving(Optional.ofNullable(sDecryptExpressionVisitor.getProcessedExpression()).orElse(having));
         }
+
+        //9.对group by中的字段进行解密，保证按照明文语义分组 备注：group by 语法使用密文还是明文，在不考虑密文冲突和随机加密的情况下，意义不大，加了反而影响性能，所以这里不处理group by
+//        EncryptorDbVisitorUtil.groupByElement(plainSelect.getGroupBy(), this);
+
+        //10.对order by中的字段进行解密，保证按照明文语义排序
+        EncryptorDbVisitorUtil.orderByElements(plainSelect.getOrderByElements(), this);
     }
 
     /**
@@ -218,6 +224,9 @@ public class DBDecryptSelectVisitor extends BaseFieldParseTable implements Selec
             resSelectBody.add(select);
         }
         setOpList.setSelects(resSelectBody);
+
+        //处理union结果集的排序字段
+        EncryptorDbVisitorUtil.orderByElements(setOpList.getOrderByElements(), this);
     }
 
     @Override

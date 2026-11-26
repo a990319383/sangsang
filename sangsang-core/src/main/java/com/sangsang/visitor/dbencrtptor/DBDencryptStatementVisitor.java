@@ -170,6 +170,8 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
         EncryptorDbVisitorUtil.updateSets(insert.getDuplicateUpdateSets(), fpStatementVisitor);
         //5.2 处理 PostgreSQL ON CONFLICT DO UPDATE
         EncryptorDbVisitorUtil.updateSets(Optional.ofNullable(insert.getConflictAction()).map(InsertConflictAction::getUpdateSets).orElse(CollectionUtils.EMPTY_LIST), fpStatementVisitor);
+        //5.3 处理 INSERT SET
+        EncryptorDbVisitorUtil.updateSets(insert.getSetUpdateSets(), fpStatementVisitor);
 
         //6.处理DML返回列
         EncryptorDbVisitorUtil.returning(insert.getReturningClause(), insert.getTable(), fpStatementVisitor);

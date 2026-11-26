@@ -12,6 +12,7 @@ import com.sangsang.domain.enums.EncryptorFunctionEnum;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.ExpressionsUtil;
 import com.sangsang.util.JsqlparserUtil;
+import com.sangsang.util.visitor.EncryptorDbVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import lombok.Getter;
 import net.sf.jsqlparser.expression.*;
@@ -73,6 +74,7 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
                 baseFieldParseTable.getLayerFieldTableMap(),
                 returnTable);
     }
+
     /**
      * 获取当前层的解析对象
      * （一般是上层节点调用）
@@ -166,13 +168,14 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
             function.setParameters(new ExpressionList(disposeParameters));
         }
 
-        //3.如果存在上游表达式，则需要对整个function处理一次
-        if (this.getUpstreamFieldEncryptor() != null) {
-            //注意：当前是个function，头上肯定没有注解，所以传null
-            this.processedExpression = this.getEncryptorFunctionEnum()
-                    .getFun()
-                    .dispose(this.getUpstreamFieldEncryptor(), null, function);
-        }
+        //3.处理函数内部的排序字段
+        EncryptorDbVisitorUtil.orderByElements(function.getOrderByElements(), this);
+
+        //4.处理KEEP语法中的排序字段
+        Optional.ofNullable(function.getKeep()).ifPresent(p -> p.accept(this));
+
+        //5.如果存在上游表达式，则需要对整个function处理一次
+        this.processedExpression = EncryptorDbVisitorUtil.upstreamExpressionDispose(function, this);
     }
 
     @Override
@@ -261,27 +264,32 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
 
     @Override
     public void visit(Addition addition) {
-
+        JsqlparserUtil.visitDbBinaryExpression(this, addition);
+        this.processedExpression = EncryptorDbVisitorUtil.upstreamExpressionDispose(addition, this);
     }
 
     @Override
     public void visit(Division division) {
-
+        JsqlparserUtil.visitDbBinaryExpression(this, division);
+        this.processedExpression = EncryptorDbVisitorUtil.upstreamExpressionDispose(division, this);
     }
 
     @Override
     public void visit(IntegerDivision division) {
-
+        JsqlparserUtil.visitDbBinaryExpression(this, division);
+        this.processedExpression = EncryptorDbVisitorUtil.upstreamExpressionDispose(division, this);
     }
 
     @Override
     public void visit(Multiplication multiplication) {
-
+        JsqlparserUtil.visitDbBinaryExpression(this, multiplication);
+        this.processedExpression = EncryptorDbVisitorUtil.upstreamExpressionDispose(multiplication, this);
     }
 
     @Override
     public void visit(Subtraction subtraction) {
-
+        JsqlparserUtil.visitDbBinaryExpression(this, subtraction);
+        this.processedExpression = EncryptorDbVisitorUtil.upstreamExpressionDispose(subtraction, this);
     }
 
     @Override
@@ -714,12 +722,36 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
 
     @Override
     public void visit(Modulo modulo) {
-
+        JsqlparserUtil.visitDbBinaryExpression(this, modulo);
+        this.processedExpression = EncryptorDbVisitorUtil.upstreamExpressionDispose(modulo, this);
     }
 
     @Override
     public void visit(AnalyticExpression aexpr) {
+        //1.处理窗口函数自身的表达式、偏移量、默认值和FILTER条件
+        aexpr.setExpression(EncryptorDbVisitorUtil.expressionDecryption(aexpr.getExpression(), this));
+        aexpr.setOffset(EncryptorDbVisitorUtil.expressionDecryption(aexpr.getOffset(), this));
+        aexpr.setDefaultValue(EncryptorDbVisitorUtil.expressionDecryption(aexpr.getDefaultValue(), this));
+        aexpr.setFilterExpression(EncryptorDbVisitorUtil.expressionDecryption(aexpr.getFilterExpression(), this));
 
+        //2.处理窗口定义中的ORDER BY，兼容两种窗口定义存储结构
+        //PARTITION BY直接使用密文列分区时，在不考虑密文冲突和随机加密的情况下与明文分区结果一致，解密反而影响性能，所以这里不处理PARTITION BY
+        if (aexpr.getWindowDefinition() == null) {
+//            EncryptorDbVisitorUtil.expressionListDecryption(aexpr.getPartitionExpressionList(), this);
+            EncryptorDbVisitorUtil.orderByElements(aexpr.getOrderByElements(), this);
+        } else {
+//            EncryptorDbVisitorUtil.expressionListDecryption(aexpr.getWindowDefinition().getPartitionExpressionList(), this);
+            EncryptorDbVisitorUtil.orderByElements(aexpr.getWindowDefinition().getOrderByElements(), this);
+        }
+
+        //3.处理WITHIN GROUP中的排序字段
+        EncryptorDbVisitorUtil.orderByElements(aexpr.getFuncOrderBy(), this);
+
+        //4.处理KEEP语法中的排序字段
+        Optional.ofNullable(aexpr.getKeep()).ifPresent(p -> p.accept(this));
+
+        //5.存在上游字段时，对窗口函数的完整结果进行处理
+        this.processedExpression = EncryptorDbVisitorUtil.upstreamExpressionDispose(aexpr, this);
     }
 
     @Override
@@ -764,7 +796,7 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
 
     @Override
     public void visit(KeepExpression aexpr) {
-
+        EncryptorDbVisitorUtil.orderByElements(aexpr.getOrderByElements(), this);
     }
 
     @Override
@@ -780,6 +812,12 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
 
         //替换解密后的表达式
         groupConcat.setExpressionList(new ExpressionList(newExpressions));
+
+        //处理group_concat内部的排序字段
+        EncryptorDbVisitorUtil.orderByElements(groupConcat.getOrderByElements(), this);
+
+        //存在上游表达式时，对group_concat的完整结果进行处理
+        this.processedExpression = EncryptorDbVisitorUtil.upstreamExpressionDispose(groupConcat, this);
     }
 
     @Override
@@ -842,7 +880,8 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
 
     @Override
     public void visit(CollateExpression aThis) {
-
+        aThis.setLeftExpression(EncryptorDbVisitorUtil.expressionDecryption(aThis.getLeftExpression(), this));
+        this.processedExpression = EncryptorDbVisitorUtil.upstreamExpressionDispose(aThis, this);
     }
 
     @Override
@@ -953,7 +992,9 @@ public class DBDecryptExpressionVisitor extends BaseDEcryptParseTable implements
 
     @Override
     public void visit(TrimFunction trimFunction) {
-
+        trimFunction.setExpression(EncryptorDbVisitorUtil.expressionDecryption(trimFunction.getExpression(), this));
+        trimFunction.setFromExpression(EncryptorDbVisitorUtil.expressionDecryption(trimFunction.getFromExpression(), this));
+        this.processedExpression = EncryptorDbVisitorUtil.upstreamExpressionDispose(trimFunction, this);
     }
 
     @Override

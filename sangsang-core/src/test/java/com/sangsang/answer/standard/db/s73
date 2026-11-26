@@ -1,0 +1,1 @@
+SELECT CAST(AES_DECRYPT(FROM_BASE64(phone), '7uq?q8g3@q') AS CHAR) - 2 AS p FROM tb_user

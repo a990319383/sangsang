@@ -1,0 +1,1 @@
+INSERT INTO tb_user (phone) SELECT TO_BASE64(AES_ENCRYPT(GROUP_CONCAT(user_name ORDER BY user_name), '7uq?q8g3@q')) FROM tb_user

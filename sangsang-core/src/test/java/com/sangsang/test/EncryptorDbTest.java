@@ -97,7 +97,7 @@ public class EncryptorDbTest {
     //使用 cast 函数 某些场景下平替 convert 函数 （说的场景就是 AES_DECRYPT 中文解密乱码，点名批评一下）
     String s26 = "select cast(tu.phone as char) ,cast(tu.phone as char) as ppp from tb_user tu";
 
-    //group by having
+    //GROUP BY使用密文存储字段时保持密文分组，HAVING使用聚合条件
     String s27 = "SELECT tu.phone, count(1) as nums from tb_user tu group by tu.phone having count(1) > 1";
 
     //别名中有 ``
@@ -215,6 +215,54 @@ public class EncryptorDbTest {
     //LATERAL子查询中存在密文字段占位符
     String s64 = "select * from tb_user tu left join lateral (select * from tb_role tr where tr.role_name = tu.phone and tr.role_name = ?) x on (true)";
 
+    //查询项的算术表达式中存在密文存储字段
+    String s65 = "SELECT phone + 'x' AS p FROM tb_user";
+
+    //窗口函数的PARTITION BY保持密文分区，ORDER BY中的密文存储字段进行解密
+    String s66 = "SELECT row_number() OVER (PARTITION BY phone ORDER BY phone) AS rn, phone FROM tb_user";
+
+    //ORDER BY使用带表名的密文存储字段，不能依赖SELECT别名排序
+    String s67 = "SELECT phone AS p FROM tb_user ORDER BY tb_user.phone";
+
+    //GROUP_CONCAT函数内部的ORDER BY中存在密文存储字段
+    String s68 = "SELECT group_concat(phone ORDER BY phone) FROM tb_user";
+
+    //TRIM和COLLATE表达式中存在密文存储字段
+    String s69 = "SELECT trim(phone), phone COLLATE utf8mb4_bin FROM tb_user";
+
+    //除法表达式中存在密文存储字段
+    String s70 = "SELECT phone / 2 AS p FROM tb_user";
+
+    //整除表达式中存在密文存储字段
+    String s71 = "SELECT phone DIV 2 AS p FROM tb_user";
+
+    //乘法表达式中存在密文存储字段
+    String s72 = "SELECT phone * 2 AS p FROM tb_user";
+
+    //减法表达式中存在密文存储字段
+    String s73 = "SELECT phone - 2 AS p FROM tb_user";
+
+    //取模表达式中存在密文存储字段
+    String s74 = "SELECT phone % 2 AS p FROM tb_user";
+
+    //普通函数内部的ORDER BY中存在密文存储字段
+    String s75 = "SELECT array_agg(phone ORDER BY phone) FROM tb_user";
+
+    //KEEP函数内部的ORDER BY中存在密文存储字段
+    String s76 = "SELECT max(phone) KEEP (DENSE_RANK FIRST ORDER BY phone) FROM tb_user";
+
+    //LAG窗口函数的表达式、默认值和ORDER BY中存在密文存储字段
+    String s77 = "SELECT lag(phone, 1, phone) OVER (ORDER BY phone) AS p FROM tb_user";
+
+    //窗口函数的聚合项和ORDER BY进行解密，FILTER按条件处理，PARTITION BY保持密文分区
+    String s78 = "SELECT count(phone) FILTER (WHERE phone = ?) OVER (PARTITION BY phone ORDER BY phone) AS p FROM tb_user";
+
+    //窗口函数的WITHIN GROUP进行解密，PARTITION BY保持密文分区
+    String s79 = "SELECT listagg(phone, ',') WITHIN GROUP (ORDER BY phone) OVER (PARTITION BY phone) AS p FROM tb_user";
+
+    //窗口函数的KEEP进行解密，PARTITION BY保持密文分区
+    String s80 = "SELECT max(phone) KEEP (DENSE_RANK FIRST ORDER BY phone) OVER (PARTITION BY phone) AS p FROM tb_user";
+
     //临时测试sql
     String s_test_tmp = "select phone ph ,id as iii,'?' from tb_user where phone = ?";
 
@@ -226,9 +274,10 @@ public class EncryptorDbTest {
     // ON DUPLICATE KEY UPDATE
     String i3 = "insert into tb_user (user_name,login_name,phone) values (?,?,?) ON DUPLICATE KEY UPDATE user_name = values(user_name), login_name = values(login_name), phone = values(phone), update_time = now()";
 
-    // insert 语句没有指定字段  最新版本改动： 当开启了自动通过dataSource读取表结构信息后，我们是能读取到字段顺序的，这种情况下这种语法能兼容
-    //备注：业务开发最好不要这样写，一旦表结构变更，字段数不对了，这个sql就报错了
-    String i4 = "insert into tb_user values( ?,?,?,?,?,?,?,?)";
+    // insert 语句没有指定字段，autoFill=false时直接抛出FieldException；autoFill=true且成功读取数据库元数据时，可以根据真实字段顺序补全
+    //备注：autoFill=true但未读取到tb_user真实元数据时，当前可能按照扫描实体的字段缓存补全，无法保证和数据库物理列顺序一致，后续单独调整
+    //业务开发最好不要这样写，一旦表结构变更，字段数不对了，这个sql就报错了
+    String i4 = "insert into tb_user_not_exist values( ?,?,?,?,?,?,?,?)";
 
     //insert select ,其中insert语句和select语句中对应的字段，一个密文存储，一个明文存储，也有两个都是密文存储的
     String i5 = "insert into tb_user(user_name,phone,login_name) (select phone, phone,(select tu2.phone from tb_user tu2 where tu2.id = tu.id) from tb_user tu where tu.phone is not null )";
@@ -281,6 +330,15 @@ public class EncryptorDbTest {
 
     //INSERT OUTPUT返回inserted伪表中的密文字段，并且通过了函数处理
     String i21 = "INSERT INTO tb_user(phone,user_name) OUTPUT concat(inserted.phone,'--') AS phone VALUES (?,?)";
+
+    //INSERT SET语法中设置密文存储字段，复用UPDATE SET的加密逻辑
+    String i22 = "INSERT INTO tb_user SET phone = ?, user_name = ?";
+
+    //INSERT SELECT将窗口函数的完整结果写入密文存储字段
+    String i23 = "INSERT INTO tb_user(phone) SELECT row_number() OVER (ORDER BY user_name) FROM tb_user";
+
+    //INSERT SELECT将GROUP_CONCAT的完整结果写入密文存储字段
+    String i24 = "INSERT INTO tb_user(phone) SELECT group_concat(user_name ORDER BY user_name) FROM tb_user";
 
     //UPSERT VALUES语法
     String up1 = "UPSERT INTO tb_user(id,phone) VALUES(?,?)";
@@ -365,6 +423,30 @@ public class EncryptorDbTest {
     //UPDATE OUTPUT 存在别名
     String u17 = "UPDATE TB_USER tu SET user_name = ? OUTPUT inserted.* WHERE tu.id = ?";
 
+    //UPDATE将加法表达式的完整结果写入密文存储字段
+    String u18 = "UPDATE tb_user SET phone = id + 1 WHERE id = ?";
+
+    //UPDATE将除法表达式的完整结果写入密文存储字段
+    String u19 = "UPDATE tb_user SET phone = id / 2 WHERE id = ?";
+
+    //UPDATE将整除表达式的完整结果写入密文存储字段
+    String u20 = "UPDATE tb_user SET phone = id DIV 2 WHERE id = ?";
+
+    //UPDATE将乘法表达式的完整结果写入密文存储字段
+    String u21 = "UPDATE tb_user SET phone = id * 2 WHERE id = ?";
+
+    //UPDATE将减法表达式的完整结果写入密文存储字段
+    String u22 = "UPDATE tb_user SET phone = id - 1 WHERE id = ?";
+
+    //UPDATE将取模表达式的完整结果写入密文存储字段
+    String u23 = "UPDATE tb_user SET phone = id % 2 WHERE id = ?";
+
+    //UPDATE将TRIM表达式的完整结果写入密文存储字段
+    String u24 = "UPDATE tb_user SET phone = trim(user_name) WHERE id = ?";
+
+    //UPDATE将COLLATE表达式的完整结果写入密文存储字段
+    String u25 = "UPDATE tb_user SET phone = user_name COLLATE utf8mb4_bin WHERE id = ?";
+
     //MERGE的ON、UPDATE和INSERT分支
     String m1 = "MERGE INTO tb_user AS t USING tb_user AS s ON(t.phone = ?) WHEN MATCHED THEN UPDATE SET phone = ? WHEN NOT MATCHED THEN INSERT (id, phone) VALUES (?, ?)";
 
@@ -385,7 +467,7 @@ public class EncryptorDbTest {
         CacheTestHelper.testInit(sangSangProperties);
 
         //需要测试的sql
-        String sql = u15;
+        String sql = s80;
         System.out.println("----------------------------------------------------------------------------");
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------");
@@ -407,10 +489,11 @@ public class EncryptorDbTest {
     List<String> sqls = Arrays.asList(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19,
             s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31, s33, s34, s35, s36, s37, s38, s39, s40, s41, s42,
             s43, s44, s45, s46, s47, s48, s49, s50, s51, s52, s53, s54, s55, s56, s57, s58, s59, s61, s62, s63, s64,
-            i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i18, i19, i20, i21,//i17
+            s65, s66, s67, s68, s69, s70, s71, s72, s73, s74, s75, s76, s77, s78, s79, s80,
+            i1, i2, i3, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15, i16, i18, i19, i20, i21, i22, i23, i24,//i4 autoFill=false时预期抛出异常，i17已废弃
             up1, up2,
             d1, d2, d3, d4, d5, d6, d7,
-            u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11, u12, u13, u14, u15, u16, u17,
+            u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11, u12, u13, u14, u15, u16, u17, u18, u19, u20, u21, u22, u23, u24, u25,
             m1
     );
 
@@ -446,7 +529,7 @@ public class EncryptorDbTest {
                 System.out.println("原始sql: " + sql);
                 return;
             }
-            if (StringUtils.sqlEquals(answer, resultSql)) {
+            if (StringUtils.sqlEquals(answer.trim(), resultSql)) {
                 System.out.println("成功: " + sqlFieldName);
             } else {
                 System.out.println("错误: " + sqlFieldName);

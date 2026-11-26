@@ -1,0 +1,1 @@
+INSERT INTO tb_user (phone) SELECT TO_BASE64(AES_ENCRYPT(row_number() OVER (ORDER BY user_name), '7uq?q8g3@q')) FROM tb_user
