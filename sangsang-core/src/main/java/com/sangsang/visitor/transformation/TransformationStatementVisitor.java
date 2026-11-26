@@ -1,15 +1,12 @@
 package com.sangsang.visitor.transformation;
 
-import com.sangsang.cache.transformation.TransformationInstanceCache;
-import com.sangsang.domain.dto.ColumnTransformationDto;
 import com.sangsang.util.CollectionUtils;
+import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.visitor.TransformationVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
-import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
+import com.sangsang.visitor.fieldparse.FieldParseStatementVisitor;
 import com.sangsang.visitor.transformation.wrap.ExpressionWrapper;
 import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
-import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.*;
 import net.sf.jsqlparser.statement.alter.Alter;
@@ -41,7 +38,6 @@ import net.sf.jsqlparser.statement.show.ShowIndexStatement;
 import net.sf.jsqlparser.statement.show.ShowTablesStatement;
 import net.sf.jsqlparser.statement.truncate.Truncate;
 import net.sf.jsqlparser.statement.update.Update;
-import net.sf.jsqlparser.statement.update.UpdateSet;
 import net.sf.jsqlparser.statement.upsert.Upsert;
 
 import java.util.ArrayList;
@@ -91,49 +87,38 @@ public class TransformationStatementVisitor implements StatementVisitor {
     @Override
     public void visit(Delete delete) {
         //1.解析表字段
-        FieldParseParseTableFromItemVisitor fpFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        // from 后的表
-        Table table = delete.getTable();
-        table.accept(fpFromItemVisitor);
-        //join 的表
-        List<Join> joins = Optional.ofNullable(delete.getJoins()).orElse(new ArrayList<>());
-        for (Join join : joins) {
-            FromItem rightItem = join.getRightItem();
-            rightItem.accept(fpFromItemVisitor);
-        }
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        delete.accept(fpStatementVisitor);
 
         //2.将表进行转换
-        TransformationFromItemVisitor tfFromItemVisitor = TransformationFromItemVisitor.newInstanceCurLayer(fpFromItemVisitor);
+        Table table = delete.getTable();
+        List<Join> joins = Optional.ofNullable(delete.getJoins()).orElse(new ArrayList<>());
+        TransformationFromItemVisitor tfFromItemVisitor = TransformationFromItemVisitor.newInstanceCurLayer(fpStatementVisitor);
         table.accept(tfFromItemVisitor);
         for (Join join : joins) {
             join.getRightItem().accept(tfFromItemVisitor);
         }
 
         //3.处理where条件
-        TransformationExpressionVisitor tfExpressionVisitor = TransformationExpressionVisitor.newInstanceCurLayer(fpFromItemVisitor);
+        TransformationExpressionVisitor tfExpressionVisitor = TransformationExpressionVisitor.newInstanceCurLayer(fpStatementVisitor);
         //使用包装类进行转转，额外对整个Expression进行语法转换一次
         Expression tfExp = ExpressionWrapper.wrap(delete.getWhere()).accept(tfExpressionVisitor);
         Optional.ofNullable(tfExp).ifPresent(p -> delete.setWhere(p));
 
         //4.结果赋值
-        this.resultSql = delete.toString();
+        this.resultSql = JsqlparserUtil.perfectOutputIntoSql(delete.toString(), delete.getOutputClause());
     }
 
     @Override
     public void visit(Update update) {
         //1.解析涉及到的表拥有的全部字段信息
-        FieldParseParseTableFromItemVisitor fpFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        //update的表
-        Table table = update.getTable();
-        table.accept(fpFromItemVisitor);
-        //join的表
-        List<Join> joins = Optional.ofNullable(update.getStartJoins()).orElse(new ArrayList<>());
-        for (Join join : joins) {
-            join.getRightItem().accept(fpFromItemVisitor);
-        }
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        update.accept(fpStatementVisitor);
 
         //2.将update和join的表进行转换
-        TransformationFromItemVisitor tfFromItemVisitor = TransformationFromItemVisitor.newInstanceCurLayer(fpFromItemVisitor);
+        Table table = update.getTable();
+        List<Join> joins = Optional.ofNullable(update.getStartJoins()).orElse(new ArrayList<>());
+        TransformationFromItemVisitor tfFromItemVisitor = TransformationFromItemVisitor.newInstanceCurLayer(fpStatementVisitor);
         table.accept(tfFromItemVisitor);
         //join的表
         for (Join join : joins) {
@@ -143,72 +128,46 @@ public class TransformationStatementVisitor implements StatementVisitor {
         //3.处理where条件
         Expression where = update.getWhere();
         if (where != null) {
-            TransformationExpressionVisitor tfExpressionVisitor = TransformationExpressionVisitor.newInstanceCurLayer(fpFromItemVisitor);
+            TransformationExpressionVisitor tfExpressionVisitor = TransformationExpressionVisitor.newInstanceCurLayer(fpStatementVisitor);
             //使用包装类进行转转，额外对整个Expression进行语法转换一次
             Expression tfExp = ExpressionWrapper.wrap(where).accept(tfExpressionVisitor);
             Optional.ofNullable(tfExp).ifPresent(p -> update.setWhere(p));
         }
 
         //4.处理set的值
-        List<UpdateSet> updateSets = update.getUpdateSets();
-        for (UpdateSet updateSet : updateSets) {
-            ExpressionList<Column> columns = updateSet.getColumns();
-            ExpressionList<Expression> values = (ExpressionList<Expression>) updateSet.getValues();
-            //依次处理每一对值（这里columns 和对应set的values 个数肯定是相等的）
-            for (int i = 0; i < columns.size(); i++) {
-                //4.1 先对左边的Column进行语法转换
-                //这里的column肯定是数据库的字段，所以直接传true
-                ColumnTransformationDto columnTransformationDto = new ColumnTransformationDto(columns.get(i), true, true);
-                ColumnTransformationDto transformation = TransformationInstanceCache.transformation(columnTransformationDto);
-                if (transformation != null) {
-                    columns.set(i, transformation.getColumn());
-                }
-                //4.2对右边的值进行语法转化
-                TransformationExpressionVisitor tfExpressionVisitor = TransformationExpressionVisitor.newInstanceCurLayer(fpFromItemVisitor);
-                Expression valueExp = values.get(i);
-                //使用包装类进行转转，额外对整个Expression进行语法转换一次
-                Expression tfExp = ExpressionWrapper.wrap(valueExp).accept(tfExpressionVisitor);
-                if (tfExp != null) {
-                    values.set(i, tfExp);
-                }
-            }
-        }
+        TransformationVisitorUtil.updateSets(update.getUpdateSets(), fpStatementVisitor);
 
         //5.处理结果赋值
-        this.resultSql = update.toString();
+        this.resultSql = JsqlparserUtil.perfectOutputIntoSql(update.toString(), update.getOutputClause());
     }
 
     @Override
     public void visit(Insert insert) {
         //1.解析select的表字段信息
-        FieldParseParseTableSelectVisitor fPSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
-        Select select = insert.getSelect();
-        select.accept(fPSelectVisitor);
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        insert.accept(fpStatementVisitor);
 
         //2.处理select
-        TransformationSelectVisitor tfSelectVisitor = TransformationSelectVisitor.newInstanceCurLayer(fPSelectVisitor);
-        select.accept(tfSelectVisitor);
-        Optional.ofNullable(tfSelectVisitor.getProcessedPlainSelect()).ifPresent(p -> insert.setSelect(p));
+        if (insert.getSelect() != null) {
+            //2.1 先解析select的表字段信息
+            Select select = insert.getSelect();
+            TransformationSelectVisitor tfSelectVisitor = TransformationSelectVisitor.newInstanceNextLayer(fpStatementVisitor);
+            select.accept(tfSelectVisitor);
+            //2.2 如果整个select发生了改写，则将改写后的进行赋值
+            Optional.ofNullable(tfSelectVisitor.getProcessedPlainSelect())
+                    .ifPresent(p -> insert.setSelect(p));
+        }
+
 
         //3.处理Column
-        ExpressionList<Column> columns = insert.getColumns();
-        if (CollectionUtils.isNotEmpty(columns)) {
-            for (int i = 0; i < columns.size(); i++) {
-                //这里的column肯定是数据库的字段，所以直接传true
-                ColumnTransformationDto columnTransformationDto = new ColumnTransformationDto(columns.get(i), true, true);
-                ColumnTransformationDto transformation = TransformationInstanceCache.transformation(columnTransformationDto);
-                if (transformation != null) {
-                    columns.set(i, transformation.getColumn());
-                }
-            }
-        }
+        TransformationVisitorUtil.columns(insert.getColumns());
 
         //4.处理table
         Table table = insert.getTable();
-        table.accept(TransformationFromItemVisitor.newInstanceCurLayer(tfSelectVisitor));
+        table.accept(TransformationFromItemVisitor.newInstanceCurLayer(fpStatementVisitor));
 
         //5.结果赋值
-        this.resultSql = insert.toString();
+        this.resultSql = JsqlparserUtil.perfectOutputIntoSql(insert.toString(), insert.getOutputClause());
 
     }
 
@@ -328,11 +287,11 @@ public class TransformationStatementVisitor implements StatementVisitor {
     @Override
     public void visit(Select select) {
         //1解析当前sql拥有的全部字段信息
-        FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
-        select.accept(fieldParseTableSelectVisitor);
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        select.accept(fpStatementVisitor);
 
         //2.进行语法转换
-        TransformationSelectVisitor selectVisitor = TransformationSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor);
+        TransformationSelectVisitor selectVisitor = TransformationSelectVisitor.newInstanceCurLayer(fpStatementVisitor);
         select.accept(selectVisitor);
 
         //3.处理好的sql赋值
@@ -342,19 +301,19 @@ public class TransformationStatementVisitor implements StatementVisitor {
     @Override
     public void visit(Upsert upsert) {
         //1.解析目标表拥有的全部字段信息
-        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        upsert.getTable().accept(fieldParseTable);
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        upsert.accept(fpStatementVisitor);
 
         //2.处理UPSERT VALUES/SELECT中的值及来源查询
         upsert.setSelect(TransformationVisitorUtil.select(upsert.getSelect()));
 
         //3.处理目标字段、REPLACE SET及冲突更新分支
         TransformationVisitorUtil.columns(upsert.getColumns());
-        TransformationVisitorUtil.updateSets(upsert.getUpdateSets(), fieldParseTable);
-        TransformationVisitorUtil.updateSets(upsert.getDuplicateUpdateSets(), fieldParseTable);
+        TransformationVisitorUtil.updateSets(upsert.getUpdateSets(), fpStatementVisitor);
+        TransformationVisitorUtil.updateSets(upsert.getDuplicateUpdateSets(), fpStatementVisitor);
 
         //4.处理目标表，语句关键字和整体结构保持不变
-        upsert.getTable().accept(TransformationFromItemVisitor.newInstanceCurLayer(fieldParseTable));
+        upsert.getTable().accept(TransformationFromItemVisitor.newInstanceCurLayer(fpStatementVisitor));
 
         //5.处理结果赋值
         this.resultSql = upsert.toString();

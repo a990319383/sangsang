@@ -6,7 +6,6 @@ import com.sangsang.domain.dto.PlaceholderFieldParseTable;
 import com.sangsang.domain.dto.UpstreamExpressionDto;
 import com.sangsang.util.visitor.EncryptorPojoVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
-import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.*;
 

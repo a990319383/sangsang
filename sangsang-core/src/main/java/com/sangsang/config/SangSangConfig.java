@@ -3,7 +3,6 @@ package com.sangsang.config;
 import com.sangsang.cache.SqlParseCache;
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.config.properties.SangSangProperties;
-import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;

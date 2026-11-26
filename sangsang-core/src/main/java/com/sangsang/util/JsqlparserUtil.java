@@ -1,3 +1,4 @@
+
 package com.sangsang.util;
 
 import cn.hutool.core.lang.Pair;
@@ -32,6 +33,7 @@ import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
+import net.sf.jsqlparser.statement.OutputClause;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.AllColumns;
@@ -76,6 +78,34 @@ public class JsqlparserUtil {
         //3.将statement深克隆一份给到调用方，这里不能返回缓存对象，缓存对象里面会改，相互影响
         //备注：这里深克隆一份的耗时大约是重新解析一遍的十分之一，所以这里是个有效缓存，这个也是个高频操作，整个系统多种功能都强依赖这个
         return ObjectUtil.cloneByStream(statement);
+    }
+
+    /**
+     * 修正JSqlParser 4.9序列化OUTPUT INTO语法时目标字段格式错误的问题
+     * <p>
+     * 注意：JSqlParser 4.9会将INTO目标表和目标字段列表直接拼接，导致生成的SQL缺少必要的空格及括号。
+     * 当OUTPUT包含INTO目标表和目标字段时，根据OutputClause中已经解析完成的返回列、
+     * 目标表及目标字段列表，重新构建正确的OUTPUT片段，并替换原SQL中的错误片段。
+     * 不满足OUTPUT INTO目标字段场景时，直接返回原SQL
+     *
+     * @param sql          JSqlParser序列化后的完整SQL
+     * @param outputClause DML语句中的OUTPUT语法对象
+     * @author liutangqi & gpt-5.6-sol
+     * @date 2026/11/17 15:20
+     **/
+    public static String perfectOutputIntoSql(String sql,
+                                              OutputClause outputClause) {
+        if (outputClause == null || CollectionUtils.isEmpty(outputClause.getColumnList())) {
+            return sql;
+        }
+        Object outputTarget = outputClause.getOutputTable() != null ? outputClause.getOutputTable() : outputClause.getTableVariable();
+        if (outputTarget == null) {
+            return sql;
+        }
+
+        String outputSql = outputClause.toString();
+        String perfectOutputSql = " OUTPUT " + outputClause.getSelectItemList().stream().map(Object::toString).collect(Collectors.joining(", ")) + " INTO " + outputTarget + " (" + String.join(", ", outputClause.getColumnList()) + ") ";
+        return sql.replace(outputSql, perfectOutputSql);
     }
 
     /**
@@ -776,7 +806,7 @@ public class JsqlparserUtil {
         //遇到了这种语法，且未开启自动读取表结构，抛出异常，告知用户手动调整
         List<Column> columns = insert.getColumns();
         if (CollectionUtils.isEmpty(columns) && !TableCache.getCurConfig().isAutoFill()) {
-            log.error("【sangsang】insert 语句未指定表字段顺序，且当前未开启自动读取表结构，无法获取表字段顺序。此情况无法处理！！！请规范语法，在表名后指定字段或开启 sangsang.autoFill=true  原sql:{}", insert.toString());
+            log.error("【sangsang】insert 语句未指定表字段顺序，且当前未开启自动读取表结构，无法获取表字段顺序。此情况无法处理！！！请规范语法，在表名后指定字段或开启 sangsang.autoFill=true  原sql:{}", perfectOutputIntoSql(insert.toString(), insert.getOutputClause()));
             throw new FieldException("insert 语句未指定表字段顺序，且当前未开启自动读取表结构，无法获取表字段顺序。此情况无法处理！！！请规范语法，在表名后指定字段或开启 sangsang.autoFill=true");
         }
 

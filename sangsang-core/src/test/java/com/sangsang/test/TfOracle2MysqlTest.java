@@ -4,7 +4,6 @@ import com.sangsang.config.properties.SangSangProperties;
 import com.sangsang.config.properties.TransformationProperties;
 import com.sangsang.domain.constants.SymbolConstant;
 import com.sangsang.domain.constants.TransformationPatternTypeConstant;
-import com.sangsang.domain.dto.DataSourceConfig;
 import com.sangsang.util.AnswerUtil;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.ReflectUtils;
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * @author liutangqi

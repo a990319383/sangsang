@@ -9,7 +9,6 @@ import com.sangsang.util.*;
 import com.sangsang.visitor.pojoencrtptor.PoJoEncrtptorStatementVisitor;
 import net.sf.jsqlparser.statement.Statement;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.BeanUtils;
 
 import java.util.Arrays;
 import java.util.List;

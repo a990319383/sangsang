@@ -1,7 +1,6 @@
 package com.sangsang.transformation.mysql2dm.function;
 
 import com.sangsang.transformation.FunctionTransformation;
-import com.sangsang.util.StringUtils;
 import net.sf.jsqlparser.expression.Function;
 
 /**

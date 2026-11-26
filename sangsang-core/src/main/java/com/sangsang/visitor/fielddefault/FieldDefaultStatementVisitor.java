@@ -3,15 +3,11 @@ package com.sangsang.visitor.fielddefault;
 import cn.hutool.core.collection.CollectionUtil;
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.annos.fielddefault.FieldDefault;
-import com.sangsang.domain.constants.NumberConstant;
-import com.sangsang.domain.constants.SymbolConstant;
-import com.sangsang.domain.dto.FieldInfoDto;
 import com.sangsang.domain.enums.SqlCommandEnum;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
 import com.sangsang.util.visitor.FieldDefaultVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
-import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import com.sangsang.visitor.fieldparse.FieldParseStatementVisitor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -101,7 +97,7 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
         FieldDefaultVisitorUtil.updateSets(update.getUpdateSets(), fpStatementVisitor, SqlCommandEnum.UPDATE);
 
         //3.处理结果赋值
-        this.resultSql = update.toString();
+        this.resultSql = JsqlparserUtil.perfectOutputIntoSql(update.toString(), update.getOutputClause());
     }
 
     @Override
@@ -113,32 +109,28 @@ public class FieldDefaultStatementVisitor implements StatementVisitor {
         FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
         insert.accept(fpStatementVisitor);
 
-        //4.处理insert into table(字段) 语法中的字段部分, (依次解析获取每个字段上面标注的@FieldDefault信息，如果设置了默认值的字段没有在insert into(字段) 中出现，则手动添加) 标准的insert语法才做处理 （备注：insert into set这种非标准的sql的话，insert.getSelect()是null ）
+        //3.处理insert into table(字段) 语法中的字段部分, (依次解析获取每个字段上面标注的@FieldDefault信息，如果设置了默认值的字段没有在insert into(字段) 中出现，则手动添加) 标准的insert语法才做处理 （备注：insert into set这种非标准的sql的话，insert.getSelect()是null ）
         //下标是字段的顺序，从0开始，存的值是对应字段头上的@FieldDefault
         List<FieldDefault> insertFieldDefaultColumns = FieldDefaultVisitorUtil.insertFieldDefaultColumns(insert.getColumns(), insert.getTable());
 
-        //5.处理select的部分（insert into table(xxx) values (values值的部分)）
+        //4.处理select的部分（insert into table(xxx) values (values值的部分)）
         Optional.ofNullable(insert.getSelect())
                 .ifPresent(p -> p.accept(FieldDefaultSelectVisitor.newInstanceCurLayer(fpStatementVisitor, insertFieldDefaultColumns, true)));
 
-        //6. 解析出insert的表的字段信息
-        FieldParseParseTableFromItemVisitor insertFPFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        insert.getTable().accept(insertFPFromItemVisitor);
+        //5. 基于insert的表字段信息，处理ON DUPLICATE KEY UPDATE 部分 （注意：这里的部分其实是进行了数据修改的，不是新增）
+        FieldDefaultVisitorUtil.updateSets(insert.getDuplicateUpdateSets(), fpStatementVisitor, SqlCommandEnum.UPDATE);
 
-        //7. 基于insert的表字段信息，处理ON DUPLICATE KEY UPDATE 部分 （注意：这里的部分其实是进行了数据修改的，不是新增）
-        FieldDefaultVisitorUtil.updateSets(insert.getDuplicateUpdateSets(), insertFPFromItemVisitor, SqlCommandEnum.UPDATE);
+        //6.基于insert的表字段信息，处理 insert set语法部分 （注意：这里的部分其实还是进行的数据新增）
+        FieldDefaultVisitorUtil.updateSets(insert.getSetUpdateSets(), fpStatementVisitor, SqlCommandEnum.INSERT);
 
-        //8.基于insert的表字段信息，处理 insert set语法部分 （注意：这里的部分其实还是进行的数据新增）
-        FieldDefaultVisitorUtil.updateSets(insert.getSetUpdateSets(), insertFPFromItemVisitor, SqlCommandEnum.INSERT);
-
-        //9.基于insert的表字段信息，处理 ON CONFLICT UPDATE (注意：这里的部分其实也是数据修改，不是新增)
+        //7.基于insert的表字段信息，处理 ON CONFLICT UPDATE (注意：这里的部分其实也是数据修改，不是新增)
         InsertConflictAction conflictAction = insert.getConflictAction();
         if (conflictAction != null) {
-            FieldDefaultVisitorUtil.updateSets(conflictAction.getUpdateSets(), insertFPFromItemVisitor, SqlCommandEnum.UPDATE);
+            FieldDefaultVisitorUtil.updateSets(conflictAction.getUpdateSets(), fpStatementVisitor, SqlCommandEnum.UPDATE);
         }
 
-        //10.结果集赋值
-        this.resultSql = insert.toString();
+        //8.结果集赋值
+        this.resultSql = JsqlparserUtil.perfectOutputIntoSql(insert.toString(), insert.getOutputClause());
     }
 
     @Override

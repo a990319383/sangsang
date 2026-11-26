@@ -1,6 +1,5 @@
 package com.sangsang.util;
 
-import cn.hutool.core.collection.CollUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.domain.constants.FieldConstant;
@@ -10,7 +9,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 

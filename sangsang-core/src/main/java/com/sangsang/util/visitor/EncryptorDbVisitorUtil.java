@@ -177,34 +177,6 @@ public class EncryptorDbVisitorUtil {
 
 
     /**
-     * 修正JSqlParser 4.9序列化OUTPUT INTO语法时目标字段格式错误的问题
-     * <p>
-     * 注意：JSqlParser 4.9会将INTO目标表和目标字段列表直接拼接，导致生成的SQL缺少必要的空格及括号。
-     * 当OUTPUT包含INTO目标表和目标字段时，根据OutputClause中已经解析完成的返回列、
-     * 目标表及目标字段列表，重新构建正确的OUTPUT片段，并替换原SQL中的错误片段。
-     * 不满足OUTPUT INTO目标字段场景时，直接返回原SQL
-     *
-     * @param sql          JSqlParser序列化后的完整SQL
-     * @param outputClause DML语句中的OUTPUT语法对象
-     * @author liutangqi & gpt-5.6-sol
-     * @date 2026/11/17 15:20
-     **/
-    public static String perfectOutputIntoSql(String sql,
-                                              OutputClause outputClause) {
-        if (outputClause == null || CollectionUtils.isEmpty(outputClause.getColumnList())) {
-            return sql;
-        }
-        Object outputTarget = outputClause.getOutputTable() != null ? outputClause.getOutputTable() : outputClause.getTableVariable();
-        if (outputTarget == null) {
-            return sql;
-        }
-
-        String outputSql = outputClause.toString();
-        String perfectOutputSql = " OUTPUT " + outputClause.getSelectItemList().stream().map(Object::toString).collect(Collectors.joining(", ")) + " INTO " + outputTarget + " (" + String.join(", ", outputClause.getColumnList()) + ") ";
-        return sql.replace(outputSql, perfectOutputSql);
-    }
-
-    /**
      * 对CTE语法进行加解密处理
      * 栗如：with x as (select phone from tb_user) select phone from x
      *

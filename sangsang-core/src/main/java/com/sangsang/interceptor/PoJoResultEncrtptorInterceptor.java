@@ -26,7 +26,6 @@ import org.apache.ibatis.mapping.ResultMap;
 import org.apache.ibatis.mapping.ResultMapping;
 import org.apache.ibatis.plugin.*;
 import org.apache.ibatis.reflection.MetaObject;
-import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;

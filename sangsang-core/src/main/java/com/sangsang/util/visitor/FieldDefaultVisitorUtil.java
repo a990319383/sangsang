@@ -25,7 +25,6 @@ import net.sf.jsqlparser.expression.NullValue;
 import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
-import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.update.UpdateSet;
@@ -212,43 +211,6 @@ public class FieldDefaultVisitorUtil {
         throw new FieldException("【sangsang】<field-default>多表update中字段未指定所属表，无法确认字段归属表");
     }
 
-
-    /* *//**
-     * 依次解析获取每个字段上面标注的@FieldDefault信息，如果设置了默认值的字段没有在insert into(字段) 中出现，则手动添加
-     * 注意：标准的insert语法才做处理
-     * 备注：只处理处理insert into table(字段) 语法中的字段部分, insert into set这种非标准的sql的话，insert.getSelect()是null
-     *
-     * @author liutangqi
-     * @date 2026/10/13 13:35
-     * @Param [insert, stringFieldDefaultMap :此表字段对应的@FieldDefault 的信息]
-     **//*
-    public static List<FieldDefault> insertFieldDefaultColumns(Insert insert, Map<String, FieldDefault> stringFieldDefaultMap) {
-        List<FieldDefault> insertFieldDefaultColumns = new ArrayList<>();
-        //1. 非标准的insert 语法，比如 insert into set 语法，不做处理，直接返回空结果集
-        if (insert.getSelect() == null) {
-            return insertFieldDefaultColumns;
-        }
-
-        //2. 获取insert的表字段顺序，表结构信息
-        ExpressionList<Column> columns = insert.getColumns();
-        Table table = insert.getTable();
-
-        //3. 如果insert into 表名(字段...) 这种语法，且未开启自动获取表结构的话，我们是没办法获取到正确的字段顺序的，给用户警告日志，让用户自行调整
-        if (!TableCache.getCurConfig().isAutoFill() && CollectionUtils.isEmpty(columns)) {
-            log.warn("【sangsang】insert 语句未指定表字段顺序，且当前未开启自动读取表结构，无法获取表字段顺序。此情况无法设置默认值！！！请规范语法或开启 sangsang.autoFill=true  原sql:{}", insert.toString());
-            return insertFieldDefaultColumns;
-        }
-
-        //4. 如果insert into 表名(字段...) 这种语法，但是开启自动获取表结构，这个时候我们进行手动补全
-        if (TableCache.getCurConfig().isAutoFill() && CollectionUtils.isEmpty(columns)) {
-            List<String> fieldLinkedList = TableCache.getTableFieldMap().get(table.getName());
-            columns = new ExpressionList(fieldLinkedList.stream().map(m -> ExpressionsUtil.buildColumn(m, table.getName())).collect(Collectors.toList()));
-            insert.setColumns(columns);
-        }
-
-        //5.处理字段列表并返回每个字段对应的默认值注解信息
-        return FieldDefaultVisitorUtil.insertFieldDefaultColumns(columns, stringFieldDefaultMap);
-    }*/
 
     /**
      * 依次解析获取UPSERT字段上面标注的@FieldDefault信息，如果设置了默认值的字段没有出现，则手动添加

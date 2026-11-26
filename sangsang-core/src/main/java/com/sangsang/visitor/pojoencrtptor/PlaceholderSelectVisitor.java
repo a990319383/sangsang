@@ -1,7 +1,6 @@
 package com.sangsang.visitor.pojoencrtptor;
 
 import com.sangsang.domain.dto.*;
-import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.visitor.EncryptorPojoVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
 import net.sf.jsqlparser.expression.Expression;

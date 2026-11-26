@@ -89,6 +89,7 @@ public class TransformationVisitorUtil {
             return;
         }
         for (int i = 0; i < columns.size(); i++) {
+            //这里的column肯定是数据库的字段，所以直接传true
             ColumnTransformationDto columnTransformationDto = new ColumnTransformationDto(columns.get(i), true, true);
             ColumnTransformationDto transformation = TransformationInstanceCache.transformation(columnTransformationDto);
             if (transformation != null) {

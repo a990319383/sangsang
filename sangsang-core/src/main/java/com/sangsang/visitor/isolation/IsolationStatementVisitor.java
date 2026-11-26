@@ -3,10 +3,9 @@ package com.sangsang.visitor.isolation;
 import com.sangsang.cache.fieldparse.TableCache;
 import com.sangsang.util.CollectionUtils;
 import com.sangsang.util.JsqlparserUtil;
-import com.sangsang.util.visitor.FieldParseVisitorUtil;
 import com.sangsang.util.visitor.IsolationVisitorUtil;
 import com.sangsang.visitor.fieldparse.FieldParseParseTableFromItemVisitor;
-import com.sangsang.visitor.fieldparse.FieldParseParseTableSelectVisitor;
+import com.sangsang.visitor.fieldparse.FieldParseStatementVisitor;
 import lombok.Getter;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.*;
@@ -40,7 +39,6 @@ import net.sf.jsqlparser.statement.truncate.Truncate;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.statement.upsert.Upsert;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -91,44 +89,26 @@ public class IsolationStatementVisitor implements StatementVisitor {
         }
 
         //2.解析涉及到的表拥有的全部字段信息
-        FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-
-        //2.1 update的表
-        Table table = delete.getTable();
-        Optional.ofNullable(table).ifPresent(p -> p.accept(fieldParseTableFromItemVisitor));
-
-        //2.2 using中的表
-        List<Table> usingTables = Optional.ofNullable(delete.getUsingList()).orElse(new ArrayList<>());
-        for (Table usingTable : usingTables) {
-            Optional.ofNullable(usingTable).ifPresent(p -> p.accept(fieldParseTableFromItemVisitor));
-        }
-
-        //2.3 DELETE目标表列表
-        List<Table> targetTables = Optional.ofNullable(delete.getTables()).orElse(new ArrayList<>());
-        for (Table targetTable : targetTables) {
-            Optional.ofNullable(targetTable).ifPresent(p -> p.accept(fieldParseTableFromItemVisitor));
-        }
-
-        //2.4 join的表
-        FieldParseVisitorUtil.joins(delete.getJoins(), fieldParseTableFromItemVisitor);
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        delete.accept(fpStatementVisitor);
 
         //3.特殊语法数据隔离处理
         //3.1 joins 存在的子查询
-        IsolationVisitorUtil.joins(delete.getJoins(), IsolationFromItemVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor));
+        IsolationVisitorUtil.joins(delete.getJoins(), IsolationFromItemVisitor.newInstanceCurLayer(fpStatementVisitor));
 
         //3.2 CTE中的查询也需要进行数据隔离
-        IsolationSelectVisitor isolationSelectVisitor = IsolationSelectVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor);
+        IsolationSelectVisitor isolationSelectVisitor = IsolationSelectVisitor.newInstanceCurLayer(fpStatementVisitor);
         IsolationVisitorUtil.cte(delete.getWithItemsList(), isolationSelectVisitor);
 
         //3.3 Order by 中可能存在子查询
-        IsolationVisitorUtil.orderByElements(delete.getOrderByElements(), IsolationExpressionVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor));
+        IsolationVisitorUtil.orderByElements(delete.getOrderByElements(), IsolationExpressionVisitor.newInstanceCurLayer(fpStatementVisitor));
 
         //4.处理where的条件
-        Optional.ofNullable(JsqlparserUtil.isolationWhere(delete.getWhere(), fieldParseTableFromItemVisitor))
+        Optional.ofNullable(JsqlparserUtil.isolationWhere(delete.getWhere(), fpStatementVisitor))
                 .ifPresent(p -> delete.setWhere(p));
 
         //5.处理结果赋值
-        this.resultSql = delete.toString();
+        this.resultSql = JsqlparserUtil.perfectOutputIntoSql(delete.toString(), delete.getOutputClause());
     }
 
     @Override
@@ -139,28 +119,16 @@ public class IsolationStatementVisitor implements StatementVisitor {
         }
 
         //2.解析涉及到的表拥有的全部字段信息
-        FieldParseParseTableFromItemVisitor fieldParseTableFromItemVisitor = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-
-        //2.1 update的表
-        Table table = update.getTable();
-        table.accept(fieldParseTableFromItemVisitor);
-
-        //2.2 join的内容
-        FieldParseVisitorUtil.joins(update.getStartJoins(), fieldParseTableFromItemVisitor);
-        FieldParseVisitorUtil.joins(update.getJoins(), fieldParseTableFromItemVisitor);
-
-        //2.3 from中的表 栗如：UPDATE tb_user tu SET tu.phone = su.mobile FROM sys_user su WHERE tu.id = su.id ，这里是可以接from的
-        if (update.getFromItem() != null) {
-            update.getFromItem().accept(fieldParseTableFromItemVisitor);
-        }
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        update.accept(fpStatementVisitor);
 
         //3.处理特殊语法的数据权限隔离
         //3.1 CTE中的查询进行数据隔离
-        IsolationSelectVisitor isolationSelectVisitor = IsolationSelectVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor);
+        IsolationSelectVisitor isolationSelectVisitor = IsolationSelectVisitor.newInstanceCurLayer(fpStatementVisitor);
         IsolationVisitorUtil.cte(update.getWithItemsList(), isolationSelectVisitor);
 
         //3.2 join的表 (不同数据库的join解析有些许差异，有的在startJoins中，有的在joins中)
-        IsolationFromItemVisitor isolationFromItemVisitor = IsolationFromItemVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor);
+        IsolationFromItemVisitor isolationFromItemVisitor = IsolationFromItemVisitor.newInstanceCurLayer(fpStatementVisitor);
         IsolationVisitorUtil.joins(update.getStartJoins(), isolationFromItemVisitor);
         IsolationVisitorUtil.joins(update.getJoins(), isolationFromItemVisitor);
 
@@ -170,18 +138,18 @@ public class IsolationStatementVisitor implements StatementVisitor {
         }
 
         //3.4 SET表达式中的标量子查询、EXISTS等嵌套查询
-        IsolationExpressionVisitor isolationExpressionVisitor = IsolationExpressionVisitor.newInstanceCurLayer(fieldParseTableFromItemVisitor);
+        IsolationExpressionVisitor isolationExpressionVisitor = IsolationExpressionVisitor.newInstanceCurLayer(fpStatementVisitor);
         IsolationVisitorUtil.updateSets(update.getUpdateSets(), isolationExpressionVisitor);
 
         //3.5 ORDER BY中的子查询
         IsolationVisitorUtil.orderByElements(update.getOrderByElements(), isolationExpressionVisitor);
 
         //4.处理where的条件
-        Optional.ofNullable(JsqlparserUtil.isolationWhere(update.getWhere(), fieldParseTableFromItemVisitor))
+        Optional.ofNullable(JsqlparserUtil.isolationWhere(update.getWhere(), fpStatementVisitor))
                 .ifPresent(p -> update.setWhere(p));
 
         //5.处理结果赋值
-        this.resultSql = update.toString();
+        this.resultSql = JsqlparserUtil.perfectOutputIntoSql(update.toString(), update.getOutputClause());
     }
 
     @Override
@@ -195,17 +163,17 @@ public class IsolationStatementVisitor implements StatementVisitor {
         Select select = insert.getSelect();
         if (select != null) {
             //2.1 解析当前sql拥有的全部字段信息
-            FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
-            select.accept(fieldParseTableSelectVisitor);
+            FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+            insert.accept(fpStatementVisitor);
 
-            //2.2 进行权限隔离改造
-            IsolationSelectVisitor ilSelectVisitor = IsolationSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor);
+            //2.2 进行权限隔离改造（注意：这里是下一层，因为fieldParser里面将insert select后面的部分作为了下一层作用域进行解析的）
+            IsolationSelectVisitor ilSelectVisitor = IsolationSelectVisitor.newInstanceNextLayer(fpStatementVisitor);
             select.accept(ilSelectVisitor);
         }
 
         //3.处理结果赋值
         insert.setSelect(select);
-        this.resultSql = insert.toString();
+        this.resultSql = JsqlparserUtil.perfectOutputIntoSql(insert.toString(), insert.getOutputClause());
     }
 
     @Override
@@ -339,11 +307,11 @@ public class IsolationStatementVisitor implements StatementVisitor {
     @Override
     public void visit(Select select) {
         //1.解析当前sql拥有的全部字段信息
-        FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
-        select.accept(fieldParseTableSelectVisitor);
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        select.accept(fpStatementVisitor);
 
         //2.进行权限隔离改造
-        IsolationSelectVisitor ilSelectVisitor = IsolationSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor);
+        IsolationSelectVisitor ilSelectVisitor = IsolationSelectVisitor.newInstanceCurLayer(fpStatementVisitor);
         select.accept(ilSelectVisitor);
 
         //3.处理结果赋值
@@ -357,18 +325,16 @@ public class IsolationStatementVisitor implements StatementVisitor {
             return;
         }
 
+        //2.解析表字段
+        FieldParseStatementVisitor fpStatementVisitor = FieldParseStatementVisitor.newInstanceFirstLayer();
+        upsert.accept(fpStatementVisitor);
+
         //2.处理UPSERT VALUES/SELECT中可能存在的来源表或子查询
-        Select select = upsert.getSelect();
-        if (select != null) {
-            FieldParseParseTableSelectVisitor fieldParseTableSelectVisitor = FieldParseParseTableSelectVisitor.newInstanceFirstLayer();
-            select.accept(fieldParseTableSelectVisitor);
-            select.accept(IsolationSelectVisitor.newInstanceCurLayer(fieldParseTableSelectVisitor));
-        }
+        Optional.ofNullable(upsert.getSelect())
+                .ifPresent(p -> p.accept(IsolationSelectVisitor.newInstanceCurLayer(fpStatementVisitor)));
 
         //3.处理REPLACE SET及冲突更新值中可能存在的子查询
-        FieldParseParseTableFromItemVisitor fieldParseTable = FieldParseParseTableFromItemVisitor.newInstanceFirstLayer();
-        upsert.getTable().accept(fieldParseTable);
-        IsolationExpressionVisitor expressionVisitor = IsolationExpressionVisitor.newInstanceCurLayer(fieldParseTable);
+        IsolationExpressionVisitor expressionVisitor = IsolationExpressionVisitor.newInstanceCurLayer(fpStatementVisitor);
         IsolationVisitorUtil.updateSets(upsert.getUpdateSets(), expressionVisitor);
         IsolationVisitorUtil.updateSets(upsert.getDuplicateUpdateSets(), expressionVisitor);
 

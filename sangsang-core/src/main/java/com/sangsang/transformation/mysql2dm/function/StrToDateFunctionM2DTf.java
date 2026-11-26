@@ -2,7 +2,6 @@ package com.sangsang.transformation.mysql2dm.function;
 
 import com.sangsang.domain.enums.TransformationDateFormatEnum;
 import com.sangsang.transformation.FunctionTransformation;
-import com.sangsang.util.StringUtils;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.Function;
 import net.sf.jsqlparser.expression.StringValue;

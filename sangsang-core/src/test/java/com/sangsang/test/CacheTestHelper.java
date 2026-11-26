@@ -12,7 +12,6 @@ import com.sangsang.domain.constants.TransformationPatternTypeConstant;
 import com.sangsang.domain.context.TfParameterMappingHolder;
 import com.sangsang.encryptor.db.DefaultDBFieldEncryptorPattern;
 import com.sangsang.strategy.TestDataIsolationStrategy;
-import com.sangsang.util.StringUtils;
 
 import java.util.*;
 

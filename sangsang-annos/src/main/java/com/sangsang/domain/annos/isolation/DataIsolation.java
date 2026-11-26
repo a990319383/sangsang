@@ -1,7 +1,6 @@
 package com.sangsang.domain.annos.isolation;
 
 import com.sangsang.domain.enums.IsolationConditionalRelationEnum;
-import com.sangsang.domain.enums.IsolationRelationEnum;
 import com.sangsang.domain.strategy.DefaultStrategyBase;
 import com.sangsang.domain.strategy.isolation.DataIsolationStrategy;
 

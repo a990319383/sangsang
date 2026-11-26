@@ -15,7 +15,6 @@ import net.sf.jsqlparser.statement.select.WithItem;
 import net.sf.jsqlparser.statement.update.UpdateSet;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * isolation visitor处理中的一些共有逻辑

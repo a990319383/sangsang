@@ -2,7 +2,6 @@ package com.sangsang.transformation.mysql2dm.expression;
 
 import com.sangsang.domain.constants.NumberConstant;
 import com.sangsang.transformation.ExpressionTransformation;
-import com.sangsang.util.StringUtils;
 import net.sf.jsqlparser.expression.*;
 import net.sf.jsqlparser.expression.operators.arithmetic.Addition;
 import net.sf.jsqlparser.expression.operators.arithmetic.Subtraction;

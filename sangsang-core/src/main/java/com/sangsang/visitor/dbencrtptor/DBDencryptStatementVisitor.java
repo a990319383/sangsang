@@ -110,7 +110,7 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
         EncryptorDbVisitorUtil.output(delete.getOutputClause(), delete.getTable(), fpStatementVisitor);
 
         //5.结果赋值
-        this.resultSql = EncryptorDbVisitorUtil.perfectOutputIntoSql(delete.toString(), delete.getOutputClause());
+        this.resultSql = JsqlparserUtil.perfectOutputIntoSql(delete.toString(), delete.getOutputClause());
     }
 
     @Override
@@ -144,7 +144,7 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
         EncryptorDbVisitorUtil.output(update.getOutputClause(), update.getTable(), fpStatementVisitor);
 
         //7.处理结果赋值
-        this.resultSql = EncryptorDbVisitorUtil.perfectOutputIntoSql(update.toString(), update.getOutputClause());
+        this.resultSql = JsqlparserUtil.perfectOutputIntoSql(update.toString(), update.getOutputClause());
 
     }
 
@@ -176,7 +176,7 @@ public class DBDencryptStatementVisitor implements StatementVisitor {
         EncryptorDbVisitorUtil.output(insert.getOutputClause(), insert.getTable(), fpStatementVisitor);
 
         //7.处理好的sql赋值
-        this.resultSql = EncryptorDbVisitorUtil.perfectOutputIntoSql(insert.toString(), insert.getOutputClause());
+        this.resultSql = JsqlparserUtil.perfectOutputIntoSql(insert.toString(), insert.getOutputClause());
     }
 
 
